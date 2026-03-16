@@ -1,0 +1,252 @@
+'use client'
+
+import Link from 'next/link'
+import { ShoppingCart, Menu, X, ChevronDown, User, LogIn } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useCart } from '@/components/cart-provider'
+import { PRODUCTS } from '@/lib/products'
+import { createClient } from '@/lib/supabase/client'
+
+export function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const { cart } = useCart()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsLoggedIn(!!user)
+    }
+    checkAuth()
+
+    // Listen for auth changes
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  return (
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-18 py-3">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-11 h-11 bg-[#00c8c8] rounded-xl flex items-center justify-center shadow-lg shadow-[#00c8c8]/30 group-hover:scale-110 transition-transform">
+              <span className="text-white font-black text-lg">FO</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-black text-xl text-foreground leading-none">
+                FAST OEM
+              </span>
+              <span className="text-[10px] text-[#00c8c8] font-bold leading-none mt-1">
+                オリジナルグッズ製作
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl font-bold"
+                >
+                  商品一覧
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 rounded-xl border-2 border-[#00c8c8]/20">
+                <DropdownMenuItem asChild>
+                  <Link href="/products" className="cursor-pointer font-bold text-[#00c8c8]">
+                    すべての商品
+                  </Link>
+                </DropdownMenuItem>
+                <div className="h-px bg-[#ffe135] my-1" />
+                {PRODUCTS.map((product) => (
+                  <DropdownMenuItem key={product.slug} asChild>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="cursor-pointer hover:text-[#ff7b54] transition-colors"
+                    >
+                      {product.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Link
+              href="/#how-it-works"
+              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
+            >
+              ご利用方法
+            </Link>
+          </nav>
+
+          {/* Cart & CTA */}
+          <div className="flex items-center gap-3">
+            {/* Login/MyPage Button */}
+            {isLoggedIn ? (
+              <Link href="/mypage">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8]"
+                >
+                  <User className="h-5 w-5" />
+                  <span className="sr-only">マイページ</span>
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="hidden sm:block">
+                  <Button
+                    variant="ghost"
+                    className="h-11 px-4 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8] font-bold text-sm"
+                  >
+                    ログイン
+                  </Button>
+                </Link>
+                <Link href="/signup" className="hidden sm:block">
+                  <Button
+                    className="h-11 px-4 rounded-xl bg-[#00c8c8] hover:bg-[#00b0b0] text-white font-bold text-sm shadow-lg shadow-[#00c8c8]/30"
+                  >
+                    新規登録
+                  </Button>
+                </Link>
+                <Link href="/login" className="sm:hidden">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8]"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    <span className="sr-only">ログイン</span>
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            <Link href="/cart" className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative h-11 w-11 rounded-xl hover:bg-[#ffe135]/20 border-2 border-transparent hover:border-[#ffe135]"
+              >
+                <ShoppingCart className="h-6 w-6" />
+                {cart.totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-[#ff7b54] text-white text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                    {cart.totalItems}
+                  </span>
+                )}
+                <span className="sr-only">カート</span>
+              </Button>
+            </Link>
+
+            <Button
+              asChild
+              className="hidden sm:flex bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-11 px-6 rounded-xl shadow-lg shadow-[#ff7b54]/30 font-bold border-2 border-white"
+            >
+              <Link href="/products">今すぐ作成</Link>
+            </Button>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              <span className="sr-only">メニュー</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Navigation */}
+      {isMenuOpen && (
+        <div className="md:hidden bg-white border-t-2 border-[#00c8c8]/20">
+          <nav className="flex flex-col px-4 py-4 gap-1">
+            <div className="py-2 px-3 text-xs font-bold text-[#00c8c8] uppercase tracking-wider">
+              商品カテゴリ
+            </div>
+            {PRODUCTS.map((product, index) => {
+              const colors = ['text-[#00c8c8]', 'text-[#ffe135]', 'text-[#ff7b54]', 'text-[#7ed957]', 'text-[#a78bfa]']
+              return (
+                <Link
+                  key={product.slug}
+                  href={`/products/${product.slug}`}
+                  className={`text-foreground py-3 px-3 hover:bg-[#00c8c8]/10 rounded-xl transition-colors font-medium flex items-center gap-3`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <span className={`w-2 h-2 rounded-full ${colors[index % colors.length].replace('text-', 'bg-')}`} />
+                  {product.name}
+                </Link>
+              )
+            })}
+            <div className="h-px bg-[#ffe135] my-2" />
+            <Link
+              href="/products"
+              className="text-white py-3 px-4 bg-[#00c8c8] rounded-xl transition-colors font-bold text-center"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              すべての商品を見る
+            </Link>
+            <Link
+              href="/#how-it-works"
+              className="text-foreground py-3 px-3 hover:bg-[#ffe135]/20 rounded-xl transition-colors font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              ご利用方法
+            </Link>
+            <div className="h-px bg-[#ffe135] my-2" />
+            {isLoggedIn ? (
+              <Link
+                href="/mypage"
+                className="text-foreground py-3 px-3 hover:bg-[#00c8c8]/10 rounded-xl transition-colors font-medium flex items-center gap-3"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <User className="w-4 h-4" />
+                マイページ
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-foreground py-3 px-3 hover:bg-[#00c8c8]/10 rounded-xl transition-colors font-medium flex items-center gap-3"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <LogIn className="w-4 h-4" />
+                  ログイン
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-white py-3 px-4 bg-[#00c8c8] rounded-xl transition-colors font-bold text-center flex items-center justify-center gap-3"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <User className="w-4 h-4" />
+                  新規登録
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
+    </header>
+  )
+}
