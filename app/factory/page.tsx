@@ -7,6 +7,7 @@ export default async function FactoryPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
+    // Role is already enforced by factory/layout.tsx — this is a belt-and-suspenders guard
 
     // Get the factory_id for this user
     const { data: profile } = await supabase

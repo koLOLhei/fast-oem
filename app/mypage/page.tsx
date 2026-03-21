@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
@@ -7,6 +8,17 @@ export default async function MypagePage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
+
+    // Redirect staff roles to their own portals — prevents accidental /mypage access
+    const serviceClient = createServiceClient()
+    const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role === 'admin') redirect('/admin')
+    if (profile?.role === 'factory') redirect('/factory')
 
     const { data: orders } = await supabase
         .from('orders')

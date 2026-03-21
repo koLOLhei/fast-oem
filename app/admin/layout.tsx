@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { AdminNav } from './admin-nav'
 
@@ -11,6 +12,28 @@ export default async function AdminLayout({
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
+        redirect('/login')
+    }
+
+    // Use service-role to bypass RLS — guarantees we always get the real role
+    const serviceClient = createServiceClient()
+    const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('role, is_active')
+        .eq('id', user!.id)
+        .single()
+
+    if (!profile) {
+        redirect('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'))
+    }
+
+    if ((profile as any).is_active === false) {
+        redirect('/login?error=account_disabled')
+    }
+
+    if ((profile as any).role !== 'admin') {
+        // Send factory users to their portal, others to login
+        if ((profile as any).role === 'factory') redirect('/factory')
         redirect('/login')
     }
 
