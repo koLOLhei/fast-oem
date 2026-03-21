@@ -1,10 +1,18 @@
 import { login } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 export default async function LoginPage(
-    props: { searchParams: Promise<{ message: string }> }
+    props: { searchParams: Promise<{ message?: string; error?: string }> }
 ) {
     const searchParams = await props.searchParams
+
+    const errorMessage =
+        searchParams?.error === 'account_disabled'
+            ? 'このアカウントは無効化されています。管理者にお問い合わせください'
+            : searchParams?.message ?? null
+
+    const isSuccess = searchParams?.message?.includes('パスワードを更新しました')
 
     return (
         <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2 mx-auto min-h-[80vh]">
@@ -16,31 +24,44 @@ export default async function LoginPage(
             </div>
 
             <form className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground mb-8">
-                <label className="text-md font-semibold" htmlFor="email">
-                    Email
+                <label className="text-sm font-semibold" htmlFor="email">
+                    メールアドレス
                 </label>
                 <input
                     className="rounded-md px-4 py-2 bg-inherit border mb-4"
                     name="email"
+                    type="email"
                     placeholder="you@example.com"
                     required
                 />
-                <label className="text-md font-semibold" htmlFor="password">
-                    Password
+                <label className="text-sm font-semibold" htmlFor="password">
+                    パスワード
                 </label>
                 <input
-                    className="rounded-md px-4 py-2 bg-inherit border mb-6"
+                    className="rounded-md px-4 py-2 bg-inherit border mb-2"
                     type="password"
                     name="password"
                     placeholder="••••••••"
                     required
                 />
+                <div className="flex justify-end mb-4">
+                    <Link
+                        href="/reset-password"
+                        className="text-xs text-muted-foreground hover:text-primary underline transition-colors"
+                    >
+                        パスワードをお忘れの方はこちら
+                    </Link>
+                </div>
                 <Button formAction={login} className="bg-primary px-4 py-2 rounded-md mb-2">
                     ログイン
                 </Button>
-                {searchParams?.message && (
-                    <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center rounded-md">
-                        {searchParams.message}
+                {errorMessage && (
+                    <p className={`mt-4 p-4 text-center rounded-md text-sm ${
+                        isSuccess
+                            ? 'bg-green-50 text-green-800 border border-green-200'
+                            : 'bg-red-50 text-red-800 border border-red-200'
+                    }`}>
+                        {errorMessage}
                     </p>
                 )}
             </form>
