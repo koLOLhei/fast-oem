@@ -326,6 +326,11 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                     {t.expressDelivery}
                                                 </span>
                                             )}
+                                            {item.mold_order_id && (
+                                                <span className="shrink-0 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full border border-purple-200">
+                                                    {locale === 'ja' ? '🔁 リピート注文' : locale === 'zh' ? '🔁 重复订单' : locale === 'vi' ? '🔁 Đặt lại' : '🔁 Repeat Order'}
+                                                </span>
+                                            )}
                                         </div>
                                         <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold ${statusColors[item.status]}`}>
                                             {t[item.status as keyof typeof t] ?? item.status}
@@ -348,6 +353,19 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                             {o.name}: <span className="font-semibold">{o.value}</span>
                                                         </span>
                                                     ))}
+                                                </div>
+                                            )}
+                                            {item.mold_order_id && (
+                                                <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+                                                    <p className="text-xs text-purple-800">
+                                                        <span className="font-bold">
+                                                            {locale === 'ja' ? '型再利用' : locale === 'zh' ? '模具复用' : locale === 'vi' ? 'Tái sử dụng khuôn' : 'Mold Reuse'}
+                                                        </span>
+                                                        {' — '}
+                                                        {locale === 'ja' ? '前回注文番号:' : locale === 'zh' ? '原始订单号:' : locale === 'vi' ? 'Mã đơn gốc:' : 'Original order:'}
+                                                        {' '}
+                                                        <span className="font-mono font-semibold">{item.mold_order_id}</span>
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>

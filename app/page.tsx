@@ -107,7 +107,7 @@ const organizationJsonLd = {
   '@type': 'Organization',
   name: 'FAST OEM',
   url: BASE_URL,
-  logo: `${BASE_URL}/icon.svg`,
+  logo: `${BASE_URL}/logo.png`,
   description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
   sameAs: [],
 }

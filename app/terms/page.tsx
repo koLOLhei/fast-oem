@@ -6,8 +6,22 @@ export const metadata: Metadata = {
     description: 'FAST OEM サービス利用規約・特定商取引法に基づく表記',
 }
 
+const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
+        { '@type': 'ListItem', position: 2, name: '利用規約', item: 'https://fast-oem.soara-mu.jp/terms' },
+    ],
+}
+
 export default function TermsPage() {
     return (
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+            />
         <div className="min-h-screen bg-background py-12">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-bold text-foreground mb-2">利用規約</h1>
@@ -184,5 +198,6 @@ export default function TermsPage() {
                 </div>
             </div>
         </div>
+        </>
     )
 }

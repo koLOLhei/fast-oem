@@ -43,8 +43,22 @@ const items = [
   },
 ]
 
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
+    { '@type': 'ListItem', position: 2, name: '特定商取引法に基づく表記', item: 'https://fast-oem.soara-mu.jp/tokushoho' },
+  ],
+}
+
 export default function TokushohoPage() {
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
@@ -84,5 +98,6 @@ export default function TokushohoPage() {
         </p>
       </div>
     </div>
+    </>
   )
 }
