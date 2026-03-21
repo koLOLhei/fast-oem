@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { FactoryPortalClient } from './factory-portal-client'
+import { toSignedUrl } from '@/lib/supabase/storage'
 
 export default async function FactoryPage() {
     const supabase = await createClient()
@@ -28,8 +29,9 @@ export default async function FactoryPage() {
         )
     }
 
-    // Fetch only items assigned to this factory
+    // Fetch all items assigned to this factory (including cancelled)
     // NOTE: price information is intentionally NOT selected
+    // NOTE: stripe_session_id and pricing columns are intentionally excluded
     const { data: items } = await supabase
         .from('order_items')
         .select(`
@@ -38,20 +40,37 @@ export default async function FactoryPage() {
       quantity,
       options,
       status,
+      tracking_number,
       design_file_name,
       design_url,
       converted_design_url,
+      delivery_pdf_url,
+      express_delivery,
       orders (
         created_at,
-        shipping_address
+        shipping_address,
+        order_number,
+        status,
+        factory_note
       )
     `)
         .eq('factory_id', factoryId)
         .order('created_at', { ascending: false })
 
+    // Generate signed URLs (1 hour) for production files before passing to client.
+    // This keeps the `designs` bucket private — client components never receive
+    // permanent storage URLs, only short-lived signed ones.
+    const signedItems = await Promise.all(
+        (items ?? []).map(async (item) => ({
+            ...(item as any),
+            converted_design_url: await toSignedUrl((item as any).converted_design_url, 43200),
+            delivery_pdf_url: await toSignedUrl((item as any).delivery_pdf_url, 43200),
+        }))
+    )
+
     return (
         <FactoryPortalClient
-            items={(items ?? []) as any}
+            items={signedItems as any}
             factoryName={factoryName}
         />
     )

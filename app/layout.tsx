@@ -11,36 +11,61 @@ const notoSansJP = Noto_Sans_JP({
   variable: '--font-noto-sans-jp',
 })
 
+const BASE_URL = 'https://fast-oem.soara-mu.jp'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(BASE_URL),
   title: {
-    default: 'FAST OEM | オリジナルグッズを簡単作成',
+    default: 'FAST OEM | 小ロットOEMグッズ製作・オリジナルグッズ作成',
     template: '%s | FAST OEM',
   },
   description:
-    'アクリルキーホルダー、缶バッジ、ピンバッジなど、オリジナルグッズを簡単・スピーディーに作成。高品質な製品を低価格でお届けします。',
+    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ビニール袋のOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティ・推しグッズの製作なら FAST OEM。',
   keywords: [
-    'オリジナルグッズ',
-    'アクリルキーホルダー',
-    '缶バッジ',
-    'ピンバッジ',
-    'ラバーキーホルダー',
-    'ノベルティ',
-    'OEM',
+    'OEM', 'OEM製造', 'OEM製作', 'グッズ制作', 'グッズ製作', 'グッズ製造',
+    'オリジナルグッズ', 'オリジナル商品', 'オリジナルグッズ製作',
+    'アクリルキーホルダー', 'アクリルキーホルダー製作', 'アクリルキーホルダー作成',
+    '缶バッジ', '缶バッジ製作', '缶バッジ作成', '缶バッジ小ロット',
+    'ピンバッジ', 'ピンバッジ製作', 'ピンバッジ作成',
+    'ラバーキーホルダー', 'ラバーキーホルダー製作', 'ゴムキーホルダー',
+    'ビニール袋', 'ビニール袋製作', 'ビニール袋オリジナル',
+    'ノベルティ', 'ノベルティ製作', 'ノベルティグッズ',
+    '同人グッズ', '同人グッズ製作', '推しグッズ',
+    '小ロット', '小ロット製作', '小ロット注文', '格安', 'スピード納品', '短納期',
+    'キーホルダー製作', 'バッジ製作',
   ],
+  authors: [{ name: 'FAST OEM', url: BASE_URL }],
+  creator: 'FAST OEM',
+  publisher: 'FAST OEM',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'ja_JP',
+    url: BASE_URL,
+    siteName: 'FAST OEM',
+    title: 'FAST OEM | 小ロットOEMグッズ製作・オリジナルグッズ作成',
+    description:
+      'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作なら FAST OEM。',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FAST OEM | オリジナルグッズ製作',
+    description: 'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。',
+    images: ['/og-image.png'],
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     apple: '/apple-icon.png',
   },

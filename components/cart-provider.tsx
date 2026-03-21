@@ -42,13 +42,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage whenever it changes.
+  // Large data:URI design images (base64) can exceed the ~5MB localStorage limit,
+  // so we strip them before storing (deliveryPdfUrl is the authoritative source for checkout).
   useEffect(() => {
     if (!isLoading) {
+      const MAX_DESIGN_URI_LEN = 150_000 // ~110 KB base64 threshold
+      const stripLargeImages = (c: Cart): Cart => ({
+        ...c,
+        items: c.items.map((item) => ({
+          ...item,
+          designImage:
+            item.designImage?.startsWith('data:') && item.designImage.length > MAX_DESIGN_URI_LEN
+              ? null
+              : item.designImage,
+        })),
+      })
       try {
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart))
-      } catch {
-        console.error('Failed to save cart to localStorage')
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(stripLargeImages(cart)))
+      } catch (e: any) {
+        // Fallback: strip ALL data:URI images if quota is still exceeded
+        if (e?.name === 'QuotaExceededError' || e?.code === 22) {
+          try {
+            const stripped: Cart = {
+              ...cart,
+              items: cart.items.map((item) => ({
+                ...item,
+                designImage: item.designImage?.startsWith('data:') ? null : item.designImage,
+              })),
+            }
+            localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(stripped))
+          } catch {
+            console.error('カートの保存に失敗しました（ストレージ容量不足）')
+          }
+        } else {
+          console.error('Failed to save cart to localStorage', e)
+        }
       }
     }
   }, [cart, isLoading])

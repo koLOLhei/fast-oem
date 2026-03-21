@@ -21,10 +21,10 @@ export default async function FactoriesPage() {
                 <table className="w-full text-sm">
                     <thead className="bg-muted/50 border-b">
                         <tr>
-                            <th className="text-left p-4 font-semibold">工場名</th>
-                            <th className="text-left p-4 font-semibold">国</th>
-                            <th className="text-left p-4 font-semibold">連絡先</th>
-                            <th className="text-left p-4 font-semibold">担当ユーザー数</th>
+                            <th scope="col" className="text-left p-4 font-semibold">工場名</th>
+                            <th scope="col" className="text-left p-4 font-semibold">国</th>
+                            <th scope="col" className="text-left p-4 font-semibold">連絡先</th>
+                            <th scope="col" className="text-left p-4 font-semibold">担当ユーザー数</th>
                         </tr>
                     </thead>
                     <tbody>

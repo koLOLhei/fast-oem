@@ -1,3 +1,4 @@
+import { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -16,8 +17,32 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProductCard } from '@/components/product-card'
-import { PRODUCTS } from '@/lib/products'
+import { getProductsFromDb } from '@/lib/products-db'
 import { DecorativeIllustrations, FloatingShapes, DoodleElements } from '@/components/illustrations'
+
+const BASE_URL = 'https://fast-oem.soara-mu.jp'
+
+export const metadata: Metadata = {
+  title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
+  description:
+    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット10個〜対応、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
+  keywords: [
+    'OEM製作', 'オリジナルグッズ', 'グッズ製作', 'グッズ制作',
+    'アクリルキーホルダー', 'アクリルキーホルダー製作',
+    '缶バッジ', '缶バッジ製作', 'ピンバッジ', 'ピンバッジ製作',
+    'ラバーキーホルダー', 'ビニール袋製作',
+    '小ロット', '小ロット製作', '格安', 'スピード納品', '短納期',
+    '同人グッズ', '同人グッズ製作', 'ノベルティ', '推しグッズ',
+  ],
+  openGraph: {
+    title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
+    description:
+      'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティなら FAST OEM。',
+    url: BASE_URL,
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
+  },
+  alternates: { canonical: BASE_URL },
+}
 
 const steps = [
   {
@@ -101,9 +126,90 @@ const testimonials = [
   },
 ]
 
-export default function HomePage() {
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'FAST OEM',
+  url: BASE_URL,
+  logo: `${BASE_URL}/icon.svg`,
+  description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.9',
+    reviewCount: '2500',
+    bestRating: '5',
+    worstRating: '1',
+  },
+  sameAs: [],
+}
+
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'FAST OEM',
+  url: BASE_URL,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: { '@type': 'EntryPoint', urlTemplate: `${BASE_URL}/products?category={search_term_string}` },
+    'query-input': 'required name=search_term_string',
+  },
+}
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'OEMグッズの最低注文数はいくつですか？',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: '商品により異なりますが、アクリルキーホルダー・缶バッジは10個〜、ラバーキーホルダーは30個〜からご注文いただけます。小ロット対応でご注文しやすい価格を実現しています。',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'OEMグッズの納期はどのくらいですか？',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: '通常2週間〜1ヶ月程度です。特急オプション（約10日）もご用意しております。',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'デザインファイルはどの形式に対応していますか？',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'PNG・JPG・SVG・AI・PSDなどの主要形式に対応しています。印刷品質確保のため300dpi以上を推奨します。',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: '同人グッズ・推しグッズの製作はできますか？',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'はい、多くの同人サークル・個人クリエイターの方にご利用いただいております。著作権はお客様自身が持つデザインに限ります。',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: '支払方法は何が使えますか？',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'クレジットカード（VISA・Mastercard・American Express・JCB）に対応しています。Stripe社の安全な決済システムを使用しております。',
+      },
+    },
+  ],
+}
+
+export default async function HomePage() {
+  const products = await getProductsFromDb()
   return (
     <div className="bg-background overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd]) }}
+      />
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-[#ffe135] via-[#fff9c4] to-[#ffe135]">
         {/* Decorative Elements */}
@@ -176,8 +282,9 @@ export default function HomePage() {
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border-4 border-[#ffe135]">
                       <Image
                         src="/images/acrylic-keychain.jpg"
-                        alt="アクリルキーホルダー"
+                        alt="アクリルキーホルダー OEM製作"
                         fill
+                        priority
                         className="object-cover"
                       />
                       <div className="absolute bottom-2 left-2 bg-[#ffe135] text-foreground text-xs font-bold px-2 py-1 rounded-lg">
@@ -187,8 +294,9 @@ export default function HomePage() {
                     <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg border-4 border-[#7ed957]">
                       <Image
                         src="/images/pin-badge.jpg"
-                        alt="ピンバッジ"
+                        alt="ピンバッジ OEM製作"
                         fill
+                        priority
                         className="object-cover"
                       />
                     </div>
@@ -197,7 +305,7 @@ export default function HomePage() {
                     <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg border-4 border-[#ff7b54]">
                       <Image
                         src="/images/can-badge.jpg"
-                        alt="缶バッジ"
+                        alt="缶バッジ OEM製作"
                         fill
                         className="object-cover"
                       />
@@ -205,7 +313,7 @@ export default function HomePage() {
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border-4 border-[#00c8c8]">
                       <Image
                         src="/images/rubber-keychain.jpg"
-                        alt="ラバーキーホルダー"
+                        alt="ラバーキーホルダー OEM製作"
                         fill
                         className="object-cover"
                       />
@@ -268,7 +376,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {PRODUCTS.map((product, index) => (
+            {products.map((product, index) => (
               <ProductCard key={product.id} product={product} index={index} />
             ))}
           </div>

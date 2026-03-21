@@ -1,12 +1,35 @@
 import { Metadata } from 'next'
 import { Package, Sparkles } from 'lucide-react'
 import { ProductCard } from '@/components/product-card'
-import { PRODUCTS } from '@/lib/products'
+import { getProductsFromDb } from '@/lib/products-db'
+
+const BASE_URL = 'https://fast-oem.soara-mu.jp'
+
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'トップ', item: BASE_URL },
+    { '@type': 'ListItem', position: 2, name: '商品一覧', item: `${BASE_URL}/products` },
+  ],
+}
 
 export const metadata: Metadata = {
-  title: '商品一覧',
+  title: 'OEMグッズ製作 商品一覧 | アクリルキーホルダー・缶バッジ・ピンバッジ',
   description:
-    'アクリルキーホルダー、缶バッジ、ピンバッジ、ラバーキーホルダー、レジ袋など、オリジナルグッズの商品一覧。',
+    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ビニール袋のOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作に最適。',
+  keywords: [
+    'アクリルキーホルダー製作', '缶バッジ製作', 'ピンバッジ製作',
+    'ラバーキーホルダー製作', 'ビニール袋製作', 'OEMグッズ',
+    'オリジナルグッズ一覧', '小ロット製作', '同人グッズ',
+  ],
+  openGraph: {
+    title: 'OEMグッズ製作 商品一覧 | FAST OEM',
+    description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
+    url: `${BASE_URL}/products`,
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
+  alternates: { canonical: `${BASE_URL}/products` },
 }
 
 const categories = [
@@ -31,20 +54,26 @@ async function ProductsContent({
 }) {
   const params = await searchParams
   const selectedCategory = params.category || 'all'
+  const allProducts = await getProductsFromDb()
 
   const filteredProducts =
     selectedCategory === 'all'
-      ? PRODUCTS
-      : PRODUCTS.filter((p) => p.category === selectedCategory)
+      ? allProducts
+      : allProducts.filter((p) => p.category === selectedCategory)
 
   return (
+    <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+    />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
             <Package className="h-4 w-4" />
-            {PRODUCTS.length}種類の商品
+            {allProducts.length}種類の商品
           </div>
           <h1 className="text-3xl md:text-5xl font-bold text-foreground">
             商品ラインナップ
@@ -117,5 +146,6 @@ async function ProductsContent({
         </div>
       </div>
     </div>
+    </>
   )
 }

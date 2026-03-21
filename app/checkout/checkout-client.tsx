@@ -18,14 +18,27 @@ import {
 import { useCart } from '@/components/cart-provider'
 import { formatPrice } from '@/lib/products'
 import { type ShippingAddress, PREFECTURES } from '@/lib/order'
+import { calculateShippingFee, SHIPPING_ZONE_LABELS, getShippingZone, SHIPPING_FEES, type ShippingZone } from '@/lib/shipping'
 
-export function CheckoutClient() {
+interface CheckoutClientProps {
+  shippingFees?: Record<ShippingZone, number>
+}
+
+export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientProps) {
   const router = useRouter()
   const { cart, isLoading } = useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLookingUpAddress, setIsLookingUpAddress] = useState(false)
+  const [shippingFee, setShippingFee] = useState(0)
+  const [shippingZoneLabel, setShippingZoneLabel] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [agreedToCancel, setAgreedToCancel] = useState(false)
 
   const [formData, setFormData] = useState<ShippingAddress>({
+    companyName: '',
+    department: '',
+    poNumber: '',
     lastName: '',
     firstName: '',
     lastNameKana: '',
@@ -37,17 +50,60 @@ export function CheckoutClient() {
     address2: '',
     phone: '',
     email: '',
+    receiptAddressee: '',
   })
 
   const handleChange = (field: keyof ShippingAddress, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear error when user starts typing
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value }
+      // Recalculate shipping fee whenever postalCode or prefecture changes
+      if (field === 'postalCode' || field === 'prefecture') {
+        const pc = field === 'postalCode' ? value : prev.postalCode
+        const pref = field === 'prefecture' ? value : prev.prefecture
+        if (pc && pref) {
+          const fee = calculateShippingFee(pc, pref, shippingFees)
+          setShippingFee(fee)
+          setShippingZoneLabel(fee > 0 ? SHIPPING_ZONE_LABELS[getShippingZone(pc, pref)] : '')
+        }
+      }
+      return updated
+    })
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev }
         delete newErrors[field]
         return newErrors
       })
+    }
+    if (field === 'postalCode') {
+      const digits = value.replace(/-/g, '')
+      if (digits.length === 7 && /^\d{7}$/.test(digits)) {
+        lookupPostalCode(digits)
+      }
+    }
+  }
+
+  const lookupPostalCode = async (digits: string) => {
+    setIsLookingUpAddress(true)
+    try {
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${digits}`)
+      const json = await res.json()
+      if (json.results && json.results.length > 0) {
+        const result = json.results[0]
+        const prefecture = result.address1 ?? ''
+        const city = `${result.address2 ?? ''}${result.address3 ?? ''}`
+        setFormData((prev) => ({ ...prev, prefecture, city, address1: '' }))
+        setErrors((prev) => {
+          const next = { ...prev }
+          delete next.prefecture
+          delete next.city
+          return next
+        })
+      }
+    } catch {
+      // 住所自動入力に失敗した場合は何もしない
+    } finally {
+      setIsLookingUpAddress(false)
     }
   }
 
@@ -75,6 +131,9 @@ export function CheckoutClient() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = '正しいメールアドレスを入力してください'
 
+    if (!agreedToTerms) newErrors.agreedToTerms = '利用規約・プライバシーポリシーへの同意が必要です'
+    if (!agreedToCancel) newErrors.agreedToCancel = 'キャンセル・返金不可についての確認が必要です'
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -88,6 +147,7 @@ export function CheckoutClient() {
 
     // Store shipping data in sessionStorage for use in payment page
     sessionStorage.setItem('shipping-address', JSON.stringify(formData))
+    sessionStorage.setItem('shipping-fee', String(shippingFee))
 
     router.push('/checkout/payment')
   }
@@ -174,6 +234,39 @@ export function CheckoutClient() {
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Company (optional — for B2B) */}
+                  <div className="space-y-4 pb-4 border-b border-border">
+                    <p className="text-xs text-muted-foreground font-medium">法人でご利用の場合（任意）</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">会社名</Label>
+                      <Input
+                        id="companyName"
+                        value={formData.companyName ?? ''}
+                        onChange={(e) => handleChange('companyName', e.target.value)}
+                        placeholder="株式会社〇〇"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="department">部署名</Label>
+                      <Input
+                        id="department"
+                        value={formData.department ?? ''}
+                        onChange={(e) => handleChange('department', e.target.value)}
+                        placeholder="総務部"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="poNumber">発注番号（PO番号）</Label>
+                      <Input
+                        id="poNumber"
+                        value={formData.poNumber ?? ''}
+                        onChange={(e) => handleChange('poNumber', e.target.value)}
+                        placeholder="PO-2026-0001"
+                      />
+                      <p className="text-xs text-muted-foreground">領収書・請求書に印字されます</p>
+                    </div>
+                  </div>
+
                   {/* Name */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -247,16 +340,22 @@ export function CheckoutClient() {
                     <Label htmlFor="postalCode">
                       郵便番号 <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="postalCode"
-                      value={formData.postalCode}
-                      onChange={(e) => handleChange('postalCode', e.target.value)}
-                      placeholder="123-4567"
-                      className={`max-w-xs ${errors.postalCode ? 'border-destructive' : ''}`}
-                    />
+                    <div className="flex items-center gap-2 max-w-xs">
+                      <Input
+                        id="postalCode"
+                        value={formData.postalCode}
+                        onChange={(e) => handleChange('postalCode', e.target.value)}
+                        placeholder="123-4567"
+                        className={errors.postalCode ? 'border-destructive' : ''}
+                      />
+                      {isLookingUpAddress && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">検索中...</span>
+                      )}
+                    </div>
                     {errors.postalCode && (
                       <p className="text-xs text-destructive">{errors.postalCode}</p>
                     )}
+                    <p className="text-xs text-muted-foreground">7桁入力で住所を自動入力</p>
                   </div>
 
                   {/* Prefecture */}
@@ -371,10 +470,98 @@ export function CheckoutClient() {
                     </p>
                   </div>
 
+                  {/* Receipt addressee (optional) */}
+                  <div className="space-y-2 pt-4 border-t border-border">
+                    <p className="text-xs font-medium text-muted-foreground">領収書について（任意）</p>
+                    <Label htmlFor="receiptAddressee">領収書の宛名</Label>
+                    <Input
+                      id="receiptAddressee"
+                      value={formData.receiptAddressee ?? ''}
+                      onChange={(e) => handleChange('receiptAddressee', e.target.value)}
+                      placeholder="例：株式会社〇〇 or 山田太郎（空欄の場合はお名前で発行）"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      空欄の場合、ご入力いただいたお名前で発行されます。注文状況ページから再発行も可能です。
+                    </p>
+                  </div>
+
+                  {/* Consent checkboxes */}
+                  <div className="pt-4 border-t border-border space-y-4">
+                    <p className="text-xs font-semibold text-foreground">ご注文前に以下をご確認ください</p>
+
+                    {/* Terms + Privacy */}
+                    <div className="space-y-1">
+                      <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={agreedToTerms}
+                          onChange={(e) => {
+                            setAgreedToTerms(e.target.checked)
+                            if (e.target.checked && errors.agreedToTerms) {
+                              setErrors((prev) => { const n = { ...prev }; delete n.agreedToTerms; return n })
+                            }
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                        />
+                        <span className="text-sm text-foreground leading-relaxed">
+                          <Link href="/terms" target="_blank" className="text-primary underline hover:text-primary/80 font-medium">
+                            利用規約
+                          </Link>
+                          および
+                          <Link href="/privacy" target="_blank" className="text-primary underline hover:text-primary/80 font-medium">
+                            プライバシーポリシー
+                          </Link>
+                          を読み、内容に同意します
+                          <span className="text-destructive ml-1">*</span>
+                        </span>
+                      </label>
+                      {errors.agreedToTerms && (
+                        <p className="text-xs text-destructive pl-7">{errors.agreedToTerms}</p>
+                      )}
+                    </div>
+
+                    {/* Cancel policy */}
+                    <div className="space-y-1">
+                      <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={agreedToCancel}
+                          onChange={(e) => {
+                            setAgreedToCancel(e.target.checked)
+                            if (e.target.checked && errors.agreedToCancel) {
+                              setErrors((prev) => { const n = { ...prev }; delete n.agreedToCancel; return n })
+                            }
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                        />
+                        <span className="text-sm text-foreground leading-relaxed">
+                          本サービスはお客様デザインによる
+                          <strong>受注製造品のため、決済完了後のキャンセル・返金はできない</strong>
+                          ことを理解しました。また、在庫不足・データ不備等、弊社の都合により
+                          <strong>ご注文をキャンセルさせていただく場合がある</strong>
+                          ことも理解しました
+                          <span className="text-destructive ml-1">*</span>
+                        </span>
+                      </label>
+                      {errors.agreedToCancel && (
+                        <p className="text-xs text-destructive pl-7">{errors.agreedToCancel}</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+                      <p className="text-xs text-amber-800 leading-relaxed">
+                        <strong>⚠ キャンセル・返金不可について</strong><br />
+                        ご注文の商品はお客様のご指定デザイン・仕様による受注製造品です。
+                        製造開始後のキャンセル・変更・返品はお受けできません。
+                        ご注文内容・デザインデータを十分ご確認のうえ、お進みください。
+                      </p>
+                    </div>
+                  </div>
+
                   <Button
                     type="submit"
                     size="lg"
-                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground disabled:opacity-50"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? '処理中...' : 'お支払いへ進む'}
@@ -429,12 +616,24 @@ export function CheckoutClient() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">送料</span>
-                    <span className="text-foreground">無料</span>
+                    {shippingFee > 0 ? (
+                      <span className="text-foreground font-medium">
+                        {formatPrice(shippingFee)}
+                        <span className="text-xs text-orange-600 ml-1">({shippingZoneLabel})</span>
+                      </span>
+                    ) : (
+                      <span className="text-green-600 font-medium">無料</span>
+                    )}
                   </div>
+                  {shippingFee > 0 && (
+                    <p className="text-xs text-orange-600 bg-orange-50 rounded p-2">
+                      ご入力の住所は離島・遠隔地のため、別途送料が発生します。
+                    </p>
+                  )}
                   <div className="flex justify-between pt-2 border-t border-border">
                     <span className="font-semibold text-foreground">合計</span>
                     <span className="text-xl font-bold text-accent">
-                      {formatPrice(cart.totalPrice)}
+                      {formatPrice(cart.totalPrice + shippingFee)}
                     </span>
                   </div>
                 </div>

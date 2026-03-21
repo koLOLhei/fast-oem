@@ -1,8 +1,22 @@
+/**
+ * Next.js Stripe Webhook Handler (fallback / local dev)
+ *
+ * In production, the Supabase Edge Function handles checkout.session.completed
+ * (including image processing and email sending).
+ *
+ * This route is a lightweight fallback that only updates the order status from
+ * pending → paid. It is safe to register alongside the Edge Function because:
+ *   - It only UPDATEs rows where status = 'pending' (idempotent)
+ *   - If the Edge Function already set status = 'paid', this UPDATE matches 0 rows
+ *
+ * Emails are NOT sent here — the Edge Function handles that.
+ */
+
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -25,75 +39,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  // Handle the event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
 
     try {
-      const supabase = await createClient()
+      const supabase = createServiceClient()
 
-      // Parse metadata
-      const metadata = session.metadata
-      if (!metadata) {
-        console.error('No metadata in session')
-        return NextResponse.json({ error: 'No metadata' }, { status: 400 })
-      }
-
-      const orderId = metadata.orderId
-      const customerEmail = metadata.customerEmail
-      const customerName = metadata.customerName
-      const shippingAddress = JSON.parse(metadata.shippingAddress)
-      const items = JSON.parse(metadata.items)
-      const totalAmount = parseInt(metadata.totalAmount || '0', 10)
-
-      // Create order in database
-      const { data: order, error: orderError } = await supabase
+      // Update pending → paid using stripe_session_id (set at order creation)
+      // If already paid (Edge Function ran first), this matches 0 rows — harmless
+      const { error } = await supabase
         .from('orders')
-        .insert({
-          stripe_session_id: session.id,
-          stripe_payment_intent_id: session.payment_intent as string,
-          customer_info: {
-            email: customerEmail,
-            name: customerName,
-            ...shippingAddress,
-          },
-          total_amount: totalAmount,
-          status: 'paid',
-          created_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
+        .update({ status: 'paid' })
+        .eq('stripe_session_id', session.id)
+        .eq('status', 'pending')
 
-      if (orderError) {
-        console.error('Failed to create order:', orderError)
-        return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+      if (error) {
+        console.error('Failed to update order status:', error)
+        return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
       }
 
-      // Create order items
-      const orderItems = items.map((item: any) => ({
-        order_id: order.id,
-        product_id: item.productId,
-        product_name: item.productName,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        total_price: item.totalPrice,
-        mold_fee: item.moldFee || 0,
-        mold_order_id: item.moldOrderId || null,
-        options: item.options,
-        design_image: item.designImage,
-        design_file_name: item.designFileName,
-      }))
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems)
-
-      if (itemsError) {
-        console.error('Failed to create order items:', itemsError)
-        return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
-      }
-
-      console.log('Order created successfully:', order.id)
+      console.log(`Webhook: order status updated for session ${session.id}`)
     } catch (error) {
       console.error('Error processing webhook:', error)
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })

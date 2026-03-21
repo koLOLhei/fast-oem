@@ -93,7 +93,7 @@ export function ProductPreview({
             {/* User design with shape mask */}
             <div className="relative w-3/4 h-3/4 flex items-center justify-center">
               <ShapeMask shapeId={selectedShape}>
-                <div className={`w-full h-full relative ${selectedShape === 'die-cut' ? '' : 'bg-white rounded-lg shadow-xl overflow-hidden'}`}>
+                <div className={`w-full h-full relative ${selectedShape === 'die-cut' ? '' : 'bg-white shadow-xl overflow-hidden'}`}>
                   <img
                     src={designImage}
                     alt="あなたのデザイン"

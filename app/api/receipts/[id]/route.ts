@@ -1,134 +1,197 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import fs from 'fs/promises'
+import path from 'path'
+
+// ---------------------------------------------------------------------------
+// Japanese font — read from /public/fonts/NotoSansJP-Regular.ttf on first
+// call and cached in memory for the lifetime of the process.
+// Falls back to Helvetica (Latin-only) if the file is missing.
+// ---------------------------------------------------------------------------
+let _jaFontCache: Uint8Array | undefined = undefined
+
+async function loadJapaneseFont(): Promise<Uint8Array> {
+    if (_jaFontCache != null) return _jaFontCache
+    // Throw rather than falling back to Helvetica — Helvetica cannot render Japanese
+    // characters and would produce a broken PDF with mojibake.
+    const fontPath = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.ttf')
+    const buffer = await fs.readFile(fontPath)
+    _jaFontCache = new Uint8Array(buffer)
+    return _jaFontCache
+}
 
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const token = req.nextUrl.searchParams.get('token')
+    const addresseeParam = req.nextUrl.searchParams.get('addressee') ?? ''
+    const isReissue = req.nextUrl.searchParams.get('reissue') === 'true'
 
-    if (!user) {
-        return new NextResponse('Unauthorized', { status: 401 })
+    if (!token) {
+        return new NextResponse('token parameter is required', { status: 400 })
     }
 
+    const supabase = createServiceClient()
+
+    // Validate ownership via access_token
     const { data: order } = await supabase
         .from('orders')
         .select(`*, order_items(*)`)
         .eq('id', id)
-        .eq('customer_info->>email', user.email)
+        .eq('access_token', token)
         .single()
 
     if (!order) {
         return new NextResponse('Order not found', { status: 404 })
     }
 
+    // Read company info from DB (falls back to env vars then hardcoded defaults)
+    const { data: settingRows } = await supabase
+        .from('site_settings')
+        .select('key, value')
+
+    const s: Record<string, string> = {}
+    for (const row of settingRows ?? []) s[row.key] = row.value
+
+    const COMPANY_NAME    = process.env.COMPANY_NAME    ?? s.company_name    ?? '株式会社SOARA'
+    const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS ?? s.company_address ?? '〒221-0056 神奈川県横浜市神奈川区金港町5-14 クアドリフォリオ8階'
+    const INVOICE_NUMBER  = process.env.INVOICE_QUALIFIED_NUMBER ?? s.invoice_number ?? 'T9020001159981'
+    const TAX_RATE = 0.1
+
+    const addr = order.shipping_address as any
+    const registeredName = `${addr?.lastName ?? ''} ${addr?.firstName ?? ''}`.trim()
+    // Priority: explicit query param > saved receiptAddressee > full name
+    const addressee = addresseeParam.trim()
+        || addr?.receiptAddressee?.trim()
+        || registeredName
+    const companyName: string = addr?.companyName?.trim() ?? ''
+    const department: string  = addr?.department?.trim()  ?? ''
+    const poNumber: string    = addr?.poNumber?.trim()    ?? ''
+
+    const orderItems = (order.order_items as any[]) ?? []
+    const orderTotal: number = (order as any).total_price ?? 0
+    const shippingFee: number = (order as any).shipping_fee ?? 0
+
+    const itemsExTax = orderItems.reduce((sum: number, item: any) => {
+        const itemTotal    = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
+        const moldFeeExTax = item.mold_fee            ? Math.round(item.mold_fee            / (1 + TAX_RATE)) : 0
+        const expressExTax = item.express_delivery_fee ? Math.round(item.express_delivery_fee / (1 + TAX_RATE)) : 0
+        return sum + itemTotal + moldFeeExTax + expressExTax
+    }, 0)
+    const shippingFeeExTax = shippingFee > 0 ? Math.round(shippingFee / (1 + TAX_RATE)) : 0
+    const priceExTax = itemsExTax + shippingFeeExTax
+    const taxAmount = orderTotal - priceExTax
+
     // --- PDF Generation ---
     const pdfDoc = await PDFDocument.create()
     const page = pdfDoc.addPage([595, 842]) // A4
     const { width, height } = page.getSize()
 
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-
-    const COMPANY_NAME = process.env.COMPANY_NAME ?? 'FAST OEM株式会社'
-    const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS ?? '東京都〇〇区〇〇1-2-3'
-    const INVOICE_NUMBER = process.env.INVOICE_QUALIFIED_NUMBER ?? 'T0000000000000'
-    const TAX_RATE = 0.1
-
-    const addr = order.shipping_address as any
-    const customerName = `${addr?.lastName ?? ''} ${addr?.firstName ?? ''}`
-
-    // Calculate totals including mold fees (will use items variable later)
-    const orderItems = order.order_items as any[]
-    const totalExTax = orderItems.reduce((sum: number, item: any) => {
-        const itemTotal = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
-        const moldFeeExTax = item.mold_fee ? Math.round(item.mold_fee / (1 + TAX_RATE)) : 0
-        return sum + itemTotal + moldFeeExTax
-    }, 0)
-
-    const priceExTax = totalExTax
-    const taxAmount = order.total_price - priceExTax
-
-    let y = height - 60
+    // Load Japanese font (with fallback to Helvetica)
+    const jaFontBytes = await loadJapaneseFont()
+    const font = jaFontBytes
+        ? await pdfDoc.embedFont(jaFontBytes, { subset: true })
+        : await pdfDoc.embedFont(StandardFonts.Helvetica)
 
     const drawText = (
         text: string,
         x: number,
         yPos: number,
         size = 10,
-        bold = false,
+        _bold = false,      // bold param kept for API compat; use larger size for emphasis
         color = rgb(0, 0, 0)
     ) => {
-        page.drawText(text, {
-            x,
-            y: yPos,
-            size,
-            font: bold ? fontBold : font,
-            color,
-        })
+        page.drawText(text, { x, y: yPos, size, font, color })
     }
 
-    const drawLine = (yPos: number) => {
+    const drawLine = (yPos: number, x1 = 40, x2 = width - 40) => {
         page.drawLine({
-            start: { x: 40, y: yPos },
-            end: { x: width - 40, y: yPos },
+            start: { x: x1, y: yPos },
+            end: { x: x2, y: yPos },
             thickness: 0.5,
             color: rgb(0.8, 0.8, 0.8),
         })
     }
 
+    let y = height - 60
+
     // Title
-    drawText('領　収　書', width / 2 - 40, y, 20, true)
-    y -= 50
+    drawText('領　収　書', width / 2 - 50, y, 20, true)
+    y -= 10
+
+    // Re-issue badge (small, top-right of title)
+    if (isReissue) {
+        drawText('再発行', width - 80, y + 10, 8, false, rgb(0.6, 0.1, 0.1))
+    }
+
+    y -= 40
 
     // Company info (right side)
-    drawText(COMPANY_NAME, width - 220, y, 10, true)
-    drawText(COMPANY_ADDRESS, width - 220, y - 16, 8)
-    drawText(`適格請求書発行事業者`, width - 220, y - 32, 8)
-    drawText(`登録番号: ${INVOICE_NUMBER}`, width - 220, y - 46, 9, true, rgb(0.2, 0.2, 0.6))
+    drawText(COMPANY_NAME, width - 230, y, 10, true)
+    drawText(COMPANY_ADDRESS, width - 230, y - 16, 7, false, rgb(0.3, 0.3, 0.3))
+    drawText('適格請求書発行事業者', width - 230, y - 30, 7, false, rgb(0.3, 0.3, 0.3))
+    drawText(`登録番号: ${INVOICE_NUMBER}`, width - 230, y - 43, 8, true, rgb(0.2, 0.2, 0.6))
 
     // Customer info (left side)
-    drawText(`${customerName} 様`, 40, y, 12, true)
-    y -= 20
-    const sessionShort = (order.stripe_session_id ?? '').slice(8, 28)
-    drawText(`注文番号: ${sessionShort}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
+    if (companyName) {
+        drawText(companyName, 40, y, 11, true)
+        y -= 16
+        if (department) {
+            drawText(department, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
+            y -= 14
+        }
+    }
+    drawText(`${addressee} 様`, 40, y, 13, true)
+    y -= 22
+    const orderNumber = (order as any).order_number ?? (order.stripe_session_id ?? '').slice(8, 28)
+    drawText(`注文番号: ${orderNumber}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
     y -= 16
+    if (poNumber) {
+        drawText(`発注番号: ${poNumber}`, 40, y, 9, true, rgb(0.1, 0.3, 0.6))
+        y -= 16
+    }
     drawText(`発行日: ${new Date().toLocaleDateString('ja-JP')}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
+    if (isReissue) {
+        drawText('（再発行）', 150, y, 8, false, rgb(0.6, 0.1, 0.1))
+    }
 
     y -= 40
     drawLine(y)
     y -= 20
 
-    // Section: Items
     drawText('商品', 40, y, 9, true, rgb(0.4, 0.4, 0.4))
     drawText('数量', 360, y, 9, true, rgb(0.4, 0.4, 0.4))
-    drawText('金額（税抜）', 440, y, 9, true, rgb(0.4, 0.4, 0.4))
+    drawText('金額（税抜）', 435, y, 9, true, rgb(0.4, 0.4, 0.4))
     y -= 16
     drawLine(y)
     y -= 16
 
     for (const item of orderItems) {
         const itemPriceExTax = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
-        const nameText = item.product_name.slice(0, 40)
-        drawText(nameText, 40, y, 9)
+        drawText(item.product_name.slice(0, 38), 40, y, 9)
         drawText(`${item.quantity}`, 370, y, 9)
         drawText(`¥${itemPriceExTax.toLocaleString('ja-JP')}`, 440, y, 9)
         y -= 16
         if (item.options?.length > 0) {
             const optText = (item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')
-            drawText(optText.slice(0, 60), 50, y, 7, false, rgb(0.5, 0.5, 0.5))
+            drawText(optText.slice(0, 58), 50, y, 7, false, rgb(0.5, 0.5, 0.5))
             y -= 14
         }
-
-        // Show mold fee if applicable
         if (item.mold_fee && item.mold_fee > 0) {
             const moldFeeExTax = Math.round(item.mold_fee / (1 + TAX_RATE))
             drawText('型代（初回のみ）', 50, y, 8, false, rgb(0.8, 0.3, 0.2))
             drawText('1', 370, y, 8, false, rgb(0.8, 0.3, 0.2))
             drawText(`¥${moldFeeExTax.toLocaleString('ja-JP')}`, 440, y, 8, false, rgb(0.8, 0.3, 0.2))
+            y -= 16
+        }
+        if (item.express_delivery_fee && item.express_delivery_fee > 0) {
+            const expressExTax = Math.round(item.express_delivery_fee / (1 + TAX_RATE))
+            drawText('⚡ 特急料金', 50, y, 8, false, rgb(0.9, 0.4, 0.1))
+            drawText('1', 370, y, 8, false, rgb(0.9, 0.4, 0.1))
+            drawText(`¥${expressExTax.toLocaleString('ja-JP')}`, 440, y, 8, false, rgb(0.9, 0.4, 0.1))
             y -= 16
         }
     }
@@ -137,35 +200,44 @@ export async function GET(
     drawLine(y)
     y -= 20
 
-    // Totals
-    drawText('小計（税抜）', 350, y, 9)
-    drawText(`¥${priceExTax.toLocaleString('ja-JP')}`, 480, y, 9)
+    if (shippingFee > 0) {
+        drawText('送料（離島・遠隔地）', 40, y, 8, false, rgb(0.3, 0.3, 0.8))
+        drawText('1', 370, y, 8, false, rgb(0.3, 0.3, 0.8))
+        drawText(`¥${shippingFeeExTax.toLocaleString('ja-JP')}`, 440, y, 8, false, rgb(0.3, 0.3, 0.8))
+        y -= 16
+        drawLine(y)
+        y -= 10
+    }
+
+    drawText('小計（税抜）', 340, y, 9)
+    drawText(`¥${priceExTax.toLocaleString('ja-JP')}`, 470, y, 9)
     y -= 16
-    drawText('消費税（10%）', 350, y, 9)
-    drawText(`¥${taxAmount.toLocaleString('ja-JP')}`, 480, y, 9)
+    drawText('消費税（10%）', 340, y, 9)
+    drawText(`¥${taxAmount.toLocaleString('ja-JP')}`, 470, y, 9)
     y -= 20
     drawLine(y)
     y -= 22
-    drawText('合計（税込）', 340, y, 11, true)
-    drawText(`¥${order.total_price.toLocaleString('ja-JP')}`, 465, y, 13, true, rgb(0.1, 0.3, 0.8))
+    drawText('合計（税込）', 330, y, 11, true)
+    drawText(`¥${orderTotal.toLocaleString('ja-JP')}`, 455, y, 13, true, rgb(0.1, 0.3, 0.8))
 
     y -= 50
     drawText('上記の金額を領収いたしました。', 40, y, 9, false, rgb(0.4, 0.4, 0.4))
 
     // Footer
-    drawLine(60)
+    drawLine(55)
     drawText(
         `${COMPANY_NAME}  |  適格請求書（インボイス）登録番号: ${INVOICE_NUMBER}`,
-        40, 45, 7, false, rgb(0.5, 0.5, 0.5)
+        40, 42, 7, false, rgb(0.5, 0.5, 0.5)
     )
 
     const pdfBytes = await pdfDoc.save()
+    const safeNo = String(orderNumber).replace(/[^a-zA-Z0-9_-]/g, '_')
 
     return new NextResponse(Buffer.from(pdfBytes), {
         status: 200,
         headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="receipt-${sessionShort}.pdf"`,
+            'Content-Disposition': `attachment; filename="receipt-${safeNo}.pdf"`,
         },
     })
 }

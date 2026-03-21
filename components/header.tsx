@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { ShoppingCart, Menu, X, ChevronDown, User, LogIn } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -12,31 +12,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useCart } from '@/components/cart-provider'
 import { PRODUCTS } from '@/lib/products'
-import { createClient } from '@/lib/supabase/client'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const { cart } = useCart()
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      setIsLoggedIn(!!user)
-    }
-    checkAuth()
-
-    // Listen for auth changes
-    const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session?.user)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">
@@ -99,47 +78,6 @@ export function Header() {
 
           {/* Cart & CTA */}
           <div className="flex items-center gap-3">
-            {/* Login/MyPage Button */}
-            {isLoggedIn ? (
-              <Link href="/mypage">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8]"
-                >
-                  <User className="h-5 w-5" />
-                  <span className="sr-only">マイページ</span>
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="hidden sm:block">
-                  <Button
-                    variant="ghost"
-                    className="h-11 px-4 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8] font-bold text-sm"
-                  >
-                    ログイン
-                  </Button>
-                </Link>
-                <Link href="/signup" className="hidden sm:block">
-                  <Button
-                    className="h-11 px-4 rounded-xl bg-[#00c8c8] hover:bg-[#00b0b0] text-white font-bold text-sm shadow-lg shadow-[#00c8c8]/30"
-                  >
-                    新規登録
-                  </Button>
-                </Link>
-                <Link href="/login" className="sm:hidden">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 border-2 border-transparent hover:border-[#00c8c8]"
-                  >
-                    <LogIn className="h-5 w-5" />
-                    <span className="sr-only">ログイン</span>
-                  </Button>
-                </Link>
-              </>
-            )}
 
             <Link href="/cart" className="relative">
               <Button
@@ -214,36 +152,6 @@ export function Header() {
             >
               ご利用方法
             </Link>
-            <div className="h-px bg-[#ffe135] my-2" />
-            {isLoggedIn ? (
-              <Link
-                href="/mypage"
-                className="text-foreground py-3 px-3 hover:bg-[#00c8c8]/10 rounded-xl transition-colors font-medium flex items-center gap-3"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <User className="w-4 h-4" />
-                マイページ
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="text-foreground py-3 px-3 hover:bg-[#00c8c8]/10 rounded-xl transition-colors font-medium flex items-center gap-3"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <LogIn className="w-4 h-4" />
-                  ログイン
-                </Link>
-                <Link
-                  href="/signup"
-                  className="text-white py-3 px-4 bg-[#00c8c8] rounded-xl transition-colors font-bold text-center flex items-center justify-center gap-3"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <User className="w-4 h-4" />
-                  新規登録
-                </Link>
-              </>
-            )}
           </nav>
         </div>
       )}

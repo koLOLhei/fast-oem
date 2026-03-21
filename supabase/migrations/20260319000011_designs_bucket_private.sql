@@ -1,0 +1,60 @@
+-- ============================================================
+-- SIGNED URL MIGRATION: Make `designs` bucket private
+-- ============================================================
+--
+-- PURPOSE
+-- -------
+-- Design files (customer logos, product artwork, production PDFs)
+-- are proprietary B2B assets. The `designs` bucket was previously
+-- set to public, meaning anyone who knew a URL could download a file.
+-- This migration converts it to a private bucket so every download
+-- requires a short-lived signed URL generated server-side.
+--
+-- CODE CHANGES REQUIRED BEFORE RUNNING THIS MIGRATION
+-- ----------------------------------------------------
+-- The following code changes must be deployed FIRST, otherwise the
+-- factory portal and admin pages will break immediately:
+--
+--   1. lib/supabase/storage.ts         — toSignedUrl() helper
+--   2. app/factory/page.tsx            — signs URLs before passing to client
+--   3. app/admin/orders/[id]/page.tsx  — signs URLs before passing to client
+--   4. supabase/functions/stripe-webhook/process-image.ts
+--                                      — stores storage path, not public URL
+--   5. components/image-uploader.tsx   — stores delivery PDF path, not public URL
+--
+-- APPLY ORDER
+-- -----------
+-- 1. Deploy the code changes above to production.
+-- 2. Verify the factory portal and admin order pages work correctly
+--    with the new signed URL logic (the bucket is still public at this point,
+--    so both old public URLs and new signed URLs will work).
+-- 3. Run this migration to make the bucket private.
+-- 4. Verify again that factory portal and admin pages still work.
+--
+-- EXISTING RECORDS
+-- ----------------
+-- Rows in `order_items` that have a full public URL in
+-- `converted_design_url` or `delivery_pdf_url` will continue to work
+-- because `toSignedUrl()` in lib/supabase/storage.ts parses the path
+-- out of legacy public URLs and re-signs them.
+--
+-- NOTE: The `design_url` column (original upload, used by the image
+-- processing edge function) is accessed via the service-role key which
+-- bypasses RLS, so it works fine even after this change.
+-- ============================================================
+
+-- Step 1: Set the bucket to private (no anonymous public read).
+UPDATE storage.buckets
+SET    public = false
+WHERE  id = 'designs';
+
+-- Step 2 (optional): Add RLS policy so authenticated admin/factory users
+-- can generate signed URLs via the Supabase JS client (needed for future
+-- client-side workflows). The Next.js server routes use the service key
+-- (which bypasses RLS), so this is not required for the current setup.
+--
+-- Uncomment to enable:
+-- CREATE POLICY "Authenticated users can read designs"
+--   ON storage.objects
+--   FOR SELECT
+--   USING (bucket_id = 'designs' AND auth.role() = 'authenticated');

@@ -16,6 +16,9 @@ export interface CartItem {
   designFileName: string | null
   moldFee?: number
   moldOrderId?: string
+  expressDelivery?: boolean
+  expressDeliveryFee?: number
+  deliveryPdfUrl?: string | null
 }
 
 export interface Cart {
@@ -35,7 +38,7 @@ export function createEmptyCart(): Cart {
 export function calculateCartTotals(items: CartItem[]): { totalItems: number; totalPrice: number } {
   return {
     totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
-    totalPrice: items.reduce((sum, item) => sum + item.totalPrice + (item.moldFee || 0), 0),
+    totalPrice: items.reduce((sum, item) => sum + item.totalPrice + (item.moldFee || 0) + (item.expressDeliveryFee || 0), 0),
   }
 }
 

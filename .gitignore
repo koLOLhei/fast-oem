@@ -16,3 +16,7 @@ node_modules/
 .next/
 .DS_Store
 .vercel
+
+certificates
+# Sentry Config File
+.env.sentry-build-plugin

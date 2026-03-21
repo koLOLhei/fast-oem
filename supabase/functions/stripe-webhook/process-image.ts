@@ -10,39 +10,64 @@ export async function processImage(
     try {
         console.log(`Processing image for order ${orderId}, product ${productId}`)
 
-        // Extract file path from Supabase storage URL if it's a full URL
-        let path = originalPathOrUrl
-        if (path.includes('/storage/v1/object/public/designs/')) {
-            path = path.split('/storage/v1/object/public/designs/')[1]
+        let imageBuffer: ArrayBuffer
+
+        if (originalPathOrUrl.startsWith('data:')) {
+            // ── data:URI (base64-encoded image from cart) ──────────────────────────
+            // Format: "data:<mime>;base64,<data>"
+            const commaIndex = originalPathOrUrl.indexOf(',')
+            if (commaIndex === -1) {
+                console.error('Invalid data URI: missing comma separator')
+                return null
+            }
+            const base64Data = originalPathOrUrl.slice(commaIndex + 1)
+            try {
+                // atob → Uint8Array → ArrayBuffer
+                const binaryString = atob(base64Data)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i)
+                }
+                imageBuffer = bytes.buffer
+            } catch (decodeErr) {
+                console.error('Failed to decode data URI base64:', decodeErr)
+                return null
+            }
+        } else {
+            // ── Supabase Storage path or full URL ──────────────────────────────────
+            let path = originalPathOrUrl
+            if (path.includes('/storage/v1/object/public/designs/')) {
+                path = path.split('/storage/v1/object/public/designs/')[1]
+            }
+
+            const { data: fileData, error: downloadError } = await supabase
+                .storage
+                .from('designs')
+                .download(path)
+
+            if (downloadError || !fileData) {
+                console.error('Error downloading image from storage', downloadError)
+                return null
+            }
+            imageBuffer = await fileData.arrayBuffer()
         }
 
-        // Download image buffer from Storage
-        const { data: fileData, error: downloadError } = await supabase
-            .storage
-            .from('designs')
-            .download(path)
-
-        if (downloadError || !fileData) {
-            console.error('Error downloading image', downloadError)
-            return null
-        }
-
-        const buffer = await fileData.arrayBuffer()
-
-        // Convert to standard PNG using Sharp (Edge Functions support npm modules via Deno)
-        const convertedBuffer = await sharp(buffer)
+        // Convert to standard PNG using Sharp
+        const convertedBuffer = await sharp(imageBuffer)
             .png({ quality: 100 })
             .toBuffer()
 
-        // Upload converted file
-        const newPath = `processed/${orderId}_${productId}_converted.png`
+        // Upload converted file to Storage
+        // Include timestamp to prevent collision when the same product is reordered
+        const timestamp = Date.now()
+        const newPath = `processed/${orderId}_${productId}_${timestamp}_converted.png`
 
         const { error: uploadError } = await supabase
             .storage
             .from('designs')
             .upload(newPath, convertedBuffer, {
                 contentType: 'image/png',
-                upsert: true
+                upsert: false,
             })
 
         if (uploadError) {
@@ -50,13 +75,10 @@ export async function processImage(
             return null
         }
 
-        // Return the public URL
-        const { data: publicUrlData } = supabase
-            .storage
-            .from('designs')
-            .getPublicUrl(newPath)
-
-        return publicUrlData.publicUrl
+        // Return only the storage path (not a public URL).
+        // The Next.js app generates short-lived signed URLs from this path at
+        // render time, keeping the designs bucket private.
+        return newPath
 
     } catch (err) {
         console.error('Image processing failed:', err)

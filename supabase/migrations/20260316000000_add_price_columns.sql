@@ -1,9 +1,9 @@
 -- Add price-related columns to order_items table
 ALTER TABLE public.order_items
-ADD COLUMN total_price integer,
-ADD COLUMN mold_fee integer DEFAULT 0,
-ADD COLUMN mold_order_id text,
-ADD COLUMN status text DEFAULT 'unassigned';
+ADD COLUMN IF NOT EXISTS total_price integer,
+ADD COLUMN IF NOT EXISTS mold_fee integer DEFAULT 0,
+ADD COLUMN IF NOT EXISTS mold_order_id text,
+ADD COLUMN IF NOT EXISTS status text DEFAULT 'unassigned';
 
 -- Add comment for clarity
 COMMENT ON COLUMN public.order_items.mold_fee IS '型代（初回のみ発生）';

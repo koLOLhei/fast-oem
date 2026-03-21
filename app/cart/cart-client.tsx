@@ -79,12 +79,18 @@ export function CartClient() {
                     <div className="flex flex-col sm:flex-row">
                       {/* Design Preview */}
                       <div className="w-full sm:w-36 h-36 bg-gradient-to-br from-secondary to-muted flex-shrink-0">
-                        {item.designImage ? (
+                        {item.designImage && !item.designImage.startsWith('data:') ? (
                           <img
                             src={item.designImage}
                             alt="デザイン"
                             className="w-full h-full object-contain p-3"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                           />
+                        ) : item.designFileName ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-1 p-3 text-center">
+                            <span className="text-2xl">🖼</span>
+                            <span className="truncate w-full text-center">{item.designFileName}</span>
+                          </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
                             No Image

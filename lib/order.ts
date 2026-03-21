@@ -1,6 +1,9 @@
 import { type CartItem } from './cart'
 
 export interface ShippingAddress {
+  companyName?: string      // 会社名（法人の場合）
+  department?: string       // 部署名（任意）
+  poNumber?: string         // 発注番号（Purchase Order Number）
   lastName: string
   firstName: string
   lastNameKana: string
@@ -12,6 +15,7 @@ export interface ShippingAddress {
   address2?: string
   phone: string
   email: string
+  receiptAddressee?: string // 領収書の宛名（任意）— blank means use recipient name
 }
 
 export interface OrderData {

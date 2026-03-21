@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCart } from '@/components/cart-provider'
 import { startCheckoutSession } from '@/app/actions/stripe'
-import { sendFactoryNotification, sendCustomerConfirmation } from '@/app/actions/order'
 import { type ShippingAddress } from '@/lib/order'
 import { formatPrice } from '@/lib/products'
 
@@ -23,16 +22,20 @@ export function PaymentClient() {
   const router = useRouter()
   const { cart, clearCart, isLoading: cartLoading } = useCart()
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null)
+  const [shippingFee, setShippingFee] = useState(0)
   const [orderId, setOrderId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Load shipping address from sessionStorage
     const savedAddress = sessionStorage.getItem('shipping-address')
+    const savedFee = sessionStorage.getItem('shipping-fee')
     if (savedAddress) {
       try {
         setShippingAddress(JSON.parse(savedAddress))
+        setShippingFee(savedFee ? parseInt(savedFee, 10) : 0)
       } catch {
         setError('配送先情報の読み込みに失敗しました')
       }
@@ -51,56 +54,37 @@ export function PaymentClient() {
     const result = await startCheckoutSession({
       items: cart.items,
       shippingAddress,
-      totalPrice: cart.totalPrice,
+      totalPrice: cart.totalPrice + shippingFee,
+      shippingFee,
     })
 
     setOrderId(result.orderId)
+    setSessionId(result.sessionId)
     return result.clientSecret!
   }, [cart, shippingAddress])
 
   const handleComplete = useCallback(async () => {
     if (!shippingAddress || !orderId) return
 
-    try {
-      // Send notifications
-      await Promise.all([
-        sendFactoryNotification({
-          orderId,
-          items: cart.items,
-          shippingAddress,
-          totalPrice: cart.totalPrice,
-        }),
-        sendCustomerConfirmation({
-          orderId,
-          items: cart.items,
-          shippingAddress,
-          totalPrice: cart.totalPrice,
-        }),
-      ])
+    // Store order data for the complete page
+    // Notifications are sent by the Stripe webhook — no duplicate calls here
+    sessionStorage.setItem(
+      'completed-order',
+      JSON.stringify({
+        orderId,
+        sessionId,
+        items: cart.items,
+        shippingAddress,
+        shippingFee,
+        totalPrice: cart.totalPrice + shippingFee,
+      })
+    )
 
-      // Store order data for complete page
-      sessionStorage.setItem(
-        'completed-order',
-        JSON.stringify({
-          orderId,
-          items: cart.items,
-          shippingAddress,
-          totalPrice: cart.totalPrice,
-        })
-      )
-
-      // Clear cart and shipping data
-      clearCart()
-      sessionStorage.removeItem('shipping-address')
-
-      // Redirect to complete page
-      router.push('/checkout/complete')
-    } catch (err) {
-      console.error('Error processing order:', err)
-      // Still redirect to complete page even if notifications fail
-      router.push('/checkout/complete')
-    }
-  }, [cart, shippingAddress, orderId, clearCart, router])
+    clearCart()
+    sessionStorage.removeItem('shipping-address')
+    sessionStorage.removeItem('shipping-fee')
+    router.push('/checkout/complete')
+  }, [cart, shippingAddress, orderId, sessionId, clearCart, router])
 
   if (isLoading || cartLoading) {
     return (
@@ -248,13 +232,34 @@ export function PaymentClient() {
                   ))}
                 </div>
 
-                <div className="border-t border-border pt-4">
-                  <div className="flex justify-between">
+                <div className="border-t border-border pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">小計</span>
+                    <span>{formatPrice(cart.totalPrice)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">送料</span>
+                    {shippingFee > 0 ? (
+                      <span className="text-orange-600 font-medium">{formatPrice(shippingFee)}</span>
+                    ) : (
+                      <span className="text-green-600 font-medium">無料</span>
+                    )}
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-border">
                     <span className="font-semibold text-foreground">合計</span>
                     <span className="text-xl font-bold text-accent">
-                      {formatPrice(cart.totalPrice)}
+                      {formatPrice(cart.totalPrice + shippingFee)}
                     </span>
                   </div>
+                </div>
+
+                {/* Non-refundable notice */}
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-800 mb-1">⚠ 返金・キャンセルについて</p>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    本サービスはOEM受注製造のため、<strong>決済完了後のキャンセル・返金はお受けできません</strong>。
+                    ご注文内容・デザインデータをご確認のうえ、お支払いへお進みください。
+                  </p>
                 </div>
 
                 {/* Shipping Address Summary */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -28,6 +28,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [quantity, setQuantity] = useState(product.minQuantity)
   const [designImage, setDesignImage] = useState<string | null>(null)
   const [designFileName, setDesignFileName] = useState<string | null>(null)
+  const [deliveryPdfUrl, setDeliveryPdfUrl] = useState<string | null>(null)
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     product.options.forEach((option) => {
@@ -39,10 +40,45 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   })
   const [isAdded, setIsAdded] = useState(false)
   const [customQuantity, setCustomQuantity] = useState('')
+  const [expressDelivery, setExpressDelivery] = useState(false)
+  const [draftRestored, setDraftRestored] = useState(false)
   const [moldOrderId, setMoldOrderId] = useState('')
+  const [moldEmail, setMoldEmail] = useState('')
   const [moldReuseValid, setMoldReuseValid] = useState<boolean | null>(null)
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`draft-design-${product.id}`)
+      if (saved) {
+        const data = JSON.parse(saved)
+        if (data.quantity && data.quantity >= product.minQuantity && data.quantity <= product.maxQuantity) {
+          setQuantity(data.quantity)
+        }
+        if (data.selectedOptions && typeof data.selectedOptions === 'object') {
+          setSelectedOptions((prev) => ({ ...prev, ...data.selectedOptions }))
+        }
+        if (typeof data.expressDelivery === 'boolean') {
+          setExpressDelivery(data.expressDelivery)
+        }
+        setDraftRestored(true)
+        setTimeout(() => setDraftRestored(false), 3000)
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id])
+
+  // Persist draft to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        `draft-design-${product.id}`,
+        JSON.stringify({ quantity, selectedOptions, expressDelivery })
+      )
+    } catch {}
+  }, [quantity, selectedOptions, expressDelivery, product.id])
 
   // Helper function to format price modifier
   const formatPriceModifier = (modifier?: { type: 'add' | 'multiply'; value: number }) => {
@@ -56,9 +92,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     return ''
   }
 
-  const handleImageSelect = (imageData: string | null, fileName: string | null) => {
+  const handleImageSelect = (imageData: string | null, fileName: string | null, pdfUrl?: string | null) => {
     setDesignImage(imageData)
     setDesignFileName(fileName)
+    setDeliveryPdfUrl(pdfUrl ?? null)
   }
 
   const handleOptionChange = (optionId: string, valueId: string) => {
@@ -81,10 +118,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     }
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (): boolean => {
     if (!designImage) {
       alert('デザイン画像をアップロードしてください')
-      return
+      return false
+    }
+    if (!deliveryPdfUrl) {
+      alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
+      return false
     }
 
     const options = Object.entries(selectedOptions).map(([id, valueId]) => {
@@ -106,35 +147,59 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       designFileName,
       moldFee: moldFee > 0 ? moldFee : undefined,
       moldOrderId: moldReuseValid && moldOrderId ? moldOrderId : undefined,
+      expressDelivery: expressDelivery || undefined,
+      expressDeliveryFee: expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? product.expressDeliveryFee : undefined,
+      deliveryPdfUrl,
     })
 
     setIsAdded(true)
     setTimeout(() => setIsAdded(false), 2000)
+    return true
   }
 
   const handleBuyNow = () => {
-    handleAddToCart()
-    router.push('/cart')
+    const added = handleAddToCart()
+    if (added) router.push('/cart')
   }
 
   const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
   const totalPriceItems = calculateTotalPrice(product, quantity, selectedOptions)
   const moldFee = product.requiresMold && moldReuseValid !== true ? (product.moldFee ?? 0) : 0
-  const totalPrice = totalPriceItems + moldFee
+  const expressFeeCost = expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? (product.expressDeliveryFee ?? 0) : 0
+  const totalPrice = totalPriceItems + moldFee + expressFeeCost
   const baseTier = product.priceTiers[0]
   const discountPercent = baseTier.unitPrice > unitPrice
     ? Math.round((1 - unitPrice / baseTier.unitPrice) * 100)
     : 0
 
   const handleMoldCheck = async () => {
-    if (!moldOrderId.trim()) return
+    if (!moldOrderId.trim() || !moldEmail.trim()) return
     setCheckingMold(true)
     setMoldReuseValid(null)
     try {
       const { checkMoldReuse } = await import('@/app/actions/mold')
-      const result = await checkMoldReuse(moldOrderId, product.id)
+      const result = await checkMoldReuse(moldOrderId, moldEmail, product.id)
       setMoldReuseValid(result.valid)
-      setMoldReuseMessage(result.reason ?? '✅ 型の再利用が確認できました。型代は発生しません。')
+
+      if (result.valid) {
+        // Auto-fill previous order's options
+        if (result.previousOptions && result.previousOptions.length > 0) {
+          const restored: Record<string, string> = {}
+          for (const prev of result.previousOptions) {
+            const opt = product.options.find((o) => o.id === prev.id)
+            const val = opt?.values.find((v) => v.label === prev.value)
+            if (val) restored[prev.id] = val.id
+          }
+          if (Object.keys(restored).length > 0) {
+            setSelectedOptions((current) => ({ ...current, ...restored }))
+            setMoldReuseMessage('✅ 型の再利用が確認できました。型代は発生しません。前回のオプション設定を自動で反映しました。')
+            return
+          }
+        }
+        setMoldReuseMessage('✅ 型の再利用が確認できました。型代は発生しません。')
+      } else {
+        setMoldReuseMessage(result.reason ?? '❌ 型の再利用を確認できませんでした。')
+      }
     } finally {
       setCheckingMold(false)
     }
@@ -143,6 +208,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   return (
     <div className="py-6 md:py-10 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Draft Restored Toast */}
+        {draftRestored && (
+          <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+            <Check className="h-4 w-4" />
+            前回の設定を復元しました
+          </div>
+        )}
+
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-foreground transition-colors">
@@ -171,8 +244,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             {product.options.filter(o => o.id === 'shape' || o.id === 'type').map((option) => (
               <div key={option.id}>
                 <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+                {product.id === 'plastic-bag' && option.id === 'shape' && (
+                  <p className="text-xs text-muted-foreground mb-2">ビニール袋は袋型のみ対応しています</p>
+                )}
                 <div className="space-y-1">
-                  {option.values.map((value) => {
+                  {(product.id === 'plastic-bag' && option.id === 'shape'
+                    ? option.values.filter(v => v.id === 'plastic-bag')
+                    : option.values
+                  ).map((value) => {
                     const priceLabel = formatPriceModifier(value.priceModifier)
                     return (
                       <button
@@ -317,10 +396,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <div className="bg-card rounded-lg border border-border overflow-hidden">
               <div className="max-h-[400px] overflow-y-auto">
                 {product.priceTiers.map((tier, index) => {
-                  const tierQty = tier.minQuantity
-                  const tierTotal = tier.unitPrice * tierQty
                   const isSelected = quantity >= tier.minQuantity &&
                     (index === product.priceTiers.length - 1 || quantity < product.priceTiers[index + 1].minQuantity)
+                  // Apply current option modifiers so the grid reflects the real price
+                  const effectiveUnitPrice = calculateUnitPrice(product, tier.minQuantity, selectedOptions)
+                  const tierTotal = effectiveUnitPrice * tier.minQuantity
+                  // Discount vs base tier price (option-adjusted)
+                  const baseUnitPrice = calculateUnitPrice(product, product.priceTiers[0].minQuantity, selectedOptions)
+                  const effectiveDiscount = baseUnitPrice > effectiveUnitPrice
+                    ? Math.round((1 - effectiveUnitPrice / baseUnitPrice) * 100)
+                    : 0
 
                   return (
                     <button
@@ -337,8 +422,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                       <span className={`text-center ${isSelected ? 'font-bold text-primary' : 'text-foreground'}`}>
                         {formatPrice(tierTotal)}
                       </span>
-                      <span className={`text-right text-xs ${tier.discountPercent ? 'text-green-600 font-semibold' : 'text-muted-foreground'}`}>
-                        {tier.discountPercent ? `- ${tier.discountPercent}%` : ''}
+                      <span className={`text-right text-xs ${effectiveDiscount > 0 ? 'text-green-600 font-semibold' : 'text-muted-foreground'}`}>
+                        {effectiveDiscount > 0 ? `- ${effectiveDiscount}%` : ''}
                       </span>
                     </button>
                   )
@@ -363,6 +448,26 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Step Guide */}
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <p className="text-sm font-bold text-primary mb-3">ご注文の手順</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { step: 1, label: 'オプション・数量を選択', done: true },
+              { step: 2, label: 'デザインをアップロード', done: !!designImage },
+              { step: 3, label: '「納品データを確定」を押す', done: !!deliveryPdfUrl },
+              { step: 4, label: 'カートに追加して購入', done: false },
+            ].map(({ step, label, done }) => (
+              <div key={step} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${done ? 'bg-primary/10 text-primary' : 'bg-background text-muted-foreground'}`}>
+                <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold ${done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                  {step}
+                </span>
+                <span className="leading-tight font-medium">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -408,27 +513,37 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     型代について（初回のみ {formatPrice(product.moldFee || 0)}）
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    この商品は型が必要です。過去に同じ商品をご注文いただいている場合、注文番号を入力すると型代が免除されます。
+                    この商品は型が必要です。過去に同じ商品をご注文いただいている場合、注文番号を入力すると型代が免除されます（型は1年間保管しています）。
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col gap-2">
                 <input
                   type="text"
                   value={moldOrderId}
                   onChange={(e) => setMoldOrderId(e.target.value)}
-                  placeholder="過去の注文番号を入力（例：cs_test_...）"
-                  className="flex-1 px-4 py-2.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  placeholder="過去の注文番号（例：FO-ABC123-XYZ456）"
+                  className="w-full px-4 py-2.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   disabled={checkingMold}
                 />
-                <Button
-                  onClick={handleMoldCheck}
-                  disabled={!moldOrderId.trim() || checkingMold}
-                  className="sm:w-auto bg-[#00c8c8] hover:bg-[#00b0b0] text-white"
-                >
-                  {checkingMold ? '確認中...' : '型の再利用を確認'}
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    value={moldEmail}
+                    onChange={(e) => setMoldEmail(e.target.value)}
+                    placeholder="ご注文時のメールアドレス"
+                    className="flex-1 px-4 py-2.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    disabled={checkingMold}
+                  />
+                  <Button
+                    onClick={handleMoldCheck}
+                    disabled={!moldOrderId.trim() || !moldEmail.trim() || checkingMold}
+                    className="sm:w-auto bg-[#00c8c8] hover:bg-[#00b0b0] text-white"
+                  >
+                    {checkingMold ? '確認中...' : '型の再利用を確認'}
+                  </Button>
+                </div>
               </div>
 
               {moldReuseMessage && (
@@ -442,6 +557,62 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             </CardContent>
           </Card>
         )}
+
+        {/* Delivery Speed Selection */}
+        <Card className="mb-4 border-2 border-border">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Truck className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold text-foreground">納期を選択</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Standard */}
+              <button
+                onClick={() => setExpressDelivery(false)}
+                className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                  !expressDelivery
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/40 bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">通常納期</span>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${!expressDelivery ? 'border-primary bg-primary' : 'border-border'}`}>
+                    {!expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                </div>
+                <span className="text-xs text-muted-foreground">2週間〜1ヶ月</span>
+                <span className="text-sm font-bold text-green-600">追加料金なし</span>
+              </button>
+
+              {/* Express */}
+              {(product.expressDeliveryFee ?? 0) > 0 && (
+                <button
+                  onClick={() => setExpressDelivery(true)}
+                  className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                    expressDelivery
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'border-border hover:border-orange-300 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">⚡ 特急納期</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${expressDelivery ? 'border-orange-500 bg-orange-500' : 'border-border'}`}>
+                      {expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">約10日以内（目安）</span>
+                  <span className="text-sm font-bold text-orange-600">+{formatPrice(product.expressDeliveryFee ?? 0)}</span>
+                </button>
+              )}
+            </div>
+            {expressDelivery && (
+              <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2 mt-3">
+                特急納期は工場の生産状況により対応できない場合があります。ご注文後に担当者よりご連絡いたします。
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Price Summary & Actions */}
         <Card className="sticky bottom-4 shadow-2xl border-2">
@@ -463,10 +634,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     <p className="text-lg font-semibold text-[#ff7b54]">{formatPrice(moldFee)}</p>
                   </div>
                 )}
+                {expressFeeCost > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">⚡ 特急料金</p>
+                    <p className="text-lg font-semibold text-orange-500">{formatPrice(expressFeeCost)}</p>
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm text-muted-foreground">合計金額</p>
+                  <p className="text-sm text-muted-foreground">合計金額 <span className="text-xs font-semibold text-green-600">（税込）</span></p>
                   <div className="flex flex-col gap-1">
-                    {moldFee > 0 && (
+                    {(moldFee > 0 || expressFeeCost > 0) && (
                       <p className="text-sm text-muted-foreground">
                         商品代: {formatPrice(totalPriceItems)}
                       </p>
@@ -501,25 +678,28 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
               {/* Action Buttons */}
               <div className="flex gap-3">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
-                  onClick={handleAddToCart}
-                  disabled={!designImage}
-                >
-                  {isAdded ? (
-                    <>
-                      <Check className="h-5 w-5 mr-2" />
-                      追加しました
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="h-5 w-5 mr-2" />
-                      カートに追加
-                    </>
-                  )}
-                </Button>
+                {isAdded ? (
+                  <Button
+                    size="lg"
+                    variant="default"
+                    className="flex-1 lg:flex-none h-12 px-6 rounded-xl bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => router.push('/cart')}
+                  >
+                    <Check className="h-5 w-5 mr-2" />
+                    カートを見る →
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
+                    onClick={handleAddToCart}
+                    disabled={!designImage}
+                  >
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    カートに追加
+                  </Button>
+                )}
                 <Button
                   size="lg"
                   className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"

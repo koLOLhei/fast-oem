@@ -1,53 +1,20 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { Upload, X, ImageIcon, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { Upload, X, ImageIcon, CheckCircle, AlertTriangle, Loader2, FileDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
+import DesignCanvas, { type DesignCanvasRef } from '@/components/design-canvas'
 
 interface ImageUploaderProps {
-  onImageSelect: (imageData: string | null, fileName: string | null) => void
+  onImageSelect: (
+    imageData: string | null,
+    fileName: string | null,
+    deliveryPdfUrl?: string | null,
+  ) => void
   currentImage: string | null
   currentFileName: string | null
   selectedShape?: string
-}
-
-// 形状名を取得
-function getShapeName(shapeId: string): string {
-  const names: Record<string, string> = {
-    'die-cut': '型抜き',
-    'circle': '円形',
-    'square': '四角形',
-    'rounded': '角丸',
-    'heart': 'ハート型',
-    'star': '星型',
-    'oval': '楕円形',
-    'shield': 'シールド型',
-  }
-  return names[shapeId] || shapeId
-}
-
-// SVGクリップパスを形状IDに基づいて生成
-function getShapeClipPath(shapeId: string): string {
-  switch (shapeId) {
-    case 'circle':
-      return 'circle(50% at 50% 50%)'
-    case 'square':
-      return 'inset(0)'
-    case 'rounded':
-      return 'inset(0 round 16px)'
-    case 'heart':
-      return 'path("M 50 90 C 20 60, 0 30, 50 10 C 100 30, 80 60, 50 90 Z")'
-    case 'star':
-      return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)'
-    case 'oval':
-      return 'ellipse(50% 35% at 50% 50%)'
-    case 'shield':
-      return 'polygon(50% 0%, 100% 15%, 100% 60%, 50% 100%, 0% 60%, 0% 15%)'
-    case 'die-cut':
-    default:
-      return 'none'
-  }
 }
 
 export function ImageUploader({
@@ -58,26 +25,23 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const canvasRef = useRef<DesignCanvasRef>(null)
 
   const handleFile = useCallback(
     async (file: File) => {
       setError(null)
+      setConfirmed(false)
       setIsUploading(true)
 
-      const validTypes = [
-        'image/png',
-        'image/jpeg',
-        'image/jpg',
-        'image/svg+xml',
-        'image/webp',
-      ]
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp']
       if (!validTypes.includes(file.type)) {
         setError('PNG、JPG、SVG、WebP形式の画像をアップロードしてください')
         setIsUploading(false)
         return
       }
-
       if (file.size > 10 * 1024 * 1024) {
         setError('ファイルサイズは10MB以下にしてください')
         setIsUploading(false)
@@ -87,144 +51,111 @@ export function ImageUploader({
       try {
         const fileExt = file.name.split('.').pop()
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
-        const filePath = `uploads/${fileName}`
-
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('designs')
-          .upload(filePath, file, { upsert: false })
-
-        if (uploadError) {
-          throw uploadError
-        }
+          .upload(`uploads/${fileName}`, file, { upsert: false })
+        if (uploadError) throw uploadError
 
         const { data: { publicUrl } } = supabase.storage
           .from('designs')
-          .getPublicUrl(filePath)
+          .getPublicUrl(`uploads/${fileName}`)
 
-        onImageSelect(publicUrl, file.name)
+        onImageSelect(publicUrl, file.name, null)
       } catch (err: any) {
-        console.error('Error uploading image:', err)
         setError('画像のアップロードに失敗しました。もう一度お試しください。')
       } finally {
         setIsUploading(false)
       }
     },
-    [onImageSelect]
+    [onImageSelect],
   )
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      setIsDragging(false)
+  const handleConfirmLayout = useCallback(async () => {
+    if (!canvasRef.current || !currentImage) return
+    setIsExporting(true)
+    setError(null)
+    try {
+      const ts = Date.now()
 
-      const file = e.dataTransfer.files[0]
-      if (file) {
-        handleFile(file)
-      }
-    },
-    [handleFile]
-  )
+      const pngBlob = await canvasRef.current.exportPNG()
+      const pngPath = `delivery/${ts}_composite.png`
+      await supabase.storage.from('designs').upload(pngPath, pngBlob, { contentType: 'image/png' })
+      const { data: { publicUrl: compositeUrl } } = supabase.storage.from('designs').getPublicUrl(pngPath)
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
+      const pdfBlob = await canvasRef.current.exportPDF()
+      const pdfPath = `delivery/${ts}_delivery.pdf`
+      await supabase.storage.from('designs').upload(pdfPath, pdfBlob, { contentType: 'application/pdf' })
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }, [])
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (file) {
-        handleFile(file)
-      }
-    },
-    [handleFile]
-  )
+      // Store the storage PATH (not the public URL) for the delivery PDF.
+      // Server components generate a short-lived signed URL at render time,
+      // keeping production files inaccessible without authentication.
+      onImageSelect(compositeUrl, currentFileName, pdfPath)
+      setConfirmed(true)
+    } catch (err: any) {
+      setError('納品データの生成に失敗しました。もう一度お試しください。')
+    } finally {
+      setIsExporting(false)
+    }
+  }, [currentImage, currentFileName, onImageSelect])
 
   const handleRemove = useCallback(() => {
-    onImageSelect(null, null)
+    onImageSelect(null, null, null)
     setError(null)
+    setConfirmed(false)
   }, [onImageSelect])
-
-  const clipPath = getShapeClipPath(selectedShape)
-  const isDieCut = selectedShape === 'die-cut'
 
   if (currentImage) {
     return (
       <div className="space-y-4">
-        <div className="relative aspect-square max-w-xs mx-auto bg-[repeating-conic-gradient(#e5e5e5_0%_25%,#fff_0%_50%)] bg-[length:20px_20px] rounded-2xl overflow-hidden shadow-lg">
-          {/* 形状プレビュー */}
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            {clipPath !== 'none' ? (
-              <div
-                style={{
-                  clipPath,
-                  WebkitClipPath: clipPath,
-                }}
-                className="w-full h-full"
-              >
-                <img
-                  src={currentImage}
-                  alt="アップロードした画像"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            ) : (
-              <img
-                src={currentImage}
-                alt="アップロードした画像"
-                className="w-full h-full object-contain"
-              />
-            )}
-          </div>
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute top-3 right-3 h-8 w-8 rounded-full shadow-lg"
-            onClick={handleRemove}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">画像を削除</span>
-          </Button>
-          {/* Shape badge */}
-          <div className="absolute bottom-3 left-3 px-2 py-1 bg-background/90 text-foreground text-xs font-medium rounded-full shadow border">
-            {getShapeName(selectedShape)}
-          </div>
-        </div>
-        <div className="flex items-center justify-center gap-2 text-sm text-primary">
-          <CheckCircle className="h-4 w-4" />
-          <span className="font-medium truncate max-w-[200px]">
-            {currentFileName}
-          </span>
-        </div>
+        <DesignCanvas ref={canvasRef} imageUrl={currentImage} shape={selectedShape} />
 
-        {/* 型抜き用の注意事項 */}
-        {isDieCut && (
-          <div className="flex items-start gap-2 p-3 bg-accent/10 border border-accent/30 rounded-xl">
-            <AlertTriangle className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground">
-              <strong className="text-foreground">型抜き</strong>を選択中です。
-              画像の透明部分がそのままカットラインになります。
-              背景透過のPNG画像を推奨します。
+        {confirmed ? (
+          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
+            <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-green-800">納品データを生成しました</p>
+              <p className="text-xs text-green-600">配置を変更したい場合は調整後にもう一度確定してください</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              画像の配置を調整したら <strong>「納品データを確定」</strong> を押してください。確定後にカートに追加できます。
             </p>
           </div>
         )}
 
-        <label className="block">
-          <input
-            type="file"
-            className="sr-only"
-            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-            onChange={handleFileInput}
-          />
-          <Button variant="outline" asChild className="w-full h-11 rounded-xl">
-            <span>別の画像を選択</span>
+        <div className="flex flex-col gap-2 max-w-[400px] mx-auto">
+          <Button
+            onClick={handleConfirmLayout}
+            disabled={isExporting}
+            className="h-11 rounded-xl w-full bg-green-600 hover:bg-green-700 text-white"
+          >
+            {isExporting
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />PDF生成中...</>
+              : <><FileDown className="h-4 w-4 mr-2" />納品データを確定（PDF生成）</>
+            }
           </Button>
-        </label>
+          <div className="flex gap-2">
+            <label className="flex-1">
+              <input
+                type="file" className="sr-only"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+              />
+              <Button variant="outline" asChild className="w-full h-9 rounded-xl text-xs"><span>別の画像を選択</span></Button>
+            </label>
+            <Button
+              variant="ghost" size="sm" onClick={handleRemove}
+              className="h-9 rounded-xl text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <X className="h-3.5 w-3.5 mr-1" />削除
+            </Button>
+          </div>
+        </div>
+
+        {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl"><p className="text-sm text-destructive text-center">{error}</p></div>}
       </div>
     )
   }
@@ -232,86 +163,45 @@ export function ImageUploader({
   return (
     <div className="space-y-4">
       <div
-        className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging
-            ? 'border-primary bg-primary/5 scale-[1.02]'
-            : 'border-border hover:border-primary/50 hover:bg-secondary/50'
-          }`}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
+        className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
+          isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+        }`}
+        onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+        onDragLeave={() => setIsDragging(false)}
       >
         <label className="cursor-pointer block">
           <input
-            type="file"
-            className="sr-only"
+            type="file" className="sr-only"
             accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
-            onChange={handleFileInput}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
           />
           <div className="flex flex-col items-center gap-4">
-            <div
-              className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${isDragging ? 'bg-primary/20' : 'bg-secondary'
-                }`}
-            >
-              <ImageIcon
-                className={`h-10 w-10 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'
-                  }`}
-              />
+            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-colors ${isDragging ? 'bg-primary/20' : 'bg-secondary'}`}>
+              <ImageIcon className={`h-10 w-10 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-lg">
-                デザイン画像をアップロード
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                ドラッグ&ドロップまたはクリックして選択
-              </p>
+              <p className="font-semibold text-foreground text-lg">デザイン画像をアップロード</p>
+              <p className="text-sm text-muted-foreground mt-2">ドラッグ&ドロップまたはクリックして選択</p>
             </div>
-            <Button
-              variant="default"
-              className="mt-2 h-11 px-6 rounded-xl bg-primary hover:bg-primary/90"
-              disabled={isUploading}
-              asChild
-            >
+            <Button variant="default" className="mt-2 h-11 px-6 rounded-xl bg-primary hover:bg-primary/90" disabled={isUploading} asChild>
               <span>
-                {isUploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    アップロード中...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    ファイルを選択
-                  </>
-                )}
+                {isUploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />アップロード中...</> : <><Upload className="h-4 w-4 mr-2" />ファイルを選択</>}
               </span>
             </Button>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>対応形式: PNG, JPG, SVG, WebP（最大10MB）</p>
-              <p className="text-primary font-medium">
-                選択中の形状: {getShapeName(selectedShape)}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">対応形式: PNG, JPG, SVG, WebP（最大10MB）</p>
           </div>
         </label>
       </div>
 
-      {/* 型抜き用の注意事項 */}
-      {isDieCut && (
+      {selectedShape === 'die-cut' && (
         <div className="flex items-start gap-2 p-3 bg-accent/10 border border-accent/30 rounded-xl">
-          <AlertTriangle className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">型抜き</strong>を選択中です。
-            画像の透明部分がそのままカットラインになります。
-            <strong className="text-foreground">背景透過のPNG画像</strong>を推奨します。
-          </p>
+          <AlertTriangle className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground"><strong className="text-foreground">型抜き</strong>を選択中です。背景透過のPNG画像を推奨します。</p>
         </div>
       )}
 
-      {error && (
-        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
-          <p className="text-sm text-destructive text-center">{error}</p>
-        </div>
-      )}
+      {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl"><p className="text-sm text-destructive text-center">{error}</p></div>}
     </div>
   )
 }
