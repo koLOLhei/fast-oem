@@ -385,8 +385,36 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
         throw new Error(`このステータス（${order.status}）の注文はキャンセルできません`)
     }
 
+    // ── Determine refund amount ──────────────────────────────────────────────
+    // For partially_shipped orders: refund only the items that have NOT shipped yet.
+    // For all other paid statuses: full refund.
+    const items = (order as any).order_items as Array<{
+        id: string
+        status: string
+        unit_price: number
+        quantity: number
+        mold_fee?: number
+        express_delivery_fee?: number
+    }> ?? []
+
+    const isPartiallyShipped = order.status === 'partially_shipped'
+    const unshippedItems = isPartiallyShipped
+        ? items.filter((i) => i.status !== 'shipped')
+        : items
+
+    // Amount in smallest currency unit (JPY = no decimals → same as yen amount)
+    const partialRefundAmount = isPartiallyShipped
+        ? unshippedItems.reduce((sum, i) => {
+            const lineTotal = (i.unit_price ?? 0) * (i.quantity ?? 1)
+            const mold = i.mold_fee ?? 0
+            const express = i.express_delivery_fee ?? 0
+            return sum + lineTotal + mold + express
+          }, 0)
+        : 0
+
     // ── Stripe refund (paid orders only) ────────────────────────────────────
     let refundIssued = false
+    let refundAmount = 0 // 0 = full refund
     if (order.status !== 'pending') {
         try {
             const paymentIntentId: string | null =
@@ -401,7 +429,14 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
             }
 
             if (piId) {
-                await stripe.refunds.create({ payment_intent: piId })
+                if (isPartiallyShipped && partialRefundAmount > 0) {
+                    // Partial refund: only the unshipped items' value
+                    await stripe.refunds.create({ payment_intent: piId, amount: partialRefundAmount })
+                    refundAmount = partialRefundAmount
+                } else if (!isPartiallyShipped) {
+                    // Full refund
+                    await stripe.refunds.create({ payment_intent: piId })
+                }
                 refundIssued = true
             } else {
                 console.warn(`[adminCancelOrder] ${orderId}: payment_intent not found — skipping Stripe refund`)
@@ -427,10 +462,18 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
         })
         .eq('id', orderId)
 
-    await supabase
-        .from('order_items')
-        .update({ status: 'cancelled' })
-        .eq('order_id', orderId)
+    // For partially_shipped: only cancel unshipped items; keep shipped items as-is
+    if (isPartiallyShipped && unshippedItems.length > 0) {
+        await supabase
+            .from('order_items')
+            .update({ status: 'cancelled' })
+            .in('id', unshippedItems.map((i) => i.id))
+    } else {
+        await supabase
+            .from('order_items')
+            .update({ status: 'cancelled' })
+            .eq('order_id', orderId)
+    }
 
     // ── Customer email ───────────────────────────────────────────────────────
     const customerInfo = order.customer_info as any
@@ -465,7 +508,10 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                     <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
                       <p style="margin:0;font-size:14px;font-weight:bold;color:#166534;">💳 ご返金について</p>
                       <p style="margin:8px 0 0;font-size:13px;color:#4b5563;">
-                        ご決済いただいた金額は全額ご返金いたします。<br/>
+                        ${refundAmount > 0
+                          ? `未発送分の商品代金 <strong>¥${refundAmount.toLocaleString('ja-JP')}</strong> をご返金いたします。<br/>既に発送済みの商品につきましては返金対象外となります。`
+                          : 'ご決済いただいた金額は全額ご返金いたします。'
+                        }<br/>
                         カード会社の処理により、反映まで数営業日かかる場合がございます。
                       </p>
                     </div>
@@ -507,7 +553,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
         `顧客: ${customerName}（${customerEmail}）\n` +
         `合計: ¥${((order as any).total_price ?? 0).toLocaleString('ja-JP')}\n` +
         `理由: ${reason.trim()}\n` +
-        `${refundIssued ? '💳 Stripe返金を発行しました\n' : ''}` +
+        `${refundIssued ? `💳 Stripe返金を発行しました${refundAmount > 0 ? `（一部返金: ¥${refundAmount.toLocaleString('ja-JP')}）` : '（全額）'}\n` : ''}` +
         `<${adminUrl}|管理画面で確認>`,
     ).catch(() => {})
 

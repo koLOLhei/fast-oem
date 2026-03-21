@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { getProductsFromDb } from '@/lib/products-db'
 import './globals.css'
 
 const notoSansJP = Noto_Sans_JP({
@@ -50,23 +51,19 @@ export const metadata: Metadata = {
     title: 'FAST OEM | 小ロットOEMグッズ製作・オリジナルグッズ作成',
     description:
       'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作なら FAST OEM。',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'FAST OEM | オリジナルグッズ製作',
     description: 'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。',
-    images: ['/og-image.png'],
+    images: ['/opengraph-image.png'],
   },
   alternates: {
     canonical: BASE_URL,
   },
   icons: {
-    icon: [
-      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
-      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-    ],
+    icon: '/icon.png',
     apple: '/apple-icon.png',
   },
 }
@@ -75,19 +72,22 @@ export const viewport: Viewport = {
   themeColor: '#1e3a5f',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const products = await getProductsFromDb()
+  const productNav = products.map((p) => ({ slug: p.slug, name: p.name }))
+
   return (
     <html lang="ja">
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <Header products={productNav} />
             <main className="flex-1">{children}</main>
-            <Footer />
+            <Footer products={productNav} />
           </div>
         </CartProvider>
         <Analytics />

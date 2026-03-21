@@ -46,6 +46,7 @@ export default async function FactoryPage() {
       converted_design_url,
       delivery_pdf_url,
       express_delivery,
+      mold_order_id,
       orders (
         created_at,
         shipping_address,

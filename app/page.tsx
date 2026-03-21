@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     description:
       'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティなら FAST OEM。',
     url: BASE_URL,
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
   },
   alternates: { canonical: BASE_URL },
 }
@@ -66,16 +66,16 @@ const steps = [
   {
     icon: Truck,
     title: 'お届け',
-    description: '最短5営業日で指定住所へ配送',
+    description: '2週間〜1ヶ月程度で指定住所へ配送',
     color: 'bg-[#7ed957]',
   },
 ]
 
 const features = [
   {
-    icon: Zap,
-    title: '最短5営業日出荷',
-    description: 'スピーディーな製造体制',
+    icon: Clock,
+    title: '通常2週間〜1ヶ月出荷',
+    description: '安心の製造スケジュール',
     color: 'text-[#00c8c8]',
     bg: 'bg-[#00c8c8]/10',
   },
@@ -102,30 +102,6 @@ const features = [
   },
 ]
 
-const testimonials = [
-  {
-    name: '田中様',
-    role: '同人サークル',
-    content: '仕上がりがとても綺麗で、イベントで大好評でした。リピート決定です！',
-    rating: 5,
-    color: 'border-[#00c8c8]',
-  },
-  {
-    name: '佐藤様',
-    role: '企業ノベルティ担当',
-    content: '短納期で高品質。急ぎの案件でも安心してお任せできました。',
-    rating: 5,
-    color: 'border-[#ffe135]',
-  },
-  {
-    name: '鈴木様',
-    role: '個人クリエイター',
-    content: '小ロットから注文できるので、試作にぴったり。色の再現性も素晴らしいです。',
-    rating: 5,
-    color: 'border-[#ff7b54]',
-  },
-]
-
 const organizationJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
@@ -133,13 +109,6 @@ const organizationJsonLd = {
   url: BASE_URL,
   logo: `${BASE_URL}/icon.svg`,
   description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '4.9',
-    reviewCount: '2500',
-    bestRating: '5',
-    worstRating: '1',
-  },
   sameAs: [],
 }
 
@@ -211,62 +180,43 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd]) }}
       />
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-[#ffe135] via-[#fff9c4] to-[#ffe135]">
-        {/* Decorative Elements */}
+      <section className="relative min-h-[90vh] flex items-center bg-[#fdfbf6] overflow-hidden">
+        {/* Subtle background decoration */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,#ffe135_0%,transparent_40%),radial-gradient(circle_at_bottom_left,#00c8c8_0%,transparent_30%)] opacity-20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/80 backdrop-blur rounded-full text-[#00c8c8] text-sm font-bold mb-6 shadow-lg border-2 border-[#00c8c8]">
-                <Sparkles className="h-5 w-5" />
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white backdrop-blur rounded-full text-[#00c8c8] text-sm font-bold mb-8 shadow-sm border border-[#00c8c8]/20">
+                <Sparkles className="h-4 w-4" />
                 オリジナルグッズ製作プラットフォーム
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-foreground leading-tight">
-                <span className="inline-block bg-white/70 px-3 py-1 rounded-lg mb-2">あなただけの</span>
-                <br />
-                <span className="inline-block bg-[#00c8c8] text-white px-4 py-2 rounded-xl shadow-lg transform -rotate-1">
+              <h1 className="flex flex-col items-start gap-2 text-4xl md:text-5xl lg:text-[3.5rem] font-black text-foreground tracking-tight leading-[1.15]">
+                <span className="text-2xl md:text-3xl text-foreground/80 font-bold mb-2">あなただけの</span>
+                <span className="inline-block bg-[#00c8c8] text-white px-5 py-2.5 rounded-2xl shadow-lg transform -rotate-2">
                   オリジナルグッズ
                 </span>
-                <br />
-                <span className="inline-block mt-2">を作りましょう</span>
+                <span className="mt-3">をカンタンに作成</span>
               </h1>
 
-              <p className="mt-8 text-lg text-foreground/80 max-w-lg leading-relaxed bg-white/60 backdrop-blur p-4 rounded-xl border-2 border-dashed border-foreground/20">
+              <p className="mt-8 text-base md:text-lg text-foreground/80 max-w-lg leading-loose bg-white/80 backdrop-blur p-6 rounded-2xl shadow-sm border border-foreground/5">
                 アクリルキーホルダー、缶バッジ、ピンバッジなど、
-                高品質なオリジナルグッズを驚くほど簡単に作成できます。
-                <span className="font-bold text-[#ff7b54]">小ロットから大量発注まで対応。</span>
+                高品質な同人グッズ・ノベルティを最短ルートでお届けします。
+                <span className="block mt-2 font-bold text-[#ff7b54]">小ロットから大量発注まで、柔軟に対応。</span>
               </p>
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              <div className="mt-10">
                 <Button
                   asChild
                   size="lg"
-                  className="bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-16 px-10 text-xl font-bold rounded-2xl shadow-xl shadow-[#ff7b54]/30 transition-all hover:shadow-2xl hover:scale-105 border-4 border-white"
+                  className="bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-16 px-10 text-lg font-bold rounded-full shadow-lg shadow-[#ff7b54]/20 transition-all hover:shadow-xl hover:-translate-y-1"
                 >
                   <Link href="/products">
                     商品を選んで作成開始
-                    <ArrowRight className="ml-2 h-6 w-6" />
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="mt-10 flex items-center gap-4 bg-white/80 backdrop-blur rounded-xl p-4 shadow-lg inline-flex">
-                <div className="flex items-center gap-0.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-6 w-6 fill-[#ffe135] text-[#ffe135] drop-shadow-sm"
-                    />
-                  ))}
-                </div>
-                <div className="text-sm text-foreground">
-                  <span className="font-black text-lg text-[#ff7b54]">4.9</span> / 5.0
-                  <span className="mx-2 text-foreground/30">|</span>
-                  <span className="font-black text-lg text-[#00c8c8]">2,500+</span>{' '}
-                  件のレビュー
-                </div>
               </div>
             </div>
 
@@ -339,7 +289,7 @@ export default async function HomePage() {
       {/* Features Bar */}
       <section className="bg-white py-12 border-b-4 border-dashed border-[#00c8c8]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {features.map((feature) => (
               <div key={feature.title} className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-white to-secondary/30 border-2 border-foreground/5 hover:border-primary/30 transition-all hover:shadow-lg">
                 <div className={`w-14 h-14 rounded-2xl ${feature.bg} flex items-center justify-center flex-shrink-0 shadow-inner`}>
@@ -425,11 +375,11 @@ export default async function HomePage() {
             {steps.map((step, index) => (
               <Card
                 key={step.title}
-                className="relative border-4 border-white bg-white hover:scale-105 transition-transform shadow-xl rounded-3xl overflow-hidden"
+                className="relative border-4 border-white bg-white hover:scale-105 transition-transform shadow-xl rounded-3xl"
               >
-                <div className={`absolute top-0 left-0 right-0 h-2 ${step.color}`} />
+                <div className={`absolute top-0 left-0 right-0 h-2 ${step.color} rounded-t-[1.25rem] z-0`} />
                 <CardContent className="pt-14 pb-8 px-6 text-center">
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2">
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-10">
                     <div className={`w-12 h-12 rounded-full ${step.color} text-white font-black text-xl flex items-center justify-center shadow-lg border-4 border-white`}>
                       {index + 1}
                     </div>
@@ -450,60 +400,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 md:py-28 bg-gradient-to-b from-[#ffe135]/20 via-white to-[#ff7b54]/10 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-block bg-[#ffe135] text-foreground px-6 py-2 rounded-full text-sm font-bold mb-4 shadow-lg">
-              REVIEWS
-            </div>
-            <h2 className="text-3xl md:text-5xl font-black text-foreground">
-              お客様の声
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              FAST OEMをご利用いただいたお客様からの評価
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial) => (
-              <Card
-                key={testimonial.name}
-                className={`bg-white border-4 ${testimonial.color} hover:shadow-2xl transition-all hover:-translate-y-2 rounded-3xl`}
-              >
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-5 w-5 fill-[#ffe135] text-[#ffe135]"
-                      />
-                    ))}
-                  </div>
-                  <p className="text-foreground leading-relaxed mb-6 text-lg font-medium">
-                    {`"${testimonial.content}"`}
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full ${testimonial.color.replace('border-', 'bg-')}/20 flex items-center justify-center`}>
-                      <span className={`${testimonial.color.replace('border-', 'text-')} font-bold text-lg`}>
-                        {testimonial.name.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-foreground">
-                        {testimonial.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {testimonial.role}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="py-20 md:py-28 bg-[#ff7b54] relative overflow-hidden">

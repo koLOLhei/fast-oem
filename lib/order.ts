@@ -28,9 +28,13 @@ export interface OrderData {
 }
 
 export function generateOrderId(): string {
-  const timestamp = Date.now().toString(36).toUpperCase()
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase()
-  return `FO-${timestamp}-${random}`
+  // Cryptographically random 12-char alphanumeric (no timestamp, no sequential info)
+  // Excludes visually ambiguous characters: 0/O, 1/I/L
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint8Array(12)
+  crypto.getRandomValues(bytes)
+  const chars = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('')
+  return `FO-${chars.slice(0, 6)}-${chars.slice(6)}`
 }
 
 export const PREFECTURES = [

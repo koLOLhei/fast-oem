@@ -20,6 +20,7 @@ type Item = {
     converted_design_url: string | null
     delivery_pdf_url: string | null
     express_delivery?: boolean
+    mold_order_id?: string | null
     orders: {
         created_at: string
         shipping_address: any

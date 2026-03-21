@@ -454,15 +454,15 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         {/* Step Guide */}
         <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
           <p className="text-sm font-bold text-primary mb-3">ご注文の手順</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { step: 1, label: 'オプション・数量を選択', done: true },
               { step: 2, label: 'デザインをアップロード', done: !!designImage },
               { step: 3, label: '「納品データを確定」を押す', done: !!deliveryPdfUrl },
               { step: 4, label: 'カートに追加して購入', done: false },
             ].map(({ step, label, done }) => (
-              <div key={step} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${done ? 'bg-primary/10 text-primary' : 'bg-background text-muted-foreground'}`}>
-                <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold ${done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              <div key={step} className={`flex items-start gap-3 rounded-lg p-3 text-xs transition-colors ${done ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-background text-muted-foreground border border-border'}`}>
+                <span className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[12px] font-bold ${done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                   {step}
                 </span>
                 <span className="leading-tight font-medium">{label}</span>
@@ -664,7 +664,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-primary" />
-                  <span>最短5営業日</span>
+                  <span>2週間〜1ヶ月</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Shield className="w-4 h-4 text-primary" />
@@ -720,7 +720,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         </Card>
 
         {/* Features */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {product.features.map((feature) => (
             <div
               key={feature}

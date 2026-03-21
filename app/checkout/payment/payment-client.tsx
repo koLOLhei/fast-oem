@@ -61,7 +61,7 @@ export function PaymentClient() {
     setOrderId(result.orderId)
     setSessionId(result.sessionId)
     return result.clientSecret!
-  }, [cart, shippingAddress])
+  }, [cart, shippingAddress, shippingFee])
 
   const handleComplete = useCallback(async () => {
     if (!shippingAddress || !orderId) return

@@ -11,9 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useCart } from '@/components/cart-provider'
-import { PRODUCTS } from '@/lib/products'
 
-export function Header() {
+type ProductNav = { slug: string; name: string }
+
+export function Header({ products }: { products: ProductNav[] }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { cart } = useCart()
 
@@ -23,8 +24,8 @@ export function Header() {
         <div className="flex items-center justify-between h-18 py-3">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 bg-[#00c8c8] rounded-xl flex items-center justify-center shadow-lg shadow-[#00c8c8]/30 group-hover:scale-110 transition-transform">
-              <span className="text-white font-black text-lg">FO</span>
+            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
+              <img src="/logo.png" alt="FAST OEM logo" className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-black text-xl text-foreground leading-none">
@@ -55,7 +56,7 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <div className="h-px bg-[#ffe135] my-1" />
-                {PRODUCTS.map((product) => (
+                {products.map((product) => (
                   <DropdownMenuItem key={product.slug} asChild>
                     <Link
                       href={`/products/${product.slug}`}
@@ -73,6 +74,12 @@ export function Header() {
               className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
             >
               ご利用方法
+            </Link>
+            <Link
+              href="/contact"
+              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
+            >
+              お問い合わせ
             </Link>
           </nav>
 
@@ -123,7 +130,7 @@ export function Header() {
             <div className="py-2 px-3 text-xs font-bold text-[#00c8c8] uppercase tracking-wider">
               商品カテゴリ
             </div>
-            {PRODUCTS.map((product, index) => {
+            {products.map((product, index) => {
               const colors = ['text-[#00c8c8]', 'text-[#ffe135]', 'text-[#ff7b54]', 'text-[#7ed957]', 'text-[#a78bfa]']
               return (
                 <Link
@@ -151,6 +158,13 @@ export function Header() {
               onClick={() => setIsMenuOpen(false)}
             >
               ご利用方法
+            </Link>
+            <Link
+              href="/contact"
+              className="text-foreground py-3 px-3 hover:bg-[#ffe135]/20 rounded-xl transition-colors font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              お問い合わせ
             </Link>
           </nav>
         </div>

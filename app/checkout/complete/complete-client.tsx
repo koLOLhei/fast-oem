@@ -9,14 +9,29 @@ import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress } from '@/lib/order'
 import { formatPrice } from '@/lib/products'
 
-/** Skip weekends only (no JP holiday data needed for estimates) */
+/** Japanese national holidays (YYYY-MM-DD) for 2026–2027. */
+const JP_HOLIDAYS = new Set([
+  // 2026
+  '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
+  '2026-04-29','2026-05-03','2026-05-04','2026-05-05',
+  '2026-07-20','2026-08-11','2026-09-21','2026-09-23',
+  '2026-10-12','2026-11-03','2026-11-23',
+  // 2027
+  '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21',
+  '2027-04-29','2027-05-03','2027-05-04','2027-05-05',
+  '2027-07-19','2027-08-11','2027-09-20','2027-09-23',
+  '2027-10-11','2027-11-03','2027-11-23',
+])
+
+/** Skip weekends and Japanese national holidays when calculating delivery estimates. */
 function addBusinessDays(date: Date, days: number): Date {
   const result = new Date(date)
   let added = 0
   while (added < days) {
     result.setDate(result.getDate() + 1)
     const dow = result.getDay()
-    if (dow !== 0 && dow !== 6) added++
+    const ymd = result.toISOString().slice(0, 10)
+    if (dow !== 0 && dow !== 6 && !JP_HOLIDAYS.has(ymd)) added++
   }
   return result
 }

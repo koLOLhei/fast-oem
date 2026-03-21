@@ -146,7 +146,7 @@ export async function GET(
     }
     drawText(`${addressee} 様`, 40, y, 13, true)
     y -= 22
-    const orderNumber = (order as any).order_number ?? (order.stripe_session_id ?? '').slice(8, 28)
+    const orderNumber = (order as any).order_number ?? order.id
     drawText(`注文番号: ${orderNumber}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
     y -= 16
     if (poNumber) {

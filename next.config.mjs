@@ -18,11 +18,15 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
+  },
+  // Ensure the Japanese font used by PDF generation (receipts/invoices) is always
+  // included in the build output. Without this, the font would be missing in
+  // serverless/edge deployments that strip non-JS assets from public/.
+  outputFileTracingIncludes: {
+    '/api/receipts/[id]': ['./public/fonts/NotoSansJP-Regular.ttf'],
+    '/api/invoices/[id]': ['./public/fonts/NotoSansJP-Regular.ttf'],
   },
   async headers() {
     return [

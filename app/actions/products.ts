@@ -102,11 +102,16 @@ export async function applyGlobalPriceAdjustment(percent: number) {
     const { data: products, error } = await supabase.from('products').select('id, price_tiers')
     if (error) throw new Error(error.message)
     const multiplier = percent / 100
-    await Promise.all((products ?? []).map((p: any) => {
+    const results = await Promise.allSettled((products ?? []).map((p: any) => {
         const tiers = (p.price_tiers as Array<{ minQuantity: number; maxQuantity: number; unitPrice: number }>) ?? []
         const newTiers = tiers.map((t) => ({ ...t, unitPrice: Math.max(1, Math.round(t.unitPrice * multiplier)) }))
         return supabase.from('products').update({ price_tiers: newTiers }).eq('id', p.id)
     }))
+    const failed = results.filter((r) => r.status === 'rejected')
+    if (failed.length > 0) {
+        const total = results.length
+        throw new Error(`価格更新中に${failed.length}/${total}件でエラーが発生しました。成功した商品は既に更新済みです。`)
+    }
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/')

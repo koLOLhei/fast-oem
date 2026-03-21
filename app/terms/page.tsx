@@ -25,7 +25,7 @@ export default function TermsPage() {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <dt className="font-semibold text-foreground col-span-1">代表者</dt>
-                            <dd className="text-muted-foreground col-span-2">小川 浩平</dd>
+                            <dd className="text-muted-foreground col-span-2">小川 公平</dd>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <dt className="font-semibold text-foreground col-span-1">所在地</dt>

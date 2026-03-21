@@ -242,6 +242,7 @@ interface EmailData {
   customerEmail: string
   orderItems: any[]
   totalPrice: number
+  shippingFee?: number
   shippingAddress?: ShippingAddress
   receiptAddressee?: string
   /** productId → comma-separated email address(es) */
@@ -444,13 +445,14 @@ export async function sendEmails(data: EmailData) {
   // Define traceId outside try so it's accessible in the catch block
   const traceId = data.orderNumber || data.orderId
   try {
-    const { orderId, orderNumber, accessToken, customerName, customerEmail, orderItems, totalPrice, shippingAddress, receiptAddressee, productEmailMap = {} } = data
+    const { orderId, orderNumber, accessToken, customerName, customerEmail, orderItems, totalPrice, shippingFee = 0, shippingAddress, receiptAddressee, productEmailMap = {} } = data
     const statusUrl = `${SITE_URL}/orders/${orderId}/status?token=${accessToken}`
     const displayOrderNumber = orderNumber || orderId
 
     // Calculate subtotals
-    const itemsTotal = orderItems.reduce((sum, item) => sum + (item.total_price || item.unit_price * item.quantity), 0)
-    const moldTotal = orderItems.reduce((sum, item) => sum + (item.mold_fee || 0), 0)
+    const itemsTotal   = orderItems.reduce((sum, item) => sum + (item.total_price || item.unit_price * item.quantity), 0)
+    const moldTotal    = orderItems.reduce((sum, item) => sum + (item.mold_fee || 0), 0)
+    const expressTotal = orderItems.reduce((sum, item) => sum + (item.express_delivery_fee || 0), 0)
 
     // Format items for factory email (detailed)
     const factoryItemsHtml = orderItems.map((item, i) => {
@@ -517,6 +519,15 @@ export async function sendEmails(data: EmailData) {
                     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #c2410c; font-weight: bold;">${formatPrice(item.mold_fee)}</td>
                 </tr>
             ` : ''
+      const expressRow = item.express_delivery && item.express_delivery_fee > 0 ? `
+                <tr style="background-color: #fff7ed;">
+                    <td style="padding: 8px; border: 1px solid #ddd; padding-left: 24px; color: #ea580c;">
+                        ⚡ 特急料金
+                    </td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">1</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: #ea580c; font-weight: bold;">${formatPrice(item.express_delivery_fee)}</td>
+                </tr>
+            ` : ''
 
       return `
                 <tr>
@@ -528,7 +539,7 @@ export async function sendEmails(data: EmailData) {
                     <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.quantity}個</td>
                     <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">${formatPrice(subtotal)}</td>
                 </tr>
-                ${moldFeeRow}
+                ${moldFeeRow}${expressRow}
             `
     }).join('')
 
@@ -538,8 +549,11 @@ export async function sendEmails(data: EmailData) {
     const factoryGroups = groupItemsByEmail(orderItems, productEmailMap)
     for (const [emailKey, groupItems] of factoryGroups) {
       const groupHasExpress = groupItems.some((i: any) => i.express_delivery)
-      const groupItemsTotal = groupItems.reduce((sum: number, item: any) => sum + (item.total_price || item.unit_price * item.quantity), 0)
-      const groupMoldTotal = groupItems.reduce((sum: number, item: any) => sum + (item.mold_fee || 0), 0)
+      const groupItemsTotal  = groupItems.reduce((sum: number, item: any) => sum + (item.total_price || item.unit_price * item.quantity), 0)
+      const groupMoldTotal   = groupItems.reduce((sum: number, item: any) => sum + (item.mold_fee || 0), 0)
+      const groupExpressTotal = groupItems.reduce((sum: number, item: any) => sum + (item.express_delivery_fee || 0), 0)
+      // Shipping fee is order-level; apportion to this group if it's the only group, otherwise show in full
+      const isOnlyGroup = factoryGroups.size === 1
 
       const groupFactoryItemsHtml = groupItems.map((item: any, i: number) => {
         const optionsText = item.options && item.options.length > 0
@@ -630,6 +644,16 @@ export async function sendEmails(data: EmailData) {
               <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                 <span style="color: #c2410c;">型代:</span>
                 <span style="font-weight: bold; color: #c2410c;">${formatPrice(groupMoldTotal)}</span>
+              </div>` : ''}
+              ${groupExpressTotal > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: #ea580c;">⚡ 特急料金:</span>
+                <span style="font-weight: bold; color: #ea580c;">${formatPrice(groupExpressTotal)}</span>
+              </div>` : ''}
+              ${isOnlyGroup && shippingFee > 0 ? `
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: #3b82f6;">送料（離島・遠隔地）:</span>
+                <span style="font-weight: bold; color: #3b82f6;">${formatPrice(shippingFee)}</span>
               </div>` : ''}
               <hr style="margin: 12px 0; border: none; border-top: 1px solid #ddd;" />
               <div style="display: flex; justify-content: space-between;">
@@ -726,8 +750,17 @@ export async function sendEmails(data: EmailData) {
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
               <span style="color: #c2410c;">型代（初回のみ）:</span>
               <span style="color: #c2410c;">${formatPrice(moldTotal)}</span>
-            </div>
-            ` : ''}
+            </div>` : ''}
+            ${expressTotal > 0 ? `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #ea580c;">⚡ 特急料金:</span>
+              <span style="color: #ea580c;">${formatPrice(expressTotal)}</span>
+            </div>` : ''}
+            ${shippingFee > 0 ? `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span style="color: #3b82f6;">送料（離島・遠隔地）:</span>
+              <span style="color: #3b82f6;">${formatPrice(shippingFee)}</span>
+            </div>` : ''}
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
               <span style="color: #6b7280;">小計（税抜）:</span>
               <span>${formatPrice(Math.round(totalPrice / 1.1))}</span>

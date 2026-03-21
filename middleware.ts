@@ -17,13 +17,36 @@ function getClientIp(req: NextRequest): string {
     )
 }
 
+/** Convert an IPv4 address string to a 32-bit integer. */
+function ipToInt(ip: string): number {
+    return ip.split('.').reduce((acc, octet) => (acc << 8) | parseInt(octet, 10), 0) >>> 0
+}
+
+/**
+ * Check whether `ip` matches an entry in ADMIN_ALLOWED_IPS.
+ * Each entry can be an exact IPv4 address (e.g. 203.0.113.1) or
+ * a CIDR block (e.g. 203.0.113.0/24).
+ */
 function isIpAllowed(ip: string): boolean {
     const raw = process.env.ADMIN_ALLOWED_IPS
-    // PRODUCTION: set ADMIN_ALLOWED_IPS to a comma-separated list of allowed IPs.
+    // PRODUCTION: set ADMIN_ALLOWED_IPS to a comma-separated list of allowed IPs or CIDR blocks.
     // Leaving it unset (or "*") permits all IPs — acceptable in development only.
     if (!raw || raw === '*') return true
-    const allowed = raw.split(',').map((s) => s.trim())
-    return allowed.includes(ip)
+    const clientInt = ipToInt(ip)
+    for (const entry of raw.split(',').map((s) => s.trim())) {
+        if (entry.includes('/')) {
+            // CIDR match
+            const [network, prefixStr] = entry.split('/')
+            const prefix = parseInt(prefixStr, 10)
+            if (prefix < 0 || prefix > 32) continue
+            const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0
+            if ((clientInt & mask) === (ipToInt(network) & mask)) return true
+        } else {
+            // Exact match
+            if (entry === ip) return true
+        }
+    }
+    return false
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +132,7 @@ export async function middleware(request: NextRequest) {
     // IMPORTANT: Add new rate-limited path prefixes to this array only.
     // /api/webhooks/* is intentionally excluded — Stripe retries must never be
     // blocked, and the endpoint self-protects via signature verification.
-    const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/orders'] as const
+    const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices', '/orders'] as const
     const isRateLimitedRoute = RATE_LIMITED_PREFIXES.some((p) => pathname.startsWith(p))
 
     if (isRateLimitedRoute && await isRateLimited(clientIp)) {

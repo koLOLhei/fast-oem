@@ -1,9 +1,10 @@
 import Link from 'next/link'
-import { Mail, Phone, MapPin, ArrowRight } from 'lucide-react'
+import { Mail, ArrowRight, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PRODUCTS } from '@/lib/products'
 
-export function Footer() {
+type ProductNav = { slug: string; name: string }
+
+export function Footer({ products }: { products: ProductNav[] }) {
   return (
     <footer className="bg-foreground text-white relative overflow-hidden">
       {/* Colorful top border */}
@@ -43,9 +44,9 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-[#00c8c8] rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-black text-lg">FO</span>
-              </div>
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+              <img src="/logo.png" alt="FAST OEM logo" className="w-full h-full object-contain" />
+            </div>
               <div>
                 <span className="font-black text-2xl block leading-none">
                   FAST OEM
@@ -75,7 +76,7 @@ export function Footer() {
               商品カテゴリ
             </h3>
             <nav className="flex flex-col gap-3">
-              {PRODUCTS.map((product) => (
+              {products.map((product) => (
                 <Link
                   key={product.slug}
                   href={`/products/${product.slug}`}
@@ -138,24 +139,16 @@ export function Footer() {
                 contact@soara-mu.com
               </a>
               <a
-                href="tel:03-1234-5678"
+                href="https://soara-mu.jp/privacy-policy/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <Phone className="h-5 w-5" />
+                  <Shield className="h-5 w-5" />
                 </div>
-                03-1234-5678
+                プライバシーポリシー
               </a>
-              <div className="flex items-start gap-3 text-white/70 text-sm">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-5 w-5" />
-                </div>
-                <span>
-                  〒100-0001
-                  <br />
-                  東京都千代田区
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -175,12 +168,14 @@ export function Footer() {
               >
                 利用規約
               </Link>
-              <Link
-                href="/privacy"
+              <a
+                href="https://soara-mu.jp/privacy-policy/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm text-white/50 hover:text-[#ffe135] transition-colors"
               >
                 プライバシーポリシー
-              </Link>
+              </a>
               <Link
                 href="/tokushoho"
                 className="text-sm text-white/50 hover:text-[#ffe135] transition-colors"

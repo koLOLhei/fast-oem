@@ -22,12 +22,11 @@ export async function processImage(
             }
             const base64Data = originalPathOrUrl.slice(commaIndex + 1)
             try {
-                // atob → Uint8Array → ArrayBuffer
+                // Uint8Array.from is more memory-efficient than the atob+for-loop
+                // pattern: it avoids holding a decoded binaryString in RAM alongside
+                // the typed array, reducing peak allocation for large design files.
                 const binaryString = atob(base64Data)
-                const bytes = new Uint8Array(binaryString.length)
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i)
-                }
+                const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
                 imageBuffer = bytes.buffer
             } catch (decodeErr) {
                 console.error('Failed to decode data URI base64:', decodeErr)

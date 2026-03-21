@@ -119,18 +119,21 @@ serve(async (req: Request) => {
       // This prevents Stripe from timing out (30s limit) while Sharp converts images.
       const backgroundWork = (async () => {
         try {
-          // Process design images (base64 → Storage upload)
-          for (const item of orderItems ?? []) {
-            if (item.design_url && item.design_url.startsWith('data:')) {
-              const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
-              if (convertedUrl) {
-                await supabase
-                  .from('order_items')
-                  .update({ converted_design_url: convertedUrl })
-                  .eq('id', item.id)
-              }
-            }
-          }
+          // Process design images in parallel (base64 → Storage upload).
+          // Promise.allSettled ensures one failing image doesn't block others.
+          await Promise.allSettled(
+            (orderItems ?? [])
+              .filter((item: any) => item.design_url?.startsWith('data:'))
+              .map(async (item: any) => {
+                const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
+                if (convertedUrl) {
+                  await supabase
+                    .from('order_items')
+                    .update({ converted_design_url: convertedUrl })
+                    .eq('id', item.id)
+                }
+              })
+          )
 
           // Re-fetch items so the email has the updated converted_design_url.
           // Also resolve delivery_pdf_url storage paths → signed URLs so that
@@ -146,7 +149,7 @@ serve(async (req: Request) => {
               if (!pdfPath || pdfPath.startsWith('http')) return item
               const { data: signed } = await supabase.storage
                 .from('designs')
-                .createSignedUrl(pdfPath, 3600)
+                .createSignedUrl(pdfPath, 86400) // 24 hours — email delivery may be delayed
               return { ...item, delivery_pdf_url: signed?.signedUrl ?? null }
             })
           )
@@ -175,6 +178,7 @@ serve(async (req: Request) => {
                 customerEmail: customerInfo?.email ?? '',
                 orderItems: itemsForEmail,
                 totalPrice: order.total_price,
+                shippingFee: (order as any).shipping_fee ?? 0,
                 shippingAddress: order.shipping_address as any,
                 receiptAddressee: (order.shipping_address as any)?.receiptAddressee ?? customerInfo?.receiptAddressee,
                 productEmailMap,

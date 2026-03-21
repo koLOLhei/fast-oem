@@ -6,6 +6,7 @@ import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import { sendSlackMessage } from '@/lib/slack'
 import { type Product } from '@/lib/products'
+import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
 
 interface CheckoutSessionData {
   items: CartItem[]
@@ -193,7 +194,7 @@ async function validateAndRepricItems(
 }
 
 export async function startCheckoutSession(data: CheckoutSessionData) {
-  const { items: rawItems, shippingAddress, totalPrice: clientTotalPrice, shippingFee = 0 } = data
+  const { items: rawItems, shippingAddress, totalPrice: clientTotalPrice, shippingFee: clientShippingFee = 0 } = data
 
   // ── Server-side input validation ────────────────────────────────────────────
   if (!rawItems || rawItems.length === 0) throw new Error('カートが空です')
@@ -205,9 +206,36 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   const customerName = `${shippingAddress.lastName} ${shippingAddress.firstName}`
   const supabase = createServiceClient()
 
+  // ── SECURITY: Server-side shipping fee recalculation ─────────────────────────
+  // Never trust the client-supplied shipping fee. Recalculate from postal code
+  // and prefecture using the same logic as the frontend, with DB-configured rates.
+  const { data: shippingSettings } = await supabase
+    .from('site_settings')
+    .select('key, value')
+    .in('key', ['shipping_fee_okinawa', 'shipping_fee_remote_island'])
+  const feeConfig = { ...SHIPPING_FEES }
+  for (const row of shippingSettings ?? []) {
+    const val = parseInt(row.value, 10)
+    if (!isNaN(val)) {
+      if (row.key === 'shipping_fee_okinawa') feeConfig.okinawa = val
+      if (row.key === 'shipping_fee_remote_island') feeConfig.remote_island = val
+    }
+  }
+  const shippingFee = calculateShippingFee(shippingAddress.postalCode, shippingAddress.prefecture, feeConfig)
+  if (clientShippingFee !== shippingFee) {
+    console.warn(JSON.stringify({
+      evt: 'security.shipping_fee_mismatch',
+      clientShippingFee,
+      serverShippingFee: shippingFee,
+      postalCode: shippingAddress.postalCode,
+      prefecture: shippingAddress.prefecture,
+      customerEmail: shippingAddress.email,
+    }))
+  }
+
   // ── Per-email order rate limit ───────────────────────────────────────────────
   const ORDER_RATE_WINDOW_MIN = 60
-  const MAX_ORDERS_PER_WINDOW = 60
+  const MAX_ORDERS_PER_WINDOW = 10
   const windowStart = new Date(Date.now() - ORDER_RATE_WINDOW_MIN * 60 * 1000).toISOString()
   const { count: recentOrderCount } = await supabase
     .from('orders')
@@ -218,7 +246,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
 
   if ((recentOrderCount ?? 0) >= MAX_ORDERS_PER_WINDOW) {
     throw new Error(
-      `短時間に多数の注文が検出されました。${ORDER_RATE_WINDOW_MIN}分間に${MAX_ORDERS_PER_WINDOW}件を超える注文はお受けできません。` +
+      `短時間に多数の注文が検出されました。${ORDER_RATE_WINDOW_MIN}分間に${MAX_ORDERS_PER_WINDOW}件を超えるご注文はお受けできません。` +
       ' ご不明な点は contact@soara-mu.com までお問い合わせください。',
     )
   }
