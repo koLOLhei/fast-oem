@@ -71,12 +71,38 @@ export async function toSignedUrl(
 }
 
 /**
- * Batch-sign multiple paths/URLs at once.
- * Null entries pass through as null.
+ * Batch-sign multiple paths/URLs in a single Supabase Storage API call.
+ * Null/empty/data-URI entries pass through as null.
+ * Falls back to null for any path that fails to sign.
  */
 export async function toSignedUrls(
     paths: (string | null | undefined)[],
     expiresIn = 3600,
 ): Promise<(string | null)[]> {
-    return Promise.all(paths.map((p) => toSignedUrl(p, expiresIn)))
+    // Resolve each input to a bucket-relative path, or null if it should be skipped
+    const resolved = paths.map((p) => {
+        if (!p || p.startsWith('data:')) return null
+        return extractPath(p)
+    })
+
+    const batchPaths = resolved.filter((p): p is string => p !== null)
+    if (batchPaths.length === 0) return paths.map(() => null)
+
+    try {
+        const service = createServiceClient()
+        const { data } = await service
+            .storage
+            .from(DESIGNS_BUCKET)
+            .createSignedUrls(batchPaths, expiresIn)
+
+        const urlMap = new Map<string, string>()
+        for (const item of data ?? []) {
+            if (item.signedUrl) urlMap.set(item.path, item.signedUrl)
+        }
+
+        return resolved.map((p) => (p ? (urlMap.get(p) ?? null) : null))
+    } catch (err) {
+        console.error('[toSignedUrls] Batch signing failed:', err)
+        return paths.map(() => null)
+    }
 }

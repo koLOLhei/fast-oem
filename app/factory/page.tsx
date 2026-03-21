@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { FactoryPortalClient } from './factory-portal-client'
-import { toSignedUrl } from '@/lib/supabase/storage'
+import { toSignedUrls } from '@/lib/supabase/storage'
 
 export default async function FactoryPage() {
     const supabase = await createClient()
+    // Role is already enforced by factory/layout.tsx (requireRole check)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
-    // Role is already enforced by factory/layout.tsx — this is a belt-and-suspenders guard
 
     // Get the factory_id for this user
     const { data: profile } = await supabase
@@ -59,16 +59,22 @@ export default async function FactoryPage() {
         .eq('factory_id', factoryId)
         .order('created_at', { ascending: false })
 
-    // Generate signed URLs (1 hour) for production files before passing to client.
+    // Batch-sign all production file URLs in a single API call.
+    // Null entries are skipped automatically; signed URLs expire in 12 hours.
     // This keeps the `designs` bucket private — client components never receive
     // permanent storage URLs, only short-lived signed ones.
-    const signedItems = await Promise.all(
-        (items ?? []).map(async (item) => ({
-            ...(item as any),
-            converted_design_url: await toSignedUrl((item as any).converted_design_url, 43200),
-            delivery_pdf_url: await toSignedUrl((item as any).delivery_pdf_url, 43200),
-        }))
-    )
+    const itemList = items ?? []
+    const allPaths = itemList.flatMap((item) => [
+        (item as any).converted_design_url as string | null,
+        (item as any).delivery_pdf_url as string | null,
+    ])
+    const signedUrls = await toSignedUrls(allPaths, 43200)
+
+    const signedItems = itemList.map((item, i) => ({
+        ...(item as any),
+        converted_design_url: signedUrls[i * 2],
+        delivery_pdf_url: signedUrls[i * 2 + 1],
+    }))
 
     return (
         <FactoryPortalClient

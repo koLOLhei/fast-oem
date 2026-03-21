@@ -5,6 +5,32 @@ import { Redis } from '@upstash/redis'
 import { Ratelimit } from '@upstash/ratelimit'
 
 // ---------------------------------------------------------------------------
+// Module-level constants — parsed once per cold start, not per request
+// ---------------------------------------------------------------------------
+
+/** Routes subject to rate limiting. Stripe webhooks are intentionally excluded. */
+const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices', '/orders'] as const
+
+/**
+ * Pre-parsed IP allowlist entries from ADMIN_ALLOWED_IPS env var.
+ * null means "allow all" (env var unset or set to "*").
+ */
+const ALLOWED_IP_ENTRIES: string[] | null = (() => {
+    const raw = process.env.ADMIN_ALLOWED_IPS
+    if (!raw || raw === '*') return null
+    return raw.split(',').map((s) => s.trim()).filter(Boolean)
+})()
+
+/**
+ * Service-role Supabase client for role lookups in middleware.
+ * Cached at module level — stateless, safe to reuse across requests.
+ */
+const serviceSupabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+)
+
+// ---------------------------------------------------------------------------
 // IP Whitelisting for /admin and /factory
 // Set ADMIN_ALLOWED_IPS as a comma-separated list in .env.local, e.g.:
 //   ADMIN_ALLOWED_IPS=203.0.113.1,203.0.113.2
@@ -29,12 +55,11 @@ function ipToInt(ip: string): number {
  * a CIDR block (e.g. 203.0.113.0/24).
  */
 function isIpAllowed(ip: string): boolean {
-    const raw = process.env.ADMIN_ALLOWED_IPS
     // PRODUCTION: set ADMIN_ALLOWED_IPS to a comma-separated list of allowed IPs or CIDR blocks.
     // Leaving it unset (or "*") permits all IPs — acceptable in development only.
-    if (!raw || raw === '*') return true
+    if (!ALLOWED_IP_ENTRIES) return true
     const clientInt = ipToInt(ip)
-    for (const entry of raw.split(',').map((s) => s.trim())) {
+    for (const entry of ALLOWED_IP_ENTRIES) {
         if (entry.includes('/')) {
             // CIDR match
             const [network, prefixStr] = entry.split('/')
@@ -130,10 +155,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // -- Rate limiting for checkout, customer orders, and admin API --
-    // IMPORTANT: Add new rate-limited path prefixes to this array only.
     // /api/webhooks/* is intentionally excluded — Stripe retries must never be
     // blocked, and the endpoint self-protects via signature verification.
-    const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices', '/orders'] as const
     const isRateLimitedRoute = RATE_LIMITED_PREFIXES.some((p) => pathname.startsWith(p))
 
     if (isRateLimitedRoute && await isRateLimited(clientIp)) {
@@ -175,13 +198,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (user && (isAdminRoute || isFactoryRoute)) {
-        // Use service-role client for profile lookup to bypass RLS — the session
-        // cookie may not have fully propagated in the edge context yet, and we
-        // need a reliable role read to enforce access control.
-        const serviceSupabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        )
+        // Use module-level service-role client to bypass RLS — cached across requests.
         const { data: profile } = await serviceSupabase
             .from('profiles')
             .select('role, is_active')

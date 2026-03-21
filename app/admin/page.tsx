@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,37 +22,14 @@ export default async function AdminPage({
     const offset = (currentPage - 1) * PAGE_SIZE
 
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
-    // Role is already enforced by admin/layout.tsx — this is a belt-and-suspenders guard
+    // Role is already enforced by admin/layout.tsx (requireRole check)
 
     // ── Data Fetch ────────────────────────────────────────────────
+    // All 5 queries are independent — run them in parallel.
 
-    // KPI query: lightweight, all rows, no order_items join
-    const { data: orderStats } = await supabase
-        .from('orders')
-        .select('id, status, total_price, created_at')
-
-    // Pipeline query: order_items with factories join, exclude terminal statuses
-    const { data: pipelineItems } = await supabase
-        .from('order_items')
-        .select('id, status, factory_id, factories(id, name), orders!inner(id, order_number, status, created_at)')
-        .not('orders.status', 'in', '("cancelled","refunded","completed")')
-
-    const { data: factories } = await supabase
-        .from('factories')
-        .select('id, name, country')
-
-    // Stuck items: paid orders > 2 hours old with no converted design
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    const { data: stuckItems } = await supabase
-        .from('order_items')
-        .select('id, product_name, converted_design_url, orders!inner(id, order_number, status, created_at)')
-        .is('converted_design_url', null)
-        .lt('created_at', twoHoursAgo)
-        .eq('orders.status', 'paid')
 
-    // Paginated list query with server-side search
+    // Paginated list query: build before Promise.all (needs searchParams)
     let listQuery = supabase
         .from('orders')
         .select(`
@@ -70,7 +46,34 @@ export default async function AdminPage({
         listQuery = listQuery.or(`order_number.ilike.%${q}%,customer_email.ilike.%${q}%`)
     }
 
-    const { data: pagedOrders, count: totalCount } = await listQuery
+    const [
+        { data: orderStats },
+        { data: pipelineItems },
+        { data: factories },
+        { data: stuckItems },
+        { data: pagedOrders, count: totalCount },
+    ] = await Promise.all([
+        // KPI query: lightweight, all rows, no order_items join
+        supabase
+            .from('orders')
+            .select('id, status, total_price, created_at'),
+        // Pipeline query: order_items with factories join, exclude terminal statuses
+        supabase
+            .from('order_items')
+            .select('id, status, factory_id, factories(id, name), orders!inner(id, order_number, status, created_at)')
+            .not('orders.status', 'in', '("cancelled","refunded","completed")'),
+        supabase
+            .from('factories')
+            .select('id, name, country'),
+        // Stuck items: paid orders > 2 hours old with no converted design
+        supabase
+            .from('order_items')
+            .select('id, product_name, converted_design_url, orders!inner(id, order_number, status, created_at)')
+            .is('converted_design_url', null)
+            .lt('created_at', twoHoursAgo)
+            .eq('orders.status', 'paid'),
+        listQuery,
+    ])
 
     const totalPages = Math.ceil((totalCount ?? 0) / PAGE_SIZE)
 

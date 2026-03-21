@@ -91,12 +91,14 @@ export async function signup(formData: FormData) {
         return redirect('/signup?message=' + encodeURIComponent(error.message))
     }
 
-    // Belt-and-suspenders: ensure email is saved to profiles
-    // (the DB trigger does this too, but may race on cold starts)
+    // Belt-and-suspenders: ensure the profile row exists with the correct email.
+    // The DB trigger does this too, but may race on cold starts.
+    // ignoreDuplicates: true — never overwrite an existing row (preserves admin/factory roles
+    // that were set via staff_invitation before this signup completed).
     if (data.user) {
         await supabase.from('profiles').upsert(
             { id: data.user.id, email, role: 'customer' },
-            { onConflict: 'id', ignoreDuplicates: false }
+            { onConflict: 'id', ignoreDuplicates: true }
         )
     }
 

@@ -9,22 +9,24 @@ export default async function MypagePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Redirect staff roles to their own portals — prevents accidental /mypage access
+    // Run profile check and orders fetch in parallel to reduce latency
     const serviceClient = createServiceClient()
-    const { data: profile } = await serviceClient
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+    const [{ data: profile }, { data: orders }] = await Promise.all([
+        serviceClient
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single(),
+        supabase
+            .from('orders')
+            .select(`*, order_items(product_name, quantity)`)
+            .eq('customer_info->>email', user.email)
+            .order('created_at', { ascending: false }),
+    ])
 
+    // Redirect staff roles to their own portals — prevents accidental /mypage access
     if (profile?.role === 'admin') redirect('/admin')
     if (profile?.role === 'factory') redirect('/factory')
-
-    const { data: orders } = await supabase
-        .from('orders')
-        .select(`*, order_items(product_name, quantity)`)
-        .eq('customer_info->>email', user.email)
-        .order('created_at', { ascending: false })
 
     const statusLabels: Record<string, string> = {
         paid: '入金確認済み',
