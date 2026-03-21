@@ -97,7 +97,7 @@ export async function toSignedUrls(
 
         const urlMap = new Map<string, string>()
         for (const item of data ?? []) {
-            if (item.signedUrl) urlMap.set(item.path, item.signedUrl)
+            if (item.signedUrl && item.path) urlMap.set(item.path, item.signedUrl)
         }
 
         return resolved.map((p) => (p ? (urlMap.get(p) ?? null) : null))
