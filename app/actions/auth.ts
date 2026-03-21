@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
@@ -33,15 +34,24 @@ export async function login(formData: FormData) {
         return redirect('/login?message=' + encodeURIComponent(loginErrorMessage(error.message)))
     }
 
-    // Fetch role
-    const { data: profile } = await supabase
+    // Use service-role client to fetch profile — bypasses RLS so we always get
+    // the real role even if the anon session cookie hasn't fully propagated yet.
+    const serviceClient = createServiceClient()
+    const { data: profile, error: profileError } = await serviceClient
         .from('profiles')
         .select('role, is_active')
         .eq('id', data.user.id)
         .single()
 
-    const role = profile?.role
-    const isActive = (profile as any)?.is_active !== false
+    if (profileError || !profile) {
+        // Profile row missing — likely a manually-created auth user without a
+        // corresponding profiles row. Sign out and surface a clear message.
+        await supabase.auth.signOut()
+        return redirect('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'))
+    }
+
+    const role = profile.role as string
+    const isActive = (profile as any).is_active !== false
 
     if (!isActive) {
         await supabase.auth.signOut()
@@ -53,6 +63,7 @@ export async function login(formData: FormData) {
     } else if (role === 'factory') {
         return redirect('/factory')
     } else {
+        // customer role
         return redirect('/mypage')
     }
 }

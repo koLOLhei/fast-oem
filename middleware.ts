@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Redis } from '@upstash/redis'
 import { Ratelimit } from '@upstash/ratelimit'
@@ -174,26 +175,46 @@ export async function middleware(request: NextRequest) {
     }
 
     if (user && (isAdminRoute || isFactoryRoute)) {
-        const { data: profile } = await supabase
+        // Use service-role client for profile lookup to bypass RLS — the session
+        // cookie may not have fully propagated in the edge context yet, and we
+        // need a reliable role read to enforce access control.
+        const serviceSupabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        )
+        const { data: profile } = await serviceSupabase
             .from('profiles')
             .select('role, is_active')
             .eq('id', user.id)
             .single()
 
-        const role = profile?.role
-        const isActive = (profile as any)?.is_active !== false // default true if column missing
+        // No profile row — redirect to login (not silently to /)
+        if (!profile) {
+            return NextResponse.redirect(new URL('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'), request.url))
+        }
+
+        const role = profile.role as string
+        const isActive = (profile as any).is_active !== false
 
         // Block deactivated accounts
         if (!isActive) {
             return NextResponse.redirect(new URL('/login?error=account_disabled', request.url))
         }
 
+        // Wrong role for /admin — send factory/customer to their own portal
         if (isAdminRoute && role !== 'admin') {
-            return NextResponse.redirect(new URL('/', request.url))
+            if (role === 'factory') {
+                return NextResponse.redirect(new URL('/factory', request.url))
+            }
+            return NextResponse.redirect(new URL('/login', request.url))
         }
 
+        // Wrong role for /factory — send admin/customer to their own portal
         if (isFactoryRoute && role !== 'factory') {
-            return NextResponse.redirect(new URL('/', request.url))
+            if (role === 'admin') {
+                return NextResponse.redirect(new URL('/admin', request.url))
+            }
+            return NextResponse.redirect(new URL('/login', request.url))
         }
     }
 

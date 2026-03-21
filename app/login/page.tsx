@@ -17,10 +17,21 @@ export default async function LoginPage(
     return (
         <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2 mx-auto min-h-[80vh]">
             <div className="flex flex-col mb-8 text-center mt-10">
-                <h1 className="text-2xl font-bold">ダッシュボード ログイン</h1>
+                <h1 className="text-2xl font-bold">スタッフログイン</h1>
                 <p className="text-sm text-muted-foreground mt-2">
-                    管理者または工場のアカウントでログインしてください。
+                    管理者・工場スタッフ・マイページ共通のログインです。
                 </p>
+                <div className="flex justify-center gap-4 mt-3">
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                        管理者 → /admin
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">
+                        工場 → /factory
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">
+                        一般 → /mypage
+                    </span>
+                </div>
             </div>
 
             <form className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground mb-8">
