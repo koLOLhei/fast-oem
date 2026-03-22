@@ -164,13 +164,14 @@ interface Props {
   imageUrl: string
   shape: string
   onTransformChange?: (t: Transform) => void
+  onCanvasChange?: (dataUrl: string) => void
 }
 
 // ────────────────────────────────────────────────────────
 // Component
 // ────────────────────────────────────────────────────────
 const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
-  { imageUrl, shape, onTransformChange },
+  { imageUrl, shape, onTransformChange, onCanvasChange },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -179,6 +180,7 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
   const [loaded, setLoaded] = useState(false)
   const dragging = useRef(false)
   const lastPos = useRef({ x: 0, y: 0 })
+  const canvasChangeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load image
   useEffect(() => {
@@ -197,7 +199,16 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
     const canvas = canvasRef.current
     if (!canvas) return
     renderToCanvas(canvas, imageRef.current, shape, transform)
-  }, [transform, shape, loaded])
+
+    // Throttled preview callback — max once per 100ms to avoid perf issues
+    if (onCanvasChange && loaded) {
+      if (canvasChangeTimer.current) clearTimeout(canvasChangeTimer.current)
+      canvasChangeTimer.current = setTimeout(() => {
+        const c = canvasRef.current
+        if (c) onCanvasChange(c.toDataURL('image/png'))
+      }, 100)
+    }
+  }, [transform, shape, loaded, onCanvasChange])
 
   useEffect(() => {
     onTransformChange?.(transform)

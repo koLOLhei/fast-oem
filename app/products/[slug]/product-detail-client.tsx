@@ -14,6 +14,7 @@ import {
   type Product,
   calculateUnitPrice,
   calculateTotalPrice,
+  calculateMoldFee,
   formatPrice,
 } from '@/lib/products'
 
@@ -47,6 +48,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseValid, setMoldReuseValid] = useState<boolean | null>(null)
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   // Restore draft from localStorage on mount
   useEffect(() => {
@@ -96,6 +98,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     setDesignImage(imageData)
     setDesignFileName(fileName)
     setDeliveryPdfUrl(pdfUrl ?? null)
+    if (!imageData) setPreviewImage(null)
   }
 
   const handleOptionChange = (optionId: string, valueId: string) => {
@@ -166,7 +169,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
   const totalPriceItems = calculateTotalPrice(product, quantity, selectedOptions)
-  const moldFee = product.requiresMold && moldReuseValid !== true ? (product.moldFee ?? 0) : 0
+  const moldInfo = calculateMoldFee(product, selectedOptions)
+  const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
   const expressFeeCost = expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? (product.expressDeliveryFee ?? 0) : 0
   const totalPrice = totalPriceItems + moldFee + expressFeeCost
   const baseTier = product.priceTiers[0]
@@ -487,6 +491,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 currentImage={designImage}
                 currentFileName={designFileName}
                 selectedShape={selectedOptions['shape'] || 'die-cut'}
+                onPreviewChange={(dataUrl) => setPreviewImage(dataUrl)}
               />
             </CardContent>
           </Card>
@@ -497,15 +502,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <h3 className="font-semibold text-foreground text-lg mb-4">プレビュー</h3>
               <ProductPreview
                 product={product}
-                designImage={designImage}
+                designImage={previewImage ?? designImage}
                 selectedOptions={selectedOptions}
+                isCanvasComposite={!!previewImage}
               />
             </CardContent>
           </Card>
         </div>
 
         {/* Repeat Order / Mold Fee Exemption Section */}
-        {product.requiresMold && (
+        {moldInfo.requiresMold && (
           <>
             {/* Prominent repeat order CTA banner */}
             {!moldReuseValid && (
@@ -515,7 +521,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     🔁 リピート注文の方（型代免除）はこちら
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    前回のご注文番号を入力すると、型代 {formatPrice(product.moldFee || 0)} が免除されます。
+                    前回のご注文番号を入力すると、型代 {formatPrice(moldInfo.moldFee)} が免除されます。
                   </p>
                 </div>
                 <button
@@ -537,7 +543,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   <Info className="w-5 h-5 text-[#ff7b54] flex-shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-foreground text-lg mb-2">
-                      型代について（初回のみ {formatPrice(product.moldFee || 0)}）
+                      型代について（初回のみ {formatPrice(moldInfo.moldFee)}）
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       この商品は型が必要です。過去に同じ商品をご注文いただいている場合、注文番号を入力すると型代が免除されます（型は1年間保管しています）。

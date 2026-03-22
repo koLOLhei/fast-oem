@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -93,7 +94,6 @@ export default async function AdminPage({
     const REVENUE_STATUSES = ['paid', 'processing', 'partially_shipped', 'shipped', 'completed']
     const revenueStats = allOrderStats.filter((o) => REVENUE_STATUSES.includes(o.status))
     const pendingStats = allOrderStats.filter((o) => o.status === 'pending')
-    const cancelledStats = allOrderStats.filter((o) => o.status === 'cancelled')
 
     const totalRevenue = revenueStats.reduce((s, o) => s + (o.total_price || 0), 0)
     const thisMonthRevenue = revenueStats
@@ -161,29 +161,8 @@ export default async function AdminPage({
         stuckPaidItems.map((item) => (item.orders as any)?.id).filter(Boolean) as string[]
     )
 
-    const statusColors: Record<string, string> = {
-        paid: 'bg-green-100 text-green-800',
-        processing: 'bg-cyan-100 text-cyan-800',
-        partially_shipped: 'bg-blue-100 text-blue-800',
-        shipped: 'bg-emerald-100 text-emerald-800',
-        completed: 'bg-emerald-100 text-emerald-800',
-        pending: 'bg-yellow-100 text-yellow-800',
-        cancelled: 'bg-red-100 text-red-700',
-        refunded: 'bg-orange-100 text-orange-800',
-        failed: 'bg-red-100 text-red-800',
-    }
-
-    const statusLabels: Record<string, string> = {
-        paid: '支払済',
-        processing: '処理中',
-        partially_shipped: '一部発送済',
-        shipped: '発送完了',
-        completed: '完了',
-        pending: '未払い',
-        cancelled: 'キャンセル',
-        refunded: '返金済',
-        failed: '失敗',
-    }
+    const statusColors = ORDER_STATUS_COLORS
+    const statusLabels = ORDER_STATUS_LABELS
 
     // Build pagination URL helper
     function buildUrl(p: number) {

@@ -129,7 +129,10 @@ export async function signup(formData: FormData) {
 }
 
 export async function requestPasswordReset(formData: FormData) {
-    const email = formData.get('email') as string
+    const email = (formData.get('email') as string | null)?.trim()
+    if (!email) {
+        return redirect('/reset-password?message=' + encodeURIComponent('メールアドレスを入力してください'))
+    }
     const supabase = await createClient()
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {

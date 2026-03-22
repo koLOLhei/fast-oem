@@ -186,9 +186,29 @@ async function validateAndRepricItems(
       }))
     }
     const validatedMoldOrderId = moldExemptionValid ? item.moldOrderId : undefined
-    const expectedMoldFee = (master.requires_mold && !validatedMoldOrderId)
-      ? (master.mold_fee ?? 0)
-      : 0
+
+    // Calculate expected mold fee: option-value-level takes priority over product-level
+    const masterOptions = master.options ?? []
+    const hasOptionLevelMold = masterOptions.some((opt: any) =>
+      (opt.values ?? []).some((v: any) => v.requiresMold !== undefined)
+    )
+    let expectedMoldFee: number
+    if (hasOptionLevelMold && !validatedMoldOrderId) {
+      // Sum mold fees from selected option values that require molds
+      let optionMoldFee = 0
+      for (const [optionId, valueLabel] of Object.entries(selectedOptionsMap)) {
+        const opt = masterOptions.find((o: any) => o.id === optionId)
+        // Cart stores value label, not ID — match by label or ID
+        const val = (opt?.values ?? []).find((v: any) => v.label === valueLabel || v.id === valueLabel)
+        if (val?.requiresMold) optionMoldFee += val.moldFee ?? 0
+      }
+      expectedMoldFee = optionMoldFee
+    } else {
+      // Fallback to product-level
+      expectedMoldFee = (master.requires_mold && !validatedMoldOrderId)
+        ? (master.mold_fee ?? 0)
+        : 0
+    }
     const clientMoldFee = item.moldFee ?? 0
     if (clientMoldFee !== expectedMoldFee) {
       console.warn(JSON.stringify({

@@ -5,6 +5,9 @@ import { SecretUrlCopier } from './secret-url-copier'
 import { ConfirmBulkAssignForm } from './confirm-bulk-assign-button'
 import { CancelOrderForm } from './cancel-order-form'
 import { toSignedUrls } from '@/lib/supabase/storage'
+import { ITEM_STATUS_LABELS, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
+
+export const dynamic = 'force-dynamic'
 
 export default async function OrderDetailPage({
     params,
@@ -25,7 +28,7 @@ export default async function OrderDetailPage({
             .select(`*, order_items(*, factories(id, name))`)
             .eq('id', id)
             .single(),
-        supabase.from('factories').select('id, name, country'),
+        supabase.from('factories').select('id, name, country').eq('is_active', true),
     ])
 
     if (!order) notFound()
@@ -109,9 +112,8 @@ export default async function OrderDetailPage({
                     <h2 className="text-2xl font-bold">注文詳細</h2>
                     <p className="text-sm text-muted-foreground mt-1 font-mono">{order.stripe_session_id}</p>
                 </div>
-                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                    {order.status}
+                <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${ORDER_STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-700'}`}>
+                    {ORDER_STATUS_LABELS[order.status] ?? order.status}
                 </span>
             </div>
 
@@ -279,14 +281,16 @@ export default async function OrderDetailPage({
                                             オプション: {(item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(', ')}
                                         </p>
                                     )}
-                                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${item.status === 'shipped' ? 'bg-green-100 text-green-800' :
-                                            item.status === 'ready_to_ship' ? 'bg-purple-100 text-purple-800' :
-                                            item.status === 'manufacturing' ? 'bg-blue-100 text-blue-800' :
-                                            item.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
-                                            item.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                                    'bg-gray-100 text-gray-700'
-                                        }`}>
-                                        {item.status}
+                                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                                        ({
+                                            shipped: 'bg-green-100 text-green-800',
+                                            ready_to_ship: 'bg-purple-100 text-purple-800',
+                                            manufacturing: 'bg-blue-100 text-blue-800',
+                                            assigned: 'bg-yellow-100 text-yellow-800',
+                                            cancelled: 'bg-red-100 text-red-700',
+                                        } as Record<string, string>)[item.status] ?? 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                        {ITEM_STATUS_LABELS[item.status as string] ?? item.status}
                                     </span>
                                     {isSafeStorageUrl((item as any).delivery_pdf_url) && (
                                         <div>

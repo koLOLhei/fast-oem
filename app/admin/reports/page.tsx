@@ -26,8 +26,7 @@ export default async function ReportsPage() {
 
     // Run all 4 queries in parallel
     const [
-        { data: paidOrders },
-        { data: shippedOrders },
+        { data: revenueOrders },
         { data: activeItems },
         { data: shippedItems },
     ] = await Promise.all([
@@ -37,8 +36,6 @@ export default async function ReportsPage() {
             .in('status', ['paid', 'processing', 'partially_shipped', 'shipped', 'completed'])
             .gte('created_at', sixMonthsAgo.toISOString())
             .order('created_at', { ascending: true }),
-        // Placeholder: keep array structure for destructuring compatibility
-        Promise.resolve({ data: [] as any[] }),
         // Fetch all active items (non-shipped) with factory info, capped to prevent full scans
         supabase
             .from('order_items')
@@ -55,7 +52,7 @@ export default async function ReportsPage() {
             .not('factory_id', 'is', null),
     ])
 
-    const allOrders = [...(paidOrders ?? []), ...(shippedOrders ?? [])]
+    const allOrders = revenueOrders ?? []
 
     // ── Monthly revenue (last 6 months) ───────────────────────────────────
     const monthlyRevenue: Record<string, number> = {}

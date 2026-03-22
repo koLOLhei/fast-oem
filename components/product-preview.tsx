@@ -8,6 +8,7 @@ interface ProductPreviewProps {
   product: Product
   designImage: string | null
   selectedOptions: Record<string, string>
+  isCanvasComposite?: boolean
 }
 
 // SVGクリップパスを形状IDに基づいて生成
@@ -77,6 +78,7 @@ export function ProductPreview({
   product,
   designImage,
   selectedOptions,
+  isCanvasComposite = false,
 }: ProductPreviewProps) {
   const selectedShape = selectedOptions['shape'] || 'die-cut'
 
@@ -92,15 +94,25 @@ export function ProductPreview({
           <div className="relative w-full h-full flex items-center justify-center p-8">
             {/* User design with shape mask */}
             <div className="relative w-3/4 h-3/4 flex items-center justify-center">
-              <ShapeMask shapeId={selectedShape}>
-                <div className={`w-full h-full relative ${selectedShape === 'die-cut' ? '' : 'bg-white shadow-xl overflow-hidden'}`}>
+              {isCanvasComposite ? (
+                <div className="w-full h-full relative">
                   <img
                     src={designImage}
                     alt="あなたのデザイン"
-                    className={`w-full h-full object-contain ${selectedShape === 'die-cut' ? 'drop-shadow-xl' : ''}`}
+                    className="w-full h-full object-contain drop-shadow-xl"
                   />
                 </div>
-              </ShapeMask>
+              ) : (
+                <ShapeMask shapeId={selectedShape}>
+                  <div className={`w-full h-full relative ${selectedShape === 'die-cut' ? '' : 'bg-white shadow-xl overflow-hidden'}`}>
+                    <img
+                      src={designImage}
+                      alt="あなたのデザイン"
+                      className={`w-full h-full object-contain ${selectedShape === 'die-cut' ? 'drop-shadow-xl' : ''}`}
+                    />
+                  </div>
+                </ShapeMask>
+              )}
 
               {/* キーホルダーの穴（該当商品のみ） */}
               {(product.category === 'keychain' || product.id.includes('keychain')) && (

@@ -16,6 +16,8 @@ export interface OptionValue {
   icon?: string
   imageUrl?: string
   priceModifier?: PriceModifier
+  requiresMold?: boolean   // true = this option value requires a mold (overrides product-level)
+  moldFee?: number         // mold fee in JPY for this specific option value
 }
 
 export interface ProductOption {
@@ -560,6 +562,54 @@ export function getDiscountPercent(product: Product, quantity: number): number |
     (t) => quantity >= t.minQuantity && quantity <= t.maxQuantity
   )
   return tier?.discountPercent
+}
+
+/**
+ * Calculate mold fee based on selected option values.
+ * Option-value-level mold settings take priority over product-level.
+ * If no option values specify mold settings, falls back to product-level.
+ *
+ * Returns { requiresMold, moldFee } where moldFee is the total across
+ * all selected options that require molds (supports multi-mold products).
+ */
+export function calculateMoldFee(
+  product: Product,
+  selectedOptions?: Record<string, string>,
+): { requiresMold: boolean; moldFee: number } {
+  if (!selectedOptions) {
+    return {
+      requiresMold: product.requiresMold ?? false,
+      moldFee: product.moldFee ?? 0,
+    }
+  }
+
+  // Check if ANY option value in the product has mold settings configured
+  const hasOptionLevelMold = product.options.some((opt) =>
+    opt.values.some((v) => v.requiresMold !== undefined)
+  )
+
+  if (!hasOptionLevelMold) {
+    // No option-level mold config → use product-level fallback
+    return {
+      requiresMold: product.requiresMold ?? false,
+      moldFee: product.moldFee ?? 0,
+    }
+  }
+
+  // Option-level: accumulate mold fees from all selected values that require molds
+  let totalMoldFee = 0
+  let anyRequiresMold = false
+
+  for (const [optionId, valueId] of Object.entries(selectedOptions)) {
+    const option = product.options.find((o) => o.id === optionId)
+    const value = option?.values.find((v) => v.id === valueId)
+    if (value?.requiresMold) {
+      anyRequiresMold = true
+      totalMoldFee += value.moldFee ?? 0
+    }
+  }
+
+  return { requiresMold: anyRequiresMold, moldFee: totalMoldFee }
 }
 
 export function formatPrice(priceInYen: number): string {

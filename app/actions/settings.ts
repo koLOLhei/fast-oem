@@ -16,14 +16,17 @@ export async function updateSiteSettings(updates: Record<string, string>) {
     await requireAdmin()
 
     const service = createServiceClient()
-    const errors: string[] = []
-    for (const [key, value] of Object.entries(updates)) {
-        const { error } = await service
-            .from('site_settings')
-            .update({ value, updated_at: new Date().toISOString() })
-            .eq('key', key)
-        if (error) errors.push(`${key}: ${error.message}`)
-    }
+    const now = new Date().toISOString()
+    const results = await Promise.all(
+        Object.entries(updates).map(async ([key, value]) => {
+            const { error } = await service
+                .from('site_settings')
+                .update({ value, updated_at: now })
+                .eq('key', key)
+            return error ? `${key}: ${error.message}` : null
+        })
+    )
+    const errors = results.filter(Boolean) as string[]
     if (errors.length > 0) throw new Error(`設定の保存に失敗しました: ${errors.join(', ')}`)
     revalidatePath('/admin/settings')
 }

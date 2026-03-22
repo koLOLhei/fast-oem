@@ -15,6 +15,7 @@ interface ImageUploaderProps {
   currentImage: string | null
   currentFileName: string | null
   selectedShape?: string
+  onPreviewChange?: (dataUrl: string) => void
 }
 
 export function ImageUploader({
@@ -22,6 +23,7 @@ export function ImageUploader({
   currentImage,
   currentFileName,
   selectedShape = 'die-cut',
+  onPreviewChange,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -107,7 +109,7 @@ export function ImageUploader({
   if (currentImage) {
     return (
       <div className="space-y-4">
-        <DesignCanvas ref={canvasRef} imageUrl={currentImage} shape={selectedShape} />
+        <DesignCanvas ref={canvasRef} imageUrl={currentImage} shape={selectedShape} onCanvasChange={onPreviewChange} />
 
         {confirmed ? (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">

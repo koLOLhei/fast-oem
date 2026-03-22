@@ -238,6 +238,37 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
                             />
                         </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-sm font-medium block mb-1" htmlFor="create_phone">電話番号</label>
+                            <input
+                                id="create_phone"
+                                name="phone"
+                                placeholder="+86 21 1234 5678"
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium block mb-1" htmlFor="create_max_capacity">最大生産能力（個/月）</label>
+                            <input
+                                id="create_max_capacity"
+                                name="max_capacity"
+                                type="number"
+                                min="1"
+                                placeholder="10000"
+                                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium block mb-1" htmlFor="create_address">住所</label>
+                        <input
+                            id="create_address"
+                            name="address"
+                            placeholder="上海市浦東新区 ..."
+                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        />
+                    </div>
                     <button
                         type="submit"
                         disabled={isPending}
