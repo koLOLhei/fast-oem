@@ -105,6 +105,46 @@ export async function setUserActive(userId: string, isActive: boolean) {
 }
 
 /**
+ * Update a user's profile fields: name, role, factory_id, is_active.
+ */
+export async function updateUser(
+    userId: string,
+    data: { name: string; role: string; factory_id: string | null; is_active: boolean }
+) {
+    const { adminId } = await requireAdmin()
+    if (userId === adminId && data.role !== 'admin') {
+        throw new Error('自分自身のロールを変更することはできません')
+    }
+    const service = createServiceClient()
+
+    const { error } = await service
+        .from('profiles')
+        .update({
+            name: data.name,
+            role: data.role,
+            factory_id: data.role === 'factory' ? data.factory_id : null,
+            is_active: data.is_active,
+        })
+        .eq('id', userId)
+
+    if (error) throw new Error(error.message)
+    revalidatePath('/admin/users')
+}
+
+/**
+ * Delete a user from auth (ON DELETE CASCADE removes the profiles row too).
+ */
+export async function deleteUser(userId: string) {
+    const { adminId } = await requireAdmin()
+    if (userId === adminId) throw new Error('自分自身を削除することはできません')
+    const service = createServiceClient()
+
+    const { error } = await service.auth.admin.deleteUser(userId)
+    if (error) throw new Error(error.message)
+    revalidatePath('/admin/users')
+}
+
+/**
  * Cancel a pending (unused) invitation.
  */
 export async function cancelInvitation(invitationId: string) {

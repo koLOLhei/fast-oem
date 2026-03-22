@@ -1,12 +1,21 @@
 'use client'
 
 import { type Locale, translations } from '@/lib/i18n/factory-translations'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateItemStatus, submitTrackingNumber, revertItemStatus } from '@/app/actions/factory'
 import { logout } from '@/app/actions/auth'
 
 const POLL_INTERVAL_MS = 60_000 // 60 seconds
+
+// Timezones relevant to partner factories (label → IANA tz)
+const TIMEZONES: { label: string; tz: string }[] = [
+    { label: '🇯🇵 JST (UTC+9)',  tz: 'Asia/Tokyo' },
+    { label: '🇻🇳 ICT (UTC+7)',  tz: 'Asia/Ho_Chi_Minh' },
+    { label: '🇨🇳 CST (UTC+8)',  tz: 'Asia/Shanghai' },
+    { label: '🇰🇷 KST (UTC+9)',  tz: 'Asia/Seoul' },
+    { label: '🌐 UTC',           tz: 'UTC' },
+]
 
 type Item = {
     id: string
@@ -48,6 +57,8 @@ const STATUS_ORDER = ['assigned', 'manufacturing', 'ready_to_ship']
 
 export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientProps) {
     const [locale, setLocale] = useState<Locale>('en')
+    const [timezone, setTimezone] = useState('Asia/Tokyo')
+    const [showTzPicker, setShowTzPicker] = useState(false)
     const [loadingIds, setLoadingIds] = useState<string[]>([])
     const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
     const [trackingErrors, setTrackingErrors] = useState<Record<string, string>>({})
@@ -59,24 +70,20 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
     const router = useRouter()
     const t = translations[locale]
 
-    // Restore language preference from localStorage on mount
+    // Restore preferences from localStorage on mount
     useEffect(() => {
-        const saved = localStorage.getItem('factory-locale') as Locale
-        if (saved && ['ja', 'en', 'zh', 'vi'].includes(saved)) {
-            setLocale(saved)
-        }
-        // Show guide on first visit
-        if (!localStorage.getItem('factory-guide-seen')) {
-            setShowGuide(true)
-        }
+        const savedLocale = localStorage.getItem('factory-locale') as Locale
+        if (savedLocale && ['ja', 'en', 'zh', 'vi'].includes(savedLocale)) setLocale(savedLocale)
+
+        const savedTz = localStorage.getItem('factory-timezone')
+        if (savedTz && TIMEZONES.some((z) => z.tz === savedTz)) setTimezone(savedTz)
+
+        if (!localStorage.getItem('factory-guide-seen')) setShowGuide(true)
     }, [])
 
-    // Set initial lastRefreshed on client only (avoids SSR hydration mismatch)
-    useEffect(() => {
-        setLastRefreshed(new Date())
-    }, [])
+    useEffect(() => { setLastRefreshed(new Date()) }, [])
 
-    // Auto-refresh every 60 seconds to detect cancellations
+    // Auto-refresh every 60 s to detect new orders and cancellations
     useEffect(() => {
         const id = setInterval(() => {
             router.refresh()
@@ -90,21 +97,21 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
         localStorage.setItem('factory-locale', code)
     }
 
+    const handleTimezoneChange = (tz: string) => {
+        setTimezone(tz)
+        localStorage.setItem('factory-timezone', tz)
+        setShowTzPicker(false)
+    }
+
     const showSuccess = (itemId: string, message: string) => {
         setSuccessIds((prev) => ({ ...prev, [itemId]: message }))
-        setTimeout(() => {
-            setSuccessIds((prev) => {
-                const next = { ...prev }
-                delete next[itemId]
-                return next
-            })
-        }, 4000)
+        setTimeout(() => setSuccessIds((prev) => { const n = { ...prev }; delete n[itemId]; return n }), 4000)
     }
 
     const nonCancelledItems = items.filter((i) => i.status !== 'cancelled')
-    const cancelledItems = items.filter((i) => i.status === 'cancelled')
+    const cancelledItems   = items.filter((i) => i.status === 'cancelled')
 
-    // Express-first sort, then by order date (newest first)
+    // Express-first, then newest-first
     const sortedItems = [...nonCancelledItems].sort((a, b) => {
         if (a.express_delivery && !b.express_delivery) return -1
         if (!a.express_delivery && b.express_delivery) return 1
@@ -118,12 +125,12 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
     const expressCount = nonCancelledItems.filter((i) => i.express_delivery).length
 
     const statusColors: Record<string, string> = {
-        unassigned: 'bg-gray-100 text-gray-700',
-        assigned: 'bg-yellow-100 text-yellow-800',
-        manufacturing: 'bg-blue-100 text-blue-800',
-        ready_to_ship: 'bg-purple-100 text-purple-800',
-        shipped: 'bg-green-100 text-green-800',
-        cancelled: 'bg-red-100 text-red-700',
+        unassigned:   'bg-gray-100 text-gray-700',
+        assigned:     'bg-yellow-100 text-yellow-800',
+        manufacturing:'bg-blue-100 text-blue-800',
+        ready_to_ship:'bg-purple-100 text-purple-800',
+        shipped:      'bg-green-100 text-green-800',
+        cancelled:    'bg-red-100 text-red-700',
     }
 
     const handleStatusUpdate = async (itemId: string, targetStatus: string) => {
@@ -140,18 +147,26 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
         }
     }
 
-    const handleRevertStatus = async (itemId: string) => {
+    const handleRevertStatus = async (itemId: string, currentStatus: string) => {
+        const targetLabel =
+            currentStatus === 'ready_to_ship'
+                ? (locale === 'ja' ? '製造中' : locale === 'zh' ? '生产中' : locale === 'vi' ? 'Đang sản xuất' : 'Manufacturing')
+                : (locale === 'ja' ? '割り当て済み' : locale === 'zh' ? '已分配' : locale === 'vi' ? 'Đã phân công' : 'Assigned')
         const confirmed = window.confirm(
-            locale === 'ja' ? '「製造中」を「割り当て済み」に戻しますか？' :
-            locale === 'zh' ? '是否将"生产中"恢复为"已分配"？' :
-            locale === 'vi' ? 'Bạn có muốn quay lại trạng thái "Đã phân công" không?' :
-            'Revert status from "Manufacturing" back to "Assigned"?'
+            locale === 'ja' ? `「${targetLabel}」に戻しますか？` :
+            locale === 'zh' ? `确认返回"${targetLabel}"状态？` :
+            locale === 'vi' ? `Bạn có muốn quay lại "${targetLabel}"?` :
+            `Revert status back to "${targetLabel}"?`
         )
         if (!confirmed) return
         setLoadingIds((prev) => [...prev, itemId])
         try {
             await revertItemStatus(itemId)
-            showSuccess(itemId, locale === 'ja' ? '「割り当て済み」に戻しました' : locale === 'zh' ? '已恢复为"已分配"' : locale === 'vi' ? 'Đã hoàn tác về "Đã phân công"' : 'Reverted to Assigned')
+            showSuccess(itemId,
+                locale === 'ja' ? `「${targetLabel}」に戻しました` :
+                locale === 'zh' ? `已恢复为"${targetLabel}"` :
+                locale === 'vi' ? `Đã hoàn tác về "${targetLabel}"` :
+                `Reverted to ${targetLabel}`)
             router.refresh()
         } catch (err: any) {
             alert(err?.message ?? 'Error')
@@ -166,8 +181,6 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
             setTrackingErrors((prev) => ({ ...prev, [itemId]: t.trackingRequired }))
             return
         }
-
-        // Confirm before submitting
         const message = t.confirmShipmentDialog.replace('{tracking}', tracking)
         if (!window.confirm(message)) return
 
@@ -190,46 +203,132 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
         return STATUS_ORDER[idx + 1] ?? null
     }
 
+    const formatDate = (iso: string) =>
+        new Date(iso).toLocaleString(locale === 'ja' ? 'ja-JP' : locale === 'zh' ? 'zh-CN' : locale === 'vi' ? 'vi-VN' : 'en-US', { timeZone: timezone, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+    const currentTzLabel = TIMEZONES.find((z) => z.tz === timezone)?.label ?? timezone
+
     return (
         <div className="min-h-screen bg-muted/30">
             {/* Header */}
-            <header className="sticky top-0 z-30 border-b bg-background px-4 sm:px-6 py-4 flex items-center justify-between shadow-sm gap-3">
+            <header className="sticky top-0 z-30 border-b bg-background px-4 sm:px-6 py-3 flex items-center justify-between shadow-sm gap-3">
                 <div className="min-w-0">
-                    <h1 className="text-lg font-bold truncate">{t.dashboardTitle}</h1>
+                    <h1 className="text-base sm:text-lg font-bold truncate">{t.dashboardTitle}</h1>
                     <p className="text-xs text-muted-foreground truncate">
                         {factoryName}
                         <span className="ml-2 opacity-60">
-                            · {locale === 'ja' ? '最終更新' : locale === 'zh' ? '最后更新' : locale === 'vi' ? 'Cập nhật' : 'Updated'}: {lastRefreshed ? lastRefreshed.toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—'}
+                            · {locale === 'ja' ? '更新' : locale === 'zh' ? '更新' : locale === 'vi' ? 'Cập nhật' : 'Updated'}: {lastRefreshed ? lastRefreshed.toLocaleTimeString(undefined, { timeZone: timezone, hour: '2-digit', minute: '2-digit' }) : '—'}
                         </span>
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                    {/* Timezone selector */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowTzPicker((v) => !v)}
+                            className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted text-xs text-muted-foreground hover:text-foreground transition"
+                            title="Timezone"
+                        >
+                            🕐 <span className="hidden md:inline">{currentTzLabel}</span>
+                        </button>
+                        {showTzPicker && (
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-background border rounded-xl shadow-lg py-1 min-w-[180px]">
+                                {TIMEZONES.map((z) => (
+                                    <button
+                                        key={z.tz}
+                                        onClick={() => handleTimezoneChange(z.tz)}
+                                        className={`w-full text-left px-4 py-2 text-xs hover:bg-muted transition ${timezone === z.tz ? 'font-bold text-primary' : ''}`}
+                                    >
+                                        {z.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Language Switcher */}
-                    <div className="flex gap-1 bg-muted rounded-lg p-1">
+                    <div className="flex gap-0.5 bg-muted rounded-lg p-1">
                         {LOCALES.map((loc) => (
                             <button
                                 key={loc.code}
                                 onClick={() => handleLocaleChange(loc.code)}
-                                className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${locale === loc.code
+                                className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all min-w-[32px] ${locale === loc.code
                                     ? 'bg-background shadow text-foreground'
                                     : 'text-muted-foreground hover:text-foreground'
-                                    }`}
+                                }`}
                                 title={loc.label}
                             >
-                                {loc.flag} <span className="hidden sm:inline">{loc.label}</span>
+                                {loc.flag}
                             </button>
                         ))}
                     </div>
                     <form action={logout}>
-                        <button className="text-sm text-muted-foreground hover:text-destructive transition px-3 py-1.5 border rounded-lg">
+                        <button className="text-sm text-muted-foreground hover:text-destructive transition px-3 py-2 border rounded-lg min-h-[40px]">
                             {t.logout}
                         </button>
                     </form>
                 </div>
             </header>
 
-            {/* Content */}
             <main className="max-w-4xl mx-auto p-4 sm:p-6">
+
+                {/* ── URGENT: Cancelled orders banner ─────────────────────────────── */}
+                {/* Shown prominently at the TOP (not hidden at the bottom) so factory
+                    workers cannot miss them and accidentally continue production.       */}
+                {cancelledItems.length > 0 && (
+                    <div className="mb-6 rounded-xl border-2 border-red-400 bg-red-50 overflow-hidden shadow-sm">
+                        <button
+                            onClick={() => setShowCancelled((v) => !v)}
+                            className="w-full flex items-center justify-between px-5 py-4 text-left"
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🚨</span>
+                                <div>
+                                    <p className="font-bold text-red-800 text-sm">
+                                        {locale === 'ja' ? `キャンセル済み注文 ${cancelledItems.length}件 — 製造を中止してください` :
+                                         locale === 'zh' ? `${cancelledItems.length}件已取消 — 请立即停止生产` :
+                                         locale === 'vi' ? `${cancelledItems.length} đơn đã hủy — Dừng sản xuất ngay` :
+                                         `${cancelledItems.length} Cancelled Order${cancelledItems.length > 1 ? 's' : ''} — STOP PRODUCTION`}
+                                    </p>
+                                    <p className="text-xs text-red-600 mt-0.5">
+                                        {locale === 'ja' ? 'タップして詳細を確認する' :
+                                         locale === 'zh' ? '点击查看详情' :
+                                         locale === 'vi' ? 'Nhấn để xem chi tiết' :
+                                         'Tap to review'}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="text-red-700 text-lg">{showCancelled ? '▲' : '▼'}</span>
+                        </button>
+
+                        {showCancelled && (
+                            <div className="border-t border-red-300 divide-y divide-red-200">
+                                {cancelledItems.map((item) => (
+                                    <div key={item.id} className="px-5 py-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-mono text-xs text-muted-foreground">{item.orders?.order_number ?? '—'}</p>
+                                                <p className="font-bold text-base line-through text-muted-foreground mt-0.5">{item.product_name}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {locale === 'ja' ? '数量' : locale === 'zh' ? '数量' : locale === 'vi' ? 'SL' : 'Qty'}: {item.quantity}
+                                                    {item.options?.length > 0 && (
+                                                        <span className="ml-2">{item.options.map((o) => `${o.name}: ${o.value}`).join(' / ')}</span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            <span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-red-200 text-red-800">
+                                                {t.cancelled}
+                                            </span>
+                                        </div>
+                                        <p className="mt-3 text-sm font-bold text-red-700 bg-red-100 border border-red-300 rounded-lg px-4 py-3">
+                                            ⛔ {t.doNotProduce}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* How-to Guide */}
                 <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 overflow-hidden">
@@ -238,7 +337,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                             setShowGuide((v) => !v)
                             localStorage.setItem('factory-guide-seen', '1')
                         }}
-                        className="w-full flex items-center justify-between px-5 py-3 text-left"
+                        className="w-full flex items-center justify-between px-5 py-3 text-left min-h-[48px]"
                     >
                         <span className="font-semibold text-blue-900 text-sm">{t.guideTitle}</span>
                         <span className="text-blue-700 text-xs font-medium">
@@ -261,22 +360,22 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
                     <h2 className="text-xl font-bold shrink-0">{t.orders}</h2>
                     {expressCount > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
                             {t.expressDelivery} × {expressCount}
                         </span>
                     )}
-                    <div className="flex gap-1 flex-wrap ml-auto">
+                    <div className="flex gap-1.5 flex-wrap ml-auto">
                         {[
-                            { value: 'all', label: locale === 'ja' ? `全て (${nonCancelledItems.length})` : locale === 'zh' ? `全部 (${nonCancelledItems.length})` : locale === 'vi' ? `Tất cả (${nonCancelledItems.length})` : `All (${nonCancelledItems.length})` },
-                            { value: 'assigned', label: t.assigned },
+                            { value: 'all',           label: locale === 'ja' ? `全て (${nonCancelledItems.length})` : locale === 'zh' ? `全部 (${nonCancelledItems.length})` : locale === 'vi' ? `Tất cả (${nonCancelledItems.length})` : `All (${nonCancelledItems.length})` },
+                            { value: 'assigned',      label: t.assigned },
                             { value: 'manufacturing', label: t.manufacturing },
                             { value: 'ready_to_ship', label: t.ready_to_ship },
-                            { value: 'shipped', label: t.shipped },
+                            { value: 'shipped',       label: t.shipped },
                         ].map(({ value, label }) => (
                             <button
                                 key={value}
                                 onClick={() => setStatusFilter(value)}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${statusFilter === value
+                                className={`px-3 py-2 rounded-lg text-xs font-semibold transition min-h-[36px] ${statusFilter === value
                                     ? 'bg-primary text-primary-foreground shadow'
                                     : 'bg-muted text-muted-foreground hover:text-foreground'
                                 }`}
@@ -308,39 +407,35 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                             const isLoading = loadingIds.includes(item.id)
                             const next = nextStatus(item.status)
                             const isManufacturing = item.status === 'manufacturing'
-                            const isReadyToShip = item.status === 'ready_to_ship'
-                            const isShipped = item.status === 'shipped'
-                            const orderRef = item.orders?.order_number ?? '—'
-                            const successMsg = successIds[item.id]
+                            const isReadyToShip   = item.status === 'ready_to_ship'
+                            const isShipped       = item.status === 'shipped'
+                            const orderRef        = item.orders?.order_number ?? '—'
+                            const successMsg      = successIds[item.id]
 
                             return (
                                 <div key={item.id} className="rounded-xl border bg-card shadow-sm overflow-hidden">
                                     {/* Card Header */}
-                                    <div className="flex items-center justify-between bg-muted/40 px-5 py-3 border-b gap-3">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <p className="text-sm text-muted-foreground shrink-0">
-                                                {t.orderedAt}: {new Date(item.orders.created_at).toLocaleDateString()}
-                                            </p>
-                                            <span className="font-mono text-xs font-bold text-foreground truncate">
-                                                {orderRef}
-                                            </span>
+                                    <div className="flex items-center justify-between bg-muted/40 px-4 sm:px-5 py-3 border-b gap-3">
+                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-wrap">
+                                            <p className="text-xs text-muted-foreground shrink-0">{formatDate(item.orders.created_at)}</p>
+                                            <span className="font-mono text-xs font-bold text-foreground truncate">{orderRef}</span>
                                             {item.express_delivery && (
-                                                <span className="shrink-0 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
+                                                <span className="shrink-0 px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
                                                     {t.expressDelivery}
                                                 </span>
                                             )}
                                             {item.mold_order_id && (
-                                                <span className="shrink-0 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full border border-purple-200">
-                                                    {locale === 'ja' ? '🔁 リピート注文' : locale === 'zh' ? '🔁 重复订单' : locale === 'vi' ? '🔁 Đặt lại' : '🔁 Repeat Order'}
+                                                <span className="shrink-0 px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full border border-purple-200">
+                                                    {locale === 'ja' ? '🔁 リピート注文' : locale === 'zh' ? '🔁 重复订单' : locale === 'vi' ? '🔁 Đặt lại' : '🔁 Repeat'}
                                                 </span>
                                             )}
                                         </div>
-                                        <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold ${statusColors[item.status]}`}>
+                                        <span className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${statusColors[item.status]}`}>
                                             {t[item.status as keyof typeof t] ?? item.status}
                                         </span>
                                     </div>
 
-                                    <div className="p-5 space-y-4">
+                                    <div className="p-4 sm:p-5 space-y-4">
                                         {/* Product Info */}
                                         <div>
                                             <h3 className="font-bold text-lg">{item.product_name}</h3>
@@ -352,14 +447,14 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                             {item.options?.length > 0 && (
                                                 <div className="mt-2 flex flex-wrap gap-2">
                                                     {item.options.map((o, i) => (
-                                                        <span key={i} className="px-2 py-0.5 bg-muted rounded text-xs text-foreground">
+                                                        <span key={i} className="px-2.5 py-1 bg-muted rounded-lg text-xs text-foreground">
                                                             {o.name}: <span className="font-semibold">{o.value}</span>
                                                         </span>
                                                     ))}
                                                 </div>
                                             )}
                                             {item.mold_order_id && (
-                                                <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-lg">
+                                                <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                                                     <p className="text-xs text-purple-800">
                                                         <span className="font-bold">
                                                             {locale === 'ja' ? '型再利用' : locale === 'zh' ? '模具复用' : locale === 'vi' ? 'Tái sử dụng khuôn' : 'Mold Reuse'}
@@ -382,12 +477,12 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                         href={item.delivery_pdf_url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition shadow-sm"
+                                                        className="inline-flex items-center gap-1.5 px-4 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition shadow-sm min-h-[48px]"
                                                     >
                                                         {t.deliveryPdf}
                                                     </a>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-dashed">
+                                                    <span className="inline-flex items-center gap-1.5 px-4 py-3 bg-muted text-muted-foreground text-sm rounded-xl border border-dashed min-h-[48px]">
                                                         📄 PDF {locale === 'ja' ? '準備中' : locale === 'zh' ? '准备中' : locale === 'vi' ? 'đang chuẩn bị' : 'preparing...'}
                                                     </span>
                                                 )}
@@ -396,7 +491,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                         href={item.converted_design_url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"
+                                                        className="inline-flex items-center gap-1.5 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition min-h-[48px]"
                                                     >
                                                         {t.compositeDesign}
                                                     </a>
@@ -406,7 +501,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                         href={item.design_url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1.5 px-4 py-2 border text-sm font-medium rounded-lg hover:bg-muted transition"
+                                                        className="inline-flex items-center gap-1.5 px-4 py-3 border text-sm font-medium rounded-xl hover:bg-muted transition min-h-[48px]"
                                                     >
                                                         {t.originalDesign}
                                                     </a>
@@ -426,9 +521,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                     <p>{addr.prefecture}{addr.city}{addr.address1}</p>
                                                     {addr.address2 && <p>{addr.address2}</p>}
                                                     <p className="font-semibold">{addr.lastName} {addr.firstName}</p>
-                                                    {addr.phone && (
-                                                        <p className="text-muted-foreground">{t.phone}: {addr.phone}</p>
-                                                    )}
+                                                    {addr.phone && <p className="text-muted-foreground">{t.phone}: {addr.phone}</p>}
                                                 </address>
                                             ) : (
                                                 <p className="text-sm text-muted-foreground">—</p>
@@ -466,7 +559,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
 
                                     {/* Status Update: assigned → manufacturing, manufacturing → ready_to_ship */}
                                     {next && (
-                                        <div className={`px-5 py-4 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${next === 'ready_to_ship' ? 'bg-purple-50/60' : 'bg-yellow-50/50'}`}>
+                                        <div className={`px-4 sm:px-5 py-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${next === 'ready_to_ship' ? 'bg-purple-50/60' : 'bg-yellow-50/50'}`}>
                                             <p className={`text-sm ${next === 'ready_to_ship' ? 'text-purple-800' : 'text-yellow-800'}`}>
                                                 {next === 'ready_to_ship' ? t.readyToShipDesc :
                                                     locale === 'ja' ? '製造を開始する準備ができたらボタンを押してください。' :
@@ -477,7 +570,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                             <button
                                                 onClick={() => handleStatusUpdate(item.id, next)}
                                                 disabled={isLoading}
-                                                className={`shrink-0 px-5 py-2.5 text-sm font-bold rounded-lg transition disabled:opacity-60 shadow-sm ${next === 'ready_to_ship' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
+                                                className={`shrink-0 px-6 py-3.5 text-sm font-bold rounded-xl transition disabled:opacity-60 shadow-sm min-h-[52px] ${next === 'ready_to_ship' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
                                             >
                                                 {isLoading ? t.loading : (next === 'ready_to_ship' ? t.markReadyToShip : t.startManufacturing)}
                                             </button>
@@ -486,7 +579,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
 
                                     {/* Tracking Number Input: manufacturing or ready_to_ship → shipped */}
                                     {(isManufacturing || isReadyToShip) && (
-                                        <div className="px-5 py-4 border-t bg-blue-50/60 space-y-3">
+                                        <div className="px-4 sm:px-5 py-4 border-t bg-blue-50/60 space-y-3">
                                             <div className="flex items-start justify-between gap-2">
                                                 <div>
                                                     <p className="text-sm font-bold text-blue-900 mb-0.5">{t.trackingNumber}</p>
@@ -498,34 +591,35 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                                     </p>
                                                 </div>
                                                 <button
-                                                    onClick={() => handleRevertStatus(item.id)}
+                                                    onClick={() => handleRevertStatus(item.id, item.status)}
                                                     disabled={isLoading}
-                                                    className="shrink-0 text-xs px-3 py-1.5 border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                                                    className="shrink-0 text-xs px-3 py-2.5 border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-100 transition disabled:opacity-50 min-h-[44px]"
                                                 >
                                                     {isReadyToShip
-                                                        ? (locale === 'ja' ? '↩ 製造中に戻す' : locale === 'zh' ? '↩ 返回生产中' : locale === 'vi' ? '↩ Quay lại sản xuất' : '↩ Back to Manufacturing')
-                                                        : (locale === 'ja' ? '↩ 製造前に戻す' : locale === 'zh' ? '↩ 撤回' : locale === 'vi' ? '↩ Hoàn tác' : '↩ Undo')}
+                                                        ? (locale === 'ja' ? '↩ 製造中に戻す' : locale === 'zh' ? '↩ 返回生产中' : locale === 'vi' ? '↩ Quay lại sản xuất' : '↩ Back to Mfg')
+                                                        : (locale === 'ja' ? '↩ 割り当て済みに戻す' : locale === 'zh' ? '↩ 撤回' : locale === 'vi' ? '↩ Hoàn tác' : '↩ Undo')}
                                                 </button>
                                             </div>
                                             <div className="flex flex-col sm:flex-row gap-2">
                                                 <input
                                                     type="text"
+                                                    inputMode="numeric"
                                                     value={trackingInputs[item.id] ?? ''}
                                                     onChange={(e) => setTrackingInputs((prev) => ({ ...prev, [item.id]: e.target.value }))}
                                                     placeholder={t.trackingPlaceholder}
-                                                    className="flex-1 px-4 py-2.5 text-base border-2 border-blue-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 font-mono"
+                                                    className="flex-1 px-4 py-3.5 text-base border-2 border-blue-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 font-mono min-h-[52px]"
                                                     disabled={isLoading}
                                                 />
                                                 <button
                                                     onClick={() => handleConfirmShipment(item.id)}
                                                     disabled={isLoading || !trackingInputs[item.id]?.trim()}
-                                                    className="shrink-0 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg transition disabled:opacity-50 shadow-sm"
+                                                    className="shrink-0 px-6 py-3.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition disabled:opacity-50 shadow-sm min-h-[52px]"
                                                 >
                                                     {isLoading ? t.loading : t.confirmShipment}
                                                 </button>
                                             </div>
                                             {trackingErrors[item.id] && (
-                                                <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                                                <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-3">
                                                     ⚠ {trackingErrors[item.id]}
                                                 </p>
                                             )}
@@ -534,58 +628,6 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                                 </div>
                             )
                         })}
-
-                        {/* Cancelled Orders Section */}
-                        {cancelledItems.length > 0 && (
-                            <div className="mt-8">
-                                <button
-                                    onClick={() => setShowCancelled((v) => !v)}
-                                    className="flex items-center gap-2 text-sm font-bold text-red-600 hover:text-red-700 mb-3"
-                                >
-                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">
-                                        {cancelledItems.length}
-                                    </span>
-                                    {t.cancelledOrders} {showCancelled ? '▲' : '▼'}
-                                </button>
-
-                                {showCancelled && (
-                                    <div className="space-y-3">
-                                        {cancelledItems.map((item) => {
-                                            const orderRef = item.orders?.order_number ?? '—'
-                                            return (
-                                                <div key={item.id} className="rounded-xl border-2 border-red-300 bg-red-50 overflow-hidden">
-                                                    <div className="flex items-center justify-between px-5 py-3 border-b border-red-200 bg-red-100">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-sm text-muted-foreground">
-                                                                {new Date(item.orders.created_at).toLocaleDateString()}
-                                                            </span>
-                                                            <span className="font-mono text-xs font-bold">{orderRef}</span>
-                                                        </div>
-                                                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-200 text-red-800">
-                                                            {t.cancelled}
-                                                        </span>
-                                                    </div>
-                                                    <div className="p-5">
-                                                        <p className="font-semibold line-through text-muted-foreground">{item.product_name}</p>
-                                                        <p className="text-sm text-muted-foreground mt-1">{t.quantity}: {item.quantity}</p>
-                                                        {item.options?.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1 mt-1">
-                                                                {item.options.map((o, i) => (
-                                                                    <span key={i} className="text-xs text-muted-foreground">{o.name}: {o.value}</span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        <p className="text-sm font-bold text-red-700 bg-red-100 border border-red-300 rounded-lg px-3 py-2 mt-3">
-                                                            {t.doNotProduce}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 )}
             </main>
