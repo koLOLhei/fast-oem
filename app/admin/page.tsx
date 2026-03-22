@@ -90,15 +90,16 @@ export default async function AdminPage({
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     const allOrderStats = orderStats ?? []
-    const paidStats = allOrderStats.filter((o) => o.status === 'paid')
+    const REVENUE_STATUSES = ['paid', 'processing', 'partially_shipped', 'shipped', 'completed']
+    const revenueStats = allOrderStats.filter((o) => REVENUE_STATUSES.includes(o.status))
     const pendingStats = allOrderStats.filter((o) => o.status === 'pending')
     const cancelledStats = allOrderStats.filter((o) => o.status === 'cancelled')
 
-    const totalRevenue = paidStats.reduce((s, o) => s + (o.total_price || 0), 0)
-    const thisMonthRevenue = paidStats
+    const totalRevenue = revenueStats.reduce((s, o) => s + (o.total_price || 0), 0)
+    const thisMonthRevenue = revenueStats
         .filter((o) => new Date(o.created_at) >= thisMonthStart)
         .reduce((s, o) => s + (o.total_price || 0), 0)
-    const lastMonthRevenue = paidStats
+    const lastMonthRevenue = revenueStats
         .filter((o) => new Date(o.created_at) >= lastMonthStart && new Date(o.created_at) < thisMonthStart)
         .reduce((s, o) => s + (o.total_price || 0), 0)
     const revenueGrowth = lastMonthRevenue > 0
@@ -122,7 +123,8 @@ export default async function AdminPage({
     const THRESHOLDS = { unassigned: 3, assigned: 7, manufacturing: 14 }
     const delayedItems = allItems.filter((item) => {
         const order = item.orders as any
-        if (order?.status !== 'paid') return false
+        const activeOrderStatuses = ['paid', 'processing', 'partially_shipped']
+        if (!activeOrderStatuses.includes(order?.status)) return false
         const days = daysSince(order.created_at)
         if (item.status === 'unassigned' && days > THRESHOLDS.unassigned) return true
         if (item.status === 'assigned' && days > THRESHOLDS.assigned) return true
@@ -161,19 +163,25 @@ export default async function AdminPage({
 
     const statusColors: Record<string, string> = {
         paid: 'bg-green-100 text-green-800',
+        processing: 'bg-cyan-100 text-cyan-800',
         partially_shipped: 'bg-blue-100 text-blue-800',
         shipped: 'bg-emerald-100 text-emerald-800',
+        completed: 'bg-emerald-100 text-emerald-800',
         pending: 'bg-yellow-100 text-yellow-800',
         cancelled: 'bg-red-100 text-red-700',
+        refunded: 'bg-orange-100 text-orange-800',
         failed: 'bg-red-100 text-red-800',
     }
 
     const statusLabels: Record<string, string> = {
         paid: '支払済',
+        processing: '処理中',
         partially_shipped: '一部発送済',
         shipped: '発送完了',
+        completed: '完了',
         pending: '未払い',
         cancelled: 'キャンセル',
+        refunded: '返金済',
         failed: '失敗',
     }
 
@@ -468,8 +476,10 @@ export default async function AdminPage({
                             {[
                                 { label: '全て', value: '' },
                                 { label: '支払済', value: 'paid' },
+                                { label: '発送完了', value: 'shipped' },
                                 { label: '未払い', value: 'pending' },
                                 { label: 'キャンセル', value: 'cancelled' },
+                                { label: '返金済', value: 'refunded' },
                             ].map(({ label, value }) => (
                                 <Link
                                     key={value}

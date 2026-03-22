@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { FactoryPortalClient } from './factory-portal-client'
 import { toSignedUrls } from '@/lib/supabase/storage'
@@ -9,8 +10,12 @@ export default async function FactoryPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
+    // Use service client to bypass RLS — ensures factory users can always
+    // read their own profile and assigned items regardless of RLS policies.
+    const service = createServiceClient()
+
     // Get the factory_id for this user
-    const { data: profile } = await supabase
+    const { data: profile } = await service
         .from('profiles')
         .select('factory_id, factories(name)')
         .eq('id', user.id)
@@ -33,7 +38,7 @@ export default async function FactoryPage() {
     // Fetch all items assigned to this factory (including cancelled)
     // NOTE: price information is intentionally NOT selected
     // NOTE: stripe_session_id and pricing columns are intentionally excluded
-    const { data: items } = await supabase
+    const { data: items } = await service
         .from('order_items')
         .select(`
       id,

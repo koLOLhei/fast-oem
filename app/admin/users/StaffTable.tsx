@@ -20,17 +20,7 @@ type Profile = {
     factories: unknown
 }
 
-const roleLabel: Record<string, string> = {
-    super_admin: 'スーパー管理者',
-    admin: '管理者',
-    factory: '工場',
-    customer: '顧客',
-}
-const roleColor: Record<string, string> = {
-    super_admin: 'bg-red-100 text-red-800',
-    admin: 'bg-purple-100 text-purple-800',
-    factory: 'bg-blue-100 text-blue-800',
-}
+import { ROLE_LABELS as roleLabel, ROLE_COLORS as roleColor } from '@/lib/status-labels'
 
 export function StaffTable({
     profiles,

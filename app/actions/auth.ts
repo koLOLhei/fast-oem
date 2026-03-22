@@ -23,8 +23,12 @@ function loginErrorMessage(msg: string): string {
 }
 
 export async function login(formData: FormData) {
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
+    const email = (formData.get('email') as string | null)?.trim()
+    const password = formData.get('password') as string | null
+
+    if (!email || !password) {
+        return redirect('/login?message=' + encodeURIComponent('メールアドレスとパスワードを入力してください'))
+    }
 
     const supabase = await createClient()
 
@@ -75,8 +79,16 @@ export async function logout() {
 }
 
 export async function signup(formData: FormData) {
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
+    const email = (formData.get('email') as string | null)?.trim()
+    const password = formData.get('password') as string | null
+
+    if (!email || !password) {
+        return redirect('/signup?message=' + encodeURIComponent('メールアドレスとパスワードを入力してください'))
+    }
+    if (password.length < 8) {
+        return redirect('/signup?message=' + encodeURIComponent('パスワードは8文字以上で入力してください'))
+    }
+
     const supabase = await createClient()
 
     const { data, error } = await supabase.auth.signUp({
@@ -88,7 +100,12 @@ export async function signup(formData: FormData) {
     })
 
     if (error) {
-        return redirect('/signup?message=' + encodeURIComponent(error.message))
+        const signupMsg = error.message.includes('over_email_send_rate_limit') || error.message.includes('Too many requests')
+            ? 'アクセスが集中しています。しばらく時間をおいてから再度お試しください'
+            : error.message.includes('already registered') || error.message.includes('already been registered')
+            ? 'このメールアドレスはすでに登録されています'
+            : '登録に失敗しました。しばらく時間をおいて再度お試しください'
+        return redirect('/signup?message=' + encodeURIComponent(signupMsg))
     }
 
     // Belt-and-suspenders: ensure the profile row exists with the correct email.
@@ -108,7 +125,7 @@ export async function signup(formData: FormData) {
         }
     }
 
-    return redirect('/mypage?message=' + encodeURIComponent('登録確認メールを送信しました。メールを確認してください'))
+    return redirect('/login?message=' + encodeURIComponent('登録確認メールを送信しました。メールを確認してからログインしてください'))
 }
 
 export async function requestPasswordReset(formData: FormData) {
@@ -127,7 +144,12 @@ export async function requestPasswordReset(formData: FormData) {
 }
 
 export async function updatePassword(formData: FormData) {
-    const password = formData.get('password') as string
+    const password = formData.get('password') as string | null
+
+    if (!password || password.length < 8) {
+        return redirect('/reset-password/confirm?message=' + encodeURIComponent('パスワードは8文字以上で入力してください'))
+    }
+
     const supabase = await createClient()
 
     const { error } = await supabase.auth.updateUser({ password })

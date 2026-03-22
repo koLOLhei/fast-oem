@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatPrice } from '@/lib/products'
 import { addBusinessDays } from '@/lib/holidays'
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
 import { ReceiptButton } from './receipt-button'
 import { InvoiceButton } from './invoice-button'
 import { StatusPoller } from './status-poller'
@@ -79,27 +80,8 @@ export default async function OrderStatusPage({
     const priceExTax = Math.round(orderTotal / (1 + TAX_RATE))
     const taxAmount = orderTotal - priceExTax
 
-    const statusLabel: Record<string, string> = {
-        pending: '入金待ち',
-        paid: '入金確認済み',
-        processing: '製造中',
-        partially_shipped: '一部発送済み',
-        shipped: '発送完了',
-        completed: '完了',
-        cancelled: 'キャンセル済み',
-        refunded: '返金済み',
-    }
-
-    const statusColor: Record<string, string> = {
-        pending: 'bg-yellow-100 text-yellow-800',
-        paid: 'bg-blue-100 text-blue-800',
-        processing: 'bg-yellow-100 text-yellow-800',
-        partially_shipped: 'bg-blue-100 text-blue-800',
-        shipped: 'bg-green-100 text-green-800',
-        completed: 'bg-gray-100 text-gray-700',
-        cancelled: 'bg-red-100 text-red-700',
-        refunded: 'bg-red-100 text-red-700',
-    }
+    const statusLabel = ORDER_STATUS_LABELS
+    const statusColor = ORDER_STATUS_COLORS
 
     const allShipped = items.every((item: any) => item.status === 'shipped')
     const someShipped = !allShipped && items.some((item: any) => item.status === 'shipped')

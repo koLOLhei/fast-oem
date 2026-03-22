@@ -1,23 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
-
-async function requireAdmin() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('認証が必要です')
-    const { data: profile } = await createServiceClient()
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
-        throw new Error('管理者権限が必要です')
-    }
-    return { supabase, adminId: user.id, isSuperAdmin: profile.role === 'super_admin' }
-}
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 /**
  * Invite a new staff member (admin, super_admin, or factory).

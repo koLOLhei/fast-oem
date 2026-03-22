@@ -34,16 +34,11 @@ export default async function ReportsPage() {
         supabase
             .from('orders')
             .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
-            .eq('status', 'paid')
+            .in('status', ['paid', 'processing', 'partially_shipped', 'shipped', 'completed'])
             .gte('created_at', sixMonthsAgo.toISOString())
             .order('created_at', { ascending: true }),
-        // Also fetch partially_shipped and shipped orders for same period
-        supabase
-            .from('orders')
-            .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
-            .in('status', ['shipped', 'partially_shipped'])
-            .gte('created_at', sixMonthsAgo.toISOString())
-            .order('created_at', { ascending: true }),
+        // Placeholder: keep array structure for destructuring compatibility
+        Promise.resolve({ data: [] as any[] }),
         // Fetch all active items (non-shipped) with factory info, capped to prevent full scans
         supabase
             .from('order_items')

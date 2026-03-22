@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import {
   type Cart,
   type CartItem,
@@ -82,13 +82,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart, isLoading])
 
-  const addItem = (itemData: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'> & { unitPrice?: number; totalPrice?: number }) => {
+  const addItem = useCallback((itemData: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'> & { unitPrice?: number; totalPrice?: number }) => {
     let unitPrice = itemData.unitPrice
     let totalPrice = itemData.totalPrice
 
     if (unitPrice === undefined || totalPrice === undefined) {
-      // Fall back to calculation from the hardcoded PRODUCTS array.
-      // This path handles products not yet migrated to DB.
       const product = getProductById(itemData.productId)
       if (!product) return
 
@@ -110,21 +108,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart((prevCart) => {
       const newItems = [...prevCart.items, newItem]
       const totals = calculateCartTotals(newItems)
-      return {
-        items: newItems,
-        ...totals,
-      }
+      return { items: newItems, ...totals }
     })
-  }
+  }, [])
 
-  const updateItemQuantity = (itemId: string, quantity: number) => {
+  const updateItemQuantity = useCallback((itemId: string, quantity: number) => {
     setCart((prevCart) => {
       const newItems = prevCart.items.map((item) => {
         if (item.id === itemId) {
           const product = getProductById(item.productId)
           if (!product) return item
 
-          // Convert options array to Record<string, string> for price calculation
           const selectedOptions: Record<string, string> = {}
           item.options.forEach((opt) => {
             selectedOptions[opt.id] = opt.value
@@ -132,49 +126,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
           const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
           const totalPrice = calculateTotalPrice(product, quantity, selectedOptions)
-          return {
-            ...item,
-            quantity,
-            unitPrice,
-            totalPrice,
-          }
+          return { ...item, quantity, unitPrice, totalPrice }
         }
         return item
       })
       const totals = calculateCartTotals(newItems)
-      return {
-        items: newItems,
-        ...totals,
-      }
+      return { items: newItems, ...totals }
     })
-  }
+  }, [])
 
-  const removeItem = (itemId: string) => {
+  const removeItem = useCallback((itemId: string) => {
     setCart((prevCart) => {
       const newItems = prevCart.items.filter((item) => item.id !== itemId)
       const totals = calculateCartTotals(newItems)
-      return {
-        items: newItems,
-        ...totals,
-      }
+      return { items: newItems, ...totals }
     })
-  }
+  }, [])
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart(createEmptyCart())
-  }
+  }, [])
+
+  const value = useMemo(() => ({
+    cart,
+    addItem,
+    updateItemQuantity,
+    removeItem,
+    clearCart,
+    isLoading,
+  }), [cart, addItem, updateItemQuantity, removeItem, clearCart, isLoading])
 
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addItem,
-        updateItemQuantity,
-        removeItem,
-        clearCart,
-        isLoading,
-      }}
-    >
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   )

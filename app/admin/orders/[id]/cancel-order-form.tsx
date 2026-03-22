@@ -2,25 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { adminCancelOrder } from '@/app/actions/factory'
+import { ORDER_STATUS_LABELS, CANCELLABLE_STATUSES } from '@/lib/status-labels'
 
 interface Props {
     orderId: string
     orderNumber: string
     status: string
     totalPrice: number
-}
-
-const CANCELLABLE_STATUSES = ['pending', 'paid', 'processing', 'partially_shipped']
-
-const STATUS_LABELS: Record<string, string> = {
-    pending: '決済待ち',
-    paid: '入金確認済み',
-    processing: '製造中',
-    partially_shipped: '一部発送済み',
-    shipped: '発送完了',
-    completed: '完了',
-    cancelled: 'キャンセル済み',
-    refunded: '返金済み',
 }
 
 export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Props) {
@@ -30,7 +18,7 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
     const [error, setError] = useState('')
     const [isPending, startTransition] = useTransition()
 
-    const isCancellable = CANCELLABLE_STATUSES.includes(status)
+    const isCancellable = (CANCELLABLE_STATUSES as readonly string[]).includes(status)
     const needsRefund = status !== 'pending'
 
     if (!isCancellable) {
@@ -38,7 +26,7 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
             <div className="rounded-xl border bg-card p-5">
                 <p className="text-sm font-semibold text-muted-foreground">注文のキャンセル</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                    ステータスが「{STATUS_LABELS[status] ?? status}」のためキャンセルできません。
+                    ステータスが「{ORDER_STATUS_LABELS[status] ?? status}」のためキャンセルできません。
                 </p>
             </div>
         )

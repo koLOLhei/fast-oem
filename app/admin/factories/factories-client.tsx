@@ -9,7 +9,7 @@ type Factory = {
     country: string | null
     contact_email: string | null
     contact_name: string | null
-    contact_phone: string | null
+    phone: string | null
     address: string | null
     max_capacity: number | null
     is_active: boolean
@@ -46,7 +46,7 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
         setEditCountry(f.country ?? '')
         setEditContactEmail(f.contact_email ?? '')
         setEditContactName(f.contact_name ?? '')
-        setEditContactPhone(f.contact_phone ?? '')
+        setEditContactPhone(f.phone ?? '')
         setEditAddress(f.address ?? '')
         setEditMaxCapacity(f.max_capacity != null ? String(f.max_capacity) : '')
         setEditIsActive(f.is_active)
@@ -71,7 +71,7 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
                 fd.set('country', editCountry)
                 fd.set('contact_email', editContactEmail)
                 fd.set('contact_name', editContactName)
-                fd.set('contact_phone', editContactPhone)
+                fd.set('phone', editContactPhone)
                 fd.set('address', editAddress)
                 fd.set('max_capacity', editMaxCapacity)
                 fd.set('is_active', String(editIsActive))
@@ -148,8 +148,8 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
                                     {f.contact_email && (
                                         <div className="text-xs">{f.contact_email}</div>
                                     )}
-                                    {f.contact_phone && (
-                                        <div className="text-xs">{f.contact_phone}</div>
+                                    {f.phone && (
+                                        <div className="text-xs">{f.phone}</div>
                                     )}
                                 </td>
                                 <td className="p-4">{(f.profiles as any[])?.length ?? 0}名</td>

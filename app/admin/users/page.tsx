@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { ROLE_LABELS, ROLE_COLORS } from '@/lib/status-labels'
 import { StaffTable } from './StaffTable'
 import { InviteForm } from './InviteForm'
 
@@ -45,17 +46,8 @@ export default async function UsersPage() {
         console.error('[UsersPage] Failed to fetch data:', err)
     }
 
-    const roleLabel: Record<string, string> = {
-        super_admin: 'スーパー管理者',
-        admin: '管理者',
-        factory: '工場',
-        customer: '顧客',
-    }
-    const roleColor: Record<string, string> = {
-        super_admin: 'bg-red-100 text-red-800',
-        admin: 'bg-purple-100 text-purple-800',
-        factory: 'bg-blue-100 text-blue-800',
-    }
+    const roleLabel = ROLE_LABELS
+    const roleColor = ROLE_COLORS
 
     return (
         <div className="space-y-8 max-w-5xl">
@@ -138,9 +130,15 @@ function CancelInviteButton() {
             type="submit"
             formAction={async (fd: FormData) => {
                 'use server'
+                const { redirect } = await import('next/navigation')
                 const invitationId = fd.get('invitationId') as string
-                const { cancelInvitation } = await import('@/app/actions/users')
-                await cancelInvitation(invitationId)
+                try {
+                    const { cancelInvitation } = await import('@/app/actions/users')
+                    await cancelInvitation(invitationId)
+                } catch (e: any) {
+                    redirect(`/admin/users?error=${encodeURIComponent(e?.message ?? '招待のキャンセルに失敗しました')}`)
+                }
+                redirect('/admin/users')
             }}
             className="text-xs px-2 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 transition"
         >

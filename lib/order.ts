@@ -24,7 +24,7 @@ export interface OrderData {
   shippingAddress: ShippingAddress
   totalPrice: number
   createdAt: string
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered'
+  status: 'pending' | 'paid' | 'processing' | 'partially_shipped' | 'shipped' | 'completed' | 'cancelled' | 'refunded'
 }
 
 export function generateOrderId(): string {

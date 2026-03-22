@@ -52,9 +52,15 @@ export async function POST(req: Request) {
     try {
       // Update pending → paid using stripe_session_id (set at order creation)
       // If already paid (Edge Function ran first), this matches 0 rows — harmless
+      const paymentIntentId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : null
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'paid' })
+        .update({
+          status: 'paid',
+          ...(paymentIntentId ? { payment_intent_id: paymentIntentId } : {}),
+        })
         .eq('stripe_session_id', session.id)
         .eq('status', 'pending')
 

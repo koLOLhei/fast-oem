@@ -1,55 +1,18 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { sendShippingNotification, sendAllShippedNotification } from '@/app/actions/order'
 import { stripe } from '@/lib/stripe'
 import { sendSlackMessage } from '@/lib/slack'
+import { requireAdmin, requireFactory } from '@/lib/auth/require-admin'
+import { escapeHtml } from '@/lib/utils'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const VALID_COUNTRIES = ['China', 'Vietnam', 'Japan', 'Other'] as const
-
-// ---------------------------------------------------------------------------
-// Role helpers — called at the top of every server action that should be
-// restricted to a specific role.  The middleware guards the route, but server
-// actions can be POSTed directly, so we re-verify here as defence-in-depth.
-// ---------------------------------------------------------------------------
-async function requireAdmin() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('認証が必要です')
-    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
-    const { data: profile } = await createServiceClient()
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
-        throw new Error('管理者権限が必要です')
-    }
-    return supabase
-}
-
-async function requireFactory() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('認証が必要です')
-    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
-    const { data: profile } = await createServiceClient()
-        .from('profiles')
-        .select('role, factory_id')
-        .eq('id', user.id)
-        .single()
-    if (profile?.role !== 'factory') throw new Error('工場権限が必要です')
-    return { factoryId: profile.factory_id as string | null }
-}
 
 export async function assignFactory(itemId: string, factoryId: string) {
     await requireAdmin()
@@ -66,7 +29,13 @@ export async function assignFactory(itemId: string, factoryId: string) {
     revalidatePath('/admin/orders/[id]', 'page')
 }
 
+const VALID_ITEM_STATUSES = ['unassigned', 'assigned', 'manufacturing', 'ready_to_ship', 'shipped', 'cancelled'] as const
+
 export async function updateItemStatus(itemId: string, status: string) {
+    if (!(VALID_ITEM_STATUSES as readonly string[]).includes(status)) {
+        throw new Error(`無効なステータスです: ${status}`)
+    }
+
     // Factory users may only update items assigned to their factory.
     // If factoryId is null the account has no factory assignment — deny outright
     // to prevent an unconstrained UPDATE that would touch all items.
@@ -129,99 +98,12 @@ export async function revertItemStatus(itemId: string) {
     revalidatePath('/orders/[id]/status', 'page')
 }
 
-export async function createFactory(formData: FormData) {
-    await requireAdmin()
-    const name = (formData.get('name') as string)?.trim()
-    const country = (formData.get('country') as string)?.trim()
-    const contact_email = (formData.get('contact_email') as string)?.trim()
-
-    if (!name || name.length < 1) throw new Error('工場名は必須です')
-    if (name.length > 100) throw new Error('工場名は100文字以内で入力してください')
-    if (contact_email && !EMAIL_REGEX.test(contact_email)) {
-        throw new Error('連絡先メールアドレスの形式が正しくありません')
-    }
-    if (country && !(VALID_COUNTRIES as readonly string[]).includes(country)) {
-        throw new Error('無効な国が選択されています')
-    }
-
-    const { error } = await createServiceClient()
-        .from('factories')
-        .insert({ name, country: country || null, contact_email: contact_email || null })
-
-    if (error) throw new Error(error.message)
-    revalidatePath('/admin/factories')
-    revalidatePath('/admin')
-}
-
-export async function updateFactory(factoryId: string, formData: FormData) {
-    await requireAdmin()
-    const service = createServiceClient()
-
-    const name = (formData.get('name') as string)?.trim()
-    const country = (formData.get('country') as string)?.trim() || null
-    const contact_email = (formData.get('contact_email') as string)?.trim() || null
-    const contact_name = (formData.get('contact_name') as string)?.trim() || null
-    const contact_phone = (formData.get('contact_phone') as string)?.trim() || null
-    const address = (formData.get('address') as string)?.trim() || null
-    const maxCapacityRaw = (formData.get('max_capacity') as string)?.trim()
-    const max_capacity = maxCapacityRaw ? parseInt(maxCapacityRaw, 10) : null
-    const is_active = formData.get('is_active') === 'true'
-
-    if (!name || name.length < 1) throw new Error('工場名は必須です')
-    if (name.length > 100) throw new Error('工場名は100文字以内で入力してください')
-    if (contact_email && !EMAIL_REGEX.test(contact_email)) {
-        throw new Error('連絡先メールアドレスの形式が正しくありません')
-    }
-    if (country && !(VALID_COUNTRIES as readonly string[]).includes(country)) {
-        throw new Error('無効な国が選択されています')
-    }
-    if (max_capacity !== null && (isNaN(max_capacity) || max_capacity < 1)) {
-        throw new Error('最大生産能力は1以上の整数で入力してください')
-    }
-
-    const { error } = await service
-        .from('factories')
-        .update({ name, country, contact_email, contact_name, contact_phone, address, max_capacity, is_active })
-        .eq('id', factoryId)
-
-    if (error) throw new Error(error.message)
-    revalidatePath('/admin/factories')
-    revalidatePath('/admin')
-}
-
-export async function deleteFactory(factoryId: string) {
-    await requireAdmin()
-    const service = createServiceClient()
-
-    // Run both guard checks in parallel — both are independent SELECTs
-    const [
-        { data: items, error: itemsError },
-        { data: staffProfiles, error: profilesError },
-    ] = await Promise.all([
-        service.from('order_items').select('id').eq('factory_id', factoryId).limit(1),
-        service.from('profiles').select('id').eq('factory_id', factoryId).limit(1),
-    ])
-
-    if (itemsError) throw new Error(itemsError.message)
-    if (profilesError) throw new Error(profilesError.message)
-    if (items && items.length > 0) {
-        throw new Error('この工場には関連する注文アイテムがあるため削除できません。先にアイテムを他の工場に移動してください。')
-    }
-    if (staffProfiles && staffProfiles.length > 0) {
-        throw new Error('この工場にはまだスタッフが所属しています。先にスタッフの工場割り当てを変更してください。')
-    }
-
-    const { error } = await service
-        .from('factories')
-        .delete()
-        .eq('id', factoryId)
-
-    if (error) throw new Error(error.message)
-    revalidatePath('/admin/factories')
-    revalidatePath('/admin')
-}
+const VALID_ORDER_STATUSES = ['pending', 'paid', 'processing', 'partially_shipped', 'shipped', 'completed', 'cancelled', 'refunded'] as const
 
 export async function updateOrderStatus(orderId: string, status: string) {
+    if (!(VALID_ORDER_STATUSES as readonly string[]).includes(status)) {
+        throw new Error(`無効なステータスです: ${status}`)
+    }
     await requireAdmin()
     const { error } = await createServiceClient()
         .from('orders')
@@ -622,7 +504,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                 text: cancelText,
                 html: `
                   <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#ffffff;">
-                    <h2 style="color:#1f2937;">${customerName} 様</h2>
+                    <h2 style="color:#1f2937;">${escapeHtml(customerName)} 様</h2>
                     <p style="color:#4b5563;line-height:1.7;font-size:14px;">
                       FAST OEMをご利用いただき、誠にありがとうございます。<br/>
                       誠に恐れ入りますが、下記の注文につきまして、弊社都合によりキャンセルさせていただくこととなりました。
@@ -630,7 +512,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
 
                     <div style="margin:20px 0;padding:14px 16px;background:#f3f4f6;border-radius:8px;">
                       <p style="margin:0;font-size:12px;color:#6b7280;">注文番号</p>
-                      <p style="margin:4px 0 0;font-family:monospace;font-weight:bold;font-size:15px;">${orderNumber}</p>
+                      <p style="margin:4px 0 0;font-family:monospace;font-weight:bold;font-size:15px;">${escapeHtml(orderNumber)}</p>
                     </div>
 
                     ${refundIssued ? `

@@ -1,28 +1,9 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { type Product } from '@/lib/products'
-
-/**
- * Defence-in-depth admin guard for product server actions.
- * The middleware guards the /admin page routes, but server actions are
- * callable via POST from any client that knows the action ID.
- * This check ensures only admin-role users can mutate product data.
- */
-async function requireAdmin(): Promise<void> {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('認証が必要です')
-    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
-    const { data: profile } = await createServiceClient()
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-    if (profile?.role !== 'admin') throw new Error('管理者権限が必要です')
-}
+import { requireAdmin } from '@/lib/auth/require-admin'
 
 function productToRow(p: Partial<Product> & { isActive?: boolean }) {
     const row: Record<string, any> = {}

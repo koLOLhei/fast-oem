@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
+import { ORDER_STATUS_LABELS } from '@/lib/status-labels'
 
 export default async function MypagePage() {
     const supabase = await createClient()
@@ -28,11 +29,7 @@ export default async function MypagePage() {
     if (profile?.role === 'admin') redirect('/admin')
     if (profile?.role === 'factory') redirect('/factory')
 
-    const statusLabels: Record<string, string> = {
-        paid: '入金確認済み',
-        pending: '決済処理中',
-        shipped: '発送完了',
-    }
+    const statusLabels = ORDER_STATUS_LABELS
 
     return (
         <div className="min-h-screen bg-muted/30 py-12">

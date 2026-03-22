@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,6 +18,12 @@ type ProductNav = { slug: string; name: string }
 export function Header({ products }: { products: ProductNav[] }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { cart } = useCart()
+  const pathname = usePathname()
+
+  // Close mobile menu on route change (SPA navigation)
+  useEffect(() => {
+    setIsMenuOpen(false)
+  }, [pathname])
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">

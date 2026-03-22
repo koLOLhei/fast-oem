@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
     // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
     const { data: profile } = await createServiceClient()
         .from('profiles')
-        .select('role')
+        .select('role, is_active')
         .eq('id', user.id)
         .single()
-    if (profile?.role !== 'admin') return new NextResponse('Forbidden', { status: 403 })
+    if ((profile as any)?.is_active === false) return new NextResponse('Account disabled', { status: 403 })
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') return new NextResponse('Forbidden', { status: 403 })
 
     const typeParam = req.nextUrl.searchParams.get('type') ?? 'orders'
     if (typeParam !== 'orders' && typeParam !== 'items') {

@@ -17,7 +17,7 @@ interface ProductsClientProps {
 type Tab = 'basic' | 'price' | 'options'
 
 const slugify = (s: string) =>
-    s.toLowerCase().trim().replace(/[^a-z0-9ぁ-んァ-ヶ一-龥]+/g, '-').replace(/^-|-$/g, '') || `product-${Date.now()}`
+    s.toLowerCase().trim().replace(/[^a-z0-9ぁ-んァ-ヶ一-龥]+/g, '-').replace(/^-|-$/g, '') || `product-${crypto.randomUUID().slice(0, 8)}`
 
 export function ProductsClient({ initialProducts, factories }: ProductsClientProps) {
     const [products, setProducts] = useState(initialProducts)
