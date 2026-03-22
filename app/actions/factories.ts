@@ -2,14 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
-import { getCurrentUserRole } from '@/lib/auth/guard'
+import { requireRole } from '@/lib/auth/guard'
 
 // 権限チェックヘルパー
 async function requireAdminRole() {
-  const role = await getCurrentUserRole()
-  if (role !== 'admin' && role !== 'super_admin') {
-    throw new Error('権限がありません')
-  }
+  await requireRole(['admin', 'super_admin'])
 }
 
 // 工場作成
