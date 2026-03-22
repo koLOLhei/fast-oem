@@ -140,11 +140,38 @@ export async function sendCustomerConfirmation(data: OrderNotificationData) {
       <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:bold;text-align:right;">${formatPrice(item.totalPrice)}</td>
     </tr>`).join('')
 
+  const confirmText = `${customerName} 様
+
+この度はFAST OEMをご利用いただき、誠にありがとうございます。
+以下の内容でご注文を承りました。
+
+【注文番号】 ${displayOrderNumber}
+【注文日時】 ${displayOrderDate}
+
+■ ご注文商品
+${items.map((item, i) => `${i + 1}. ${item.productName} × ${item.quantity}個 — ${formatPrice(item.totalPrice)}`).join('\n')}
+
+■ お届け先
+〒${shippingAddress.postalCode}
+${shippingAddress.prefecture}${shippingAddress.city}${shippingAddress.address1}
+${shippingAddress.lastName} ${shippingAddress.firstName} 様
+
+■ 注文状況の確認
+${statusLink}
+
+ご不明な点は ${CONTACT_EMAIL} までお問い合わせください。
+平日 10:00〜18:00（土日祝除く）※メール対応のみ
+
+FAST OEM
+${SITE_URL}
+`
+
   try {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: customerEmail,
     subject: `【FAST OEM】ご注文ありがとうございます（注文番号: ${displayOrderNumber}）`,
+    text: confirmText,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#ffffff;">
         <h2 style="color:#1f2937;">${customerName} 様</h2>
@@ -327,10 +354,33 @@ export async function sendAllShippedNotification({
     )
     .join('')
 
+  const allShippedText = `${customerName} 様
+
+いつもFAST OEMをご利用いただき、誠にありがとうございます。
+ご注文の全商品の発送が完了いたしました。
+
+【発注番号】 ${orderNumber}
+
+■ 発送商品と追跡番号
+${items.map((item) => `${item.productName} × ${item.quantity}個\n追跡番号: ${item.trackingNumber}`).join('\n\n')}
+
+各配送会社のウェブサイトに追跡番号を入力してお荷物の配達状況をご確認いただけます。
+
+■ 注文状況の確認
+${statusLink}
+
+ご不明な点は ${CONTACT_EMAIL} までお問い合わせください。
+平日 10:00〜18:00（土日祝除く）※メール対応のみ
+
+FAST OEM
+${SITE_URL}
+`
+
   await resend.emails.send({
     from: FROM_EMAIL,
     to: customerEmail,
     subject: `【FAST OEM】全商品の発送が完了しました（発注番号: ${orderNumber}）`,
+    text: allShippedText,
     html: `
       <div style="font-family:sans-serif; max-width:600px; margin:0 auto; padding:0; background:#f9fafb;">
 

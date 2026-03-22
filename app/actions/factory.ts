@@ -595,10 +595,31 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                 ? `${SITE_URL}/orders/${orderId}/status?token=${order.access_token}`
                 : null
 
+            const cancelText = [
+                `${customerName} 様`,
+                '',
+                'FAST OEMをご利用いただき、誠にありがとうございます。',
+                '誠に恐れ入りますが、下記の注文につきまして、弊社都合によりキャンセルさせていただくこととなりました。',
+                '',
+                `【注文番号】 ${orderNumber}`,
+                '',
+                refundIssued
+                    ? refundAmount > 0
+                        ? `■ ご返金について\n未発送分の商品代金 ¥${refundAmount.toLocaleString('ja-JP')} をご返金いたします。\n既に発送済みの商品につきましては返金対象外となります。\nカード会社の処理により、反映まで数営業日かかる場合がございます。`
+                        : '■ ご返金について\nご決済いただいた金額は全額ご返金いたします。\nカード会社の処理により、反映まで数営業日かかる場合がございます。'
+                    : '',
+                'ご不便をおかけしてしまい、大変申し訳ございません。',
+                statusLink ? `\n■ 注文状況の確認\n${statusLink}` : '',
+                `\nお問い合わせ: ${CONTACT_EMAIL}\n平日 10:00〜18:00（土日祝除く）`,
+                '',
+                `FAST OEM\n${SITE_URL}`,
+            ].filter(Boolean).join('\n')
+
             await resend.emails.send({
                 from: FROM_EMAIL,
                 to: customerEmail,
                 subject: `【FAST OEM】ご注文のキャンセルについて（注文番号: ${orderNumber}）`,
+                text: cancelText,
                 html: `
                   <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#ffffff;">
                     <h2 style="color:#1f2937;">${customerName} 様</h2>

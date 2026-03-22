@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { createFactory, updateFactory, deleteFactory } from '@/app/actions/factory'
+import { createFactory, updateFactory, deleteFactory } from '@/app/actions/factories'
 
 type Factory = {
     id: string

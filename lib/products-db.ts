@@ -1,8 +1,13 @@
 /**
  * Server-side product fetching from Supabase.
  * Falls back to the hardcoded PRODUCTS array if the DB is unavailable or empty.
+ *
+ * getProductsFromDb and getProductBySlugFromDb are wrapped with unstable_cache so
+ * repeated calls within the same Next.js deployment hit the data cache instead of
+ * making a fresh Supabase round-trip on every request.  Call revalidateTag('products')
+ * (from app/actions/products.ts) whenever product data changes.
  */
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { type Product, PRODUCTS } from './products'
 
@@ -31,39 +36,44 @@ function rowToProduct(row: any): Product {
     }
 }
 
-export async function getProductsFromDb(): Promise<Product[]> {
-    try {
-        const supabase = await createClient()
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('is_active', true)
-            .order('created_at')
-        if (error || !data || data.length === 0) return PRODUCTS
-        return data.map(rowToProduct)
-    } catch (err) {
-        console.error('[getProductsFromDb] DB error, falling back to static data:', err)
-        return PRODUCTS
-    }
-}
+export const getProductsFromDb = unstable_cache(
+    async (): Promise<Product[]> => {
+        try {
+            const { data, error } = await createServiceClient()
+                .from('products')
+                .select('*')
+                .eq('is_active', true)
+                .order('created_at')
+            if (error || !data || data.length === 0) return PRODUCTS
+            return data.map(rowToProduct)
+        } catch (err) {
+            console.error('[getProductsFromDb] DB error, falling back to static data:', err)
+            return PRODUCTS
+        }
+    },
+    ['products-list'],
+    { tags: ['products'] }
+)
 
-export async function getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
-    try {
-        const supabase = await createClient()
-        // Use maybeSingle() instead of single() to avoid throwing when slug is duplicated
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('slug', slug)
-            .eq('is_active', true)
-            .maybeSingle()
-        if (error || !data) return PRODUCTS.find((p) => p.slug === slug)
-        return rowToProduct(data)
-    } catch (err) {
-        console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
-        return PRODUCTS.find((p) => p.slug === slug)
-    }
-}
+export const getProductBySlugFromDb = unstable_cache(
+    async (slug: string): Promise<Product | undefined> => {
+        try {
+            const { data, error } = await createServiceClient()
+                .from('products')
+                .select('*')
+                .eq('slug', slug)
+                .eq('is_active', true)
+                .maybeSingle()
+            if (error || !data) return PRODUCTS.find((p) => p.slug === slug)
+            return rowToProduct(data)
+        } catch (err) {
+            console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
+            return PRODUCTS.find((p) => p.slug === slug)
+        }
+    },
+    ['product-by-slug'],
+    { tags: ['products'] }
+)
 
 /** Used by admin page — returns ALL products including inactive */
 export async function getAllProductsForAdmin() {
