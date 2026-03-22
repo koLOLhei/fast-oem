@@ -63,6 +63,7 @@ export default async function OrderStatusPage({
         || customerInfo?.receiptAddressee?.trim()
         || companyNameStr
         || personName
+    const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
     const TAX_RATE = 0.1
 
     const orderTotal: number = (order as any).total_price ?? (order as any).total_amount ?? 0
@@ -105,10 +106,11 @@ export default async function OrderStatusPage({
     const anyProcessing = items.some((item: any) =>
         ['manufacturing', 'ready_to_ship', 'assigned'].includes(item.status)
     )
-    // Check terminal order statuses first — pending/cancelled/refunded orders must not
-    // be reclassified by item statuses (a pending order has no items yet).
+    // Trust DB status for terminal states. 'completed' and 'shipped' are also
+    // terminal — do not re-derive from item statuses to avoid stale-item edge cases.
     const displayStatus =
-        ['pending', 'cancelled', 'refunded'].includes(order.status) ? order.status
+        ['pending', 'cancelled', 'refunded', 'completed', 'shipped'].includes(order.status)
+            ? order.status
         : allShipped ? 'shipped'
         : someShipped ? 'partially_shipped'
         : anyProcessing ? 'processing'
@@ -143,18 +145,21 @@ export default async function OrderStatusPage({
                             このページのURLはあなた専用です。他の方と共有しないようにご注意ください。
                         </p>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                        <ReceiptButton
-                            orderId={id}
-                            token={token}
-                            defaultName={defaultReceiptAddressee}
-                        />
-                        <InvoiceButton
-                            orderId={id}
-                            token={token}
-                            defaultName={defaultReceiptAddressee}
-                        />
-                    </div>
+                    {/* Receipt and invoice only available after payment is confirmed */}
+                    {!['pending', 'cancelled', 'refunded'].includes(displayStatus) && (
+                        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                            <ReceiptButton
+                                orderId={id}
+                                token={token}
+                                defaultName={defaultReceiptAddressee}
+                            />
+                            <InvoiceButton
+                                orderId={id}
+                                token={token}
+                                defaultName={defaultReceiptAddressee}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Status Card */}
@@ -184,8 +189,22 @@ export default async function OrderStatusPage({
                     </div>
                 </div>
 
-                {/* Estimated delivery (only when not yet shipped) */}
-                {displayStatus !== 'shipped' && (order as any).status !== 'completed' && (
+                {/* Estimated delivery */}
+                {displayStatus === 'pending' && (
+                    <div className="rounded-xl border border-[#00c8c8]/40 bg-[#00c8c8]/5 p-4 flex items-center gap-3 text-sm">
+                        <span className="text-2xl">🚚</span>
+                        <div>
+                            <p className="text-xs text-muted-foreground">お届け目安</p>
+                            <p className="font-bold text-foreground">
+                                入金確認後、{hasExpress ? '約12' : '約15'}営業日以内
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {hasExpress ? '⚡ 特急プラン・' : ''}土日祝を除く（目安）
+                            </p>
+                        </div>
+                    </div>
+                )}
+                {!['pending', 'shipped', 'completed', 'cancelled', 'refunded'].includes(displayStatus) && (
                     <div className="rounded-xl border border-[#00c8c8]/40 bg-[#00c8c8]/5 p-4 flex items-center gap-3 text-sm">
                         <span className="text-2xl">🚚</span>
                         <div>
@@ -451,7 +470,7 @@ export default async function OrderStatusPage({
                             製造開始前であれば住所を変更できる場合があります。できるだけお早めにご連絡ください。
                         </p>
                         <a
-                            href={`mailto:contact@soara-mu.com?subject=${encodeURIComponent(`【住所変更依頼】注文番号: ${(order as any).order_number ?? id}`)}&body=${encodeURIComponent(`注文番号: ${(order as any).order_number ?? id}\n\n変更後の住所:\n〒\n都道府県:\n市区町村:\n番地:\nマンション名等:\n\nお名前:\n`)}`}
+                            href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`【住所変更依頼】注文番号: ${(order as any).order_number ?? id}`)}&body=${encodeURIComponent(`注文番号: ${(order as any).order_number ?? id}\n\n変更後の住所:\n〒\n都道府県:\n市区町村:\n番地:\nマンション名等:\n\nお名前:\n`)}`}
                             className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition"
                         >
                             📧 住所変更をメールで依頼する
@@ -462,7 +481,7 @@ export default async function OrderStatusPage({
                 <div className="rounded-xl border bg-card p-5 shadow-sm text-center space-y-1 pb-8">
                     <p className="text-sm font-semibold text-foreground">ご不明な点はお気軽にお問い合わせください</p>
                     <p className="text-sm text-muted-foreground">
-                        メール：<a href="mailto:contact@soara-mu.com" className="text-primary underline hover:text-primary/80">contact@soara-mu.com</a>
+                        メール：<a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline hover:text-primary/80">{CONTACT_EMAIL}</a>
                     </p>
                     <p className="text-xs text-muted-foreground">平日 10:00〜18:00 対応（土日祝除く）</p>
                     <p className="text-xs text-muted-foreground mt-1">

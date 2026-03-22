@@ -15,6 +15,12 @@ interface CheckoutSessionData {
   shippingFee?: number
 }
 
+const SHIPPING_FIELD_LABELS: Record<string, string> = {
+  lastName: '姓', firstName: '名', postalCode: '郵便番号',
+  prefecture: '都道府県', city: '市区町村', address1: '番地・建物名',
+  phone: '電話番号', email: 'メールアドレス',
+}
+
 /** Server-side guard: ensures required fields are present before hitting Stripe/DB. */
 function validateShippingAddress(addr: ShippingAddress): void {
   const required: (keyof ShippingAddress)[] = [
@@ -22,7 +28,7 @@ function validateShippingAddress(addr: ShippingAddress): void {
   ]
   for (const field of required) {
     if (!addr[field]?.trim()) {
-      throw new Error(`配送先の入力が不完全です（${field}）`)
+      throw new Error(`配送先の入力が不完全です（${SHIPPING_FIELD_LABELS[field] ?? field}）`)
     }
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.email)) {
@@ -92,6 +98,43 @@ async function validateAndRepricItems(
   const masterMap: Record<string, any> = {}
   for (const row of masterRows ?? []) masterMap[row.id] = row
 
+  // ── Validate moldOrderId claims in one batch query ──────────────────────────
+  // A client could supply any string as moldOrderId to falsely claim a mold fee
+  // exemption.  We verify each claimed order: it must exist, belong to the same
+  // customer email, be less than 1 year old, and contain the same product.
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000
+  const claimedMoldIds = [...new Set(items.map((i) => i.moldOrderId).filter(Boolean))] as string[]
+  const validMoldOrderIds = new Set<string>()
+
+  if (claimedMoldIds.length > 0) {
+    const { data: moldOrders } = await supabase
+      .from('orders')
+      .select('id, created_at, customer_info, order_items(product_id)')
+      .in('id', claimedMoldIds)
+
+    for (const mo of moldOrders ?? []) {
+      const moEmail = ((mo.customer_info as any)?.email ?? '').toLowerCase()
+      const moProductIds = new Set(((mo as any).order_items ?? []).map((oi: any) => oi.product_id as string))
+      const withinOneYear = Date.now() - new Date(mo.created_at).getTime() < ONE_YEAR_MS
+      const sameCustomer = moEmail === customerEmail.toLowerCase()
+      // Mark this mold order as valid for each item's product it contains
+      if (sameCustomer && withinOneYear) {
+        // Store per-product validity: moldOrderId is valid only for items whose productId it covers
+        for (const pid of moProductIds) {
+          validMoldOrderIds.add(`${mo.id}::${pid}`)
+        }
+      } else {
+        console.warn(JSON.stringify({
+          evt: 'security.invalid_mold_order_id',
+          moldOrderId: mo.id,
+          sameCustomer,
+          withinOneYear,
+          customerEmail,
+        }))
+      }
+    }
+  }
+
   const validatedItems: CartItem[] = items.map((item) => {
     const master = masterMap[item.productId]
     if (!master) {
@@ -130,8 +173,20 @@ async function validateAndRepricItems(
       }))
     }
 
-    // Mold fee: only valid when product requires mold AND no reuse order
-    const expectedMoldFee = (master.requires_mold && !item.moldOrderId)
+    // Mold fee: validate claimed exemption (moldOrderId must be verified above)
+    const moldExemptionValid = item.moldOrderId
+      ? validMoldOrderIds.has(`${item.moldOrderId}::${item.productId}`)
+      : false
+    if (item.moldOrderId && !moldExemptionValid) {
+      console.warn(JSON.stringify({
+        evt: 'security.invalid_mold_order_id',
+        moldOrderId: item.moldOrderId,
+        productId: item.productId,
+        customerEmail,
+      }))
+    }
+    const validatedMoldOrderId = moldExemptionValid ? item.moldOrderId : undefined
+    const expectedMoldFee = (master.requires_mold && !validatedMoldOrderId)
       ? (master.mold_fee ?? 0)
       : 0
     const clientMoldFee = item.moldFee ?? 0
@@ -165,6 +220,7 @@ async function validateAndRepricItems(
       unitPrice: serverUnitPrice,
       totalPrice: serverTotalPrice,
       moldFee: expectedMoldFee,
+      moldOrderId: validatedMoldOrderId,
       expressDeliveryFee: serverExpressFee,
     }
   })

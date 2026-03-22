@@ -13,6 +13,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const VALID_COUNTRIES = ['China', 'Vietnam', 'Japan', 'Other'] as const
+
 // ---------------------------------------------------------------------------
 // Role helpers — called at the top of every server action that should be
 // restricted to a specific role.  The middleware guards the route, but server
@@ -28,7 +31,9 @@ async function requireAdmin() {
         .select('role')
         .eq('id', user.id)
         .single()
-    if (profile?.role !== 'admin') throw new Error('管理者権限が必要です')
+    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+        throw new Error('管理者権限が必要です')
+    }
     return supabase
 }
 
@@ -132,17 +137,87 @@ export async function createFactory(formData: FormData) {
 
     if (!name || name.length < 1) throw new Error('工場名は必須です')
     if (name.length > 100) throw new Error('工場名は100文字以内で入力してください')
-    if (contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email)) {
+    if (contact_email && !EMAIL_REGEX.test(contact_email)) {
         throw new Error('連絡先メールアドレスの形式が正しくありません')
     }
-    const validCountries = ['China', 'Vietnam', 'Japan', 'Other']
-    if (country && !validCountries.includes(country)) throw new Error('無効な国が選択されています')
+    if (country && !(VALID_COUNTRIES as readonly string[]).includes(country)) {
+        throw new Error('無効な国が選択されています')
+    }
 
     const { error } = await createServiceClient()
         .from('factories')
         .insert({ name, country: country || null, contact_email: contact_email || null })
 
     if (error) throw new Error(error.message)
+    revalidatePath('/admin/factories')
+    revalidatePath('/admin')
+}
+
+export async function updateFactory(factoryId: string, formData: FormData) {
+    await requireAdmin()
+    const service = createServiceClient()
+
+    const name = (formData.get('name') as string)?.trim()
+    const country = (formData.get('country') as string)?.trim() || null
+    const contact_email = (formData.get('contact_email') as string)?.trim() || null
+    const contact_name = (formData.get('contact_name') as string)?.trim() || null
+    const contact_phone = (formData.get('contact_phone') as string)?.trim() || null
+    const address = (formData.get('address') as string)?.trim() || null
+    const maxCapacityRaw = (formData.get('max_capacity') as string)?.trim()
+    const max_capacity = maxCapacityRaw ? parseInt(maxCapacityRaw, 10) : null
+    const is_active = formData.get('is_active') === 'true'
+
+    if (!name || name.length < 1) throw new Error('工場名は必須です')
+    if (name.length > 100) throw new Error('工場名は100文字以内で入力してください')
+    if (contact_email && !EMAIL_REGEX.test(contact_email)) {
+        throw new Error('連絡先メールアドレスの形式が正しくありません')
+    }
+    if (country && !(VALID_COUNTRIES as readonly string[]).includes(country)) {
+        throw new Error('無効な国が選択されています')
+    }
+    if (max_capacity !== null && (isNaN(max_capacity) || max_capacity < 1)) {
+        throw new Error('最大生産能力は1以上の整数で入力してください')
+    }
+
+    const { error } = await service
+        .from('factories')
+        .update({ name, country, contact_email, contact_name, contact_phone, address, max_capacity, is_active })
+        .eq('id', factoryId)
+
+    if (error) throw new Error(error.message)
+    revalidatePath('/admin/factories')
+    revalidatePath('/admin')
+}
+
+export async function deleteFactory(factoryId: string) {
+    await requireAdmin()
+    const service = createServiceClient()
+
+    // Run both guard checks in parallel — both are independent SELECTs
+    const [
+        { data: items, error: itemsError },
+        { data: staffProfiles, error: profilesError },
+    ] = await Promise.all([
+        service.from('order_items').select('id').eq('factory_id', factoryId).limit(1),
+        service.from('profiles').select('id').eq('factory_id', factoryId).limit(1),
+    ])
+
+    if (itemsError) throw new Error(itemsError.message)
+    if (profilesError) throw new Error(profilesError.message)
+    if (items && items.length > 0) {
+        throw new Error('この工場には関連する注文アイテムがあるため削除できません。先にアイテムを他の工場に移動してください。')
+    }
+    if (staffProfiles && staffProfiles.length > 0) {
+        throw new Error('この工場にはまだスタッフが所属しています。先にスタッフの工場割り当てを変更してください。')
+    }
+
+    const { error } = await service
+        .from('factories')
+        .delete()
+        .eq('id', factoryId)
+
+    if (error) throw new Error(error.message)
+    revalidatePath('/admin/factories')
     revalidatePath('/admin')
 }
 
@@ -237,18 +312,27 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
     const activeSiblings = (siblings ?? []).filter((s) => s.status !== 'cancelled')
     const allShipped = activeSiblings.every((s) => s.id === itemId || s.status === 'shipped')
     const anyShipped = activeSiblings.some((s) => s.id === itemId || s.status === 'shipped')
+    // Use a conditional update (neq guard) as an optimistic lock so that only the
+    // request that actually transitions the order to 'shipped' sends the completion
+    // email — prevents duplicate emails when multiple items are submitted concurrently.
+    let isFirstToComplete = false
     if (orderId) {
         if (allShipped) {
-            await service.from('orders').update({ status: 'shipped' }).eq('id', orderId)
+            const { data: shippedRows } = await service
+                .from('orders')
+                .update({ status: 'shipped' })
+                .eq('id', orderId)
+                .neq('status', 'shipped')
+                .select('id')
+            isFirstToComplete = (shippedRows?.length ?? 0) > 0
         } else if (anyShipped) {
-            // Some items shipped but not all → partially_shipped
             await service.from('orders').update({ status: 'partially_shipped' }).eq('id', orderId)
         }
     }
 
     // When ALL items are shipped: send consolidated summary only (not per-item + summary)
     // When SOME items remain: send per-item notification
-    if (allShipped) {
+    if (allShipped && isFirstToComplete) {
         try {
             const { data: allItems } = await service
                 .from('order_items')

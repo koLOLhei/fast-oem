@@ -3,5 +3,7 @@
     "claudeCode.useCtrlEnterToSend": false,
     "claudeCode.useTerminal": true,
     "claudeCode.disableLoginPrompt": false,
-    "claudeCode.enableNewConversationShortcut": false
+    "claudeCode.enableNewConversationShortcut": false,
+    "geminicodeassist.agentDebugMode": true,
+    "geminicodeassist.agentYoloMode": true
 }

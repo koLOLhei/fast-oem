@@ -218,17 +218,17 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/login?error=account_disabled', request.url))
         }
 
-        // Wrong role for /admin — send factory/customer to their own portal
-        if (isAdminRoute && role !== 'admin') {
+        // Wrong role for /admin — allow admin and super_admin; redirect others
+        if (isAdminRoute && role !== 'admin' && role !== 'super_admin') {
             if (role === 'factory') {
                 return NextResponse.redirect(new URL('/factory', request.url))
             }
             return NextResponse.redirect(new URL('/login', request.url))
         }
 
-        // Wrong role for /factory — send admin/customer to their own portal
+        // Wrong role for /factory — send admin/super_admin/customer to their own portal
         if (isFactoryRoute && role !== 'factory') {
-            if (role === 'admin') {
+            if (role === 'admin' || role === 'super_admin') {
                 return NextResponse.redirect(new URL('/admin', request.url))
             }
             return NextResponse.redirect(new URL('/login', request.url))

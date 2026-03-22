@@ -41,7 +41,8 @@ export async function getProductsFromDb(): Promise<Product[]> {
             .order('created_at')
         if (error || !data || data.length === 0) return PRODUCTS
         return data.map(rowToProduct)
-    } catch {
+    } catch (err) {
+        console.error('[getProductsFromDb] DB error, falling back to static data:', err)
         return PRODUCTS
     }
 }
@@ -49,15 +50,17 @@ export async function getProductsFromDb(): Promise<Product[]> {
 export async function getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
     try {
         const supabase = await createClient()
+        // Use maybeSingle() instead of single() to avoid throwing when slug is duplicated
         const { data, error } = await supabase
             .from('products')
             .select('*')
             .eq('slug', slug)
             .eq('is_active', true)
-            .single()
+            .maybeSingle()
         if (error || !data) return PRODUCTS.find((p) => p.slug === slug)
         return rowToProduct(data)
-    } catch {
+    } catch (err) {
+        console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
         return PRODUCTS.find((p) => p.slug === slug)
     }
 }

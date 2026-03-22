@@ -21,11 +21,13 @@ type Profile = {
 }
 
 const roleLabel: Record<string, string> = {
+    super_admin: 'スーパー管理者',
     admin: '管理者',
     factory: '工場',
     customer: '顧客',
 }
 const roleColor: Record<string, string> = {
+    super_admin: 'bg-red-100 text-red-800',
     admin: 'bg-purple-100 text-purple-800',
     factory: 'bg-blue-100 text-blue-800',
 }
@@ -34,10 +36,12 @@ export function StaffTable({
     profiles,
     factories,
     currentUserId,
+    currentUserRole,
 }: {
     profiles: Profile[]
     factories: Factory[]
     currentUserId: string
+    currentUserRole: string
 }) {
     const [editingUser, setEditingUser] = useState<Profile | null>(null)
     const [editName, setEditName] = useState('')
@@ -46,6 +50,20 @@ export function StaffTable({
     const [editIsActive, setEditIsActive] = useState(true)
     const [editError, setEditError] = useState('')
     const [isPending, startTransition] = useTransition()
+
+    const isSuperAdmin = currentUserRole === 'super_admin'
+
+    function canEdit(p: Profile): boolean {
+        // Admin cannot edit super_admin users
+        if (!isSuperAdmin && p.role === 'super_admin') return false
+        return true
+    }
+
+    function canDelete(p: Profile): boolean {
+        if (p.id === currentUserId) return false
+        if (!isSuperAdmin && p.role === 'super_admin') return false
+        return true
+    }
 
     function openEdit(p: Profile) {
         setEditingUser(p)
@@ -93,6 +111,9 @@ export function StaffTable({
         })
     }
 
+    const isSelf = editingUser?.id === currentUserId
+    const ownRole = isSuperAdmin ? 'super_admin' : 'admin'
+
     return (
         <>
             <table className="w-full text-sm">
@@ -136,14 +157,16 @@ export function StaffTable({
                             </td>
                             <td className="p-4">
                                 <div className="flex gap-2 flex-wrap">
-                                    <button
-                                        onClick={() => openEdit(p)}
-                                        disabled={isPending}
-                                        className="text-xs px-2 py-1 border border-border rounded hover:bg-muted/50 transition disabled:opacity-50"
-                                    >
-                                        編集
-                                    </button>
-                                    {p.id !== currentUserId && (
+                                    {canEdit(p) && (
+                                        <button
+                                            onClick={() => openEdit(p)}
+                                            disabled={isPending}
+                                            className="text-xs px-2 py-1 border border-border rounded hover:bg-muted/50 transition disabled:opacity-50"
+                                        >
+                                            編集
+                                        </button>
+                                    )}
+                                    {canDelete(p) && (
                                         <button
                                             onClick={() => handleDelete(p.id, p.name)}
                                             disabled={isPending}
@@ -194,14 +217,17 @@ export function StaffTable({
                                         setEditRole(e.target.value)
                                         if (e.target.value !== 'factory') setEditFactoryId('')
                                     }}
-                                    disabled={editingUser.id === currentUserId}
+                                    disabled={isSelf}
                                     className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background disabled:opacity-50"
                                 >
+                                    {isSuperAdmin && (
+                                        <option value="super_admin">スーパー管理者</option>
+                                    )}
                                     <option value="admin">管理者</option>
                                     <option value="factory">工場</option>
                                     <option value="customer">顧客</option>
                                 </select>
-                                {editingUser.id === currentUserId && (
+                                {isSelf && (
                                     <p className="text-xs text-muted-foreground mt-1">自分自身のロールは変更できません</p>
                                 )}
                             </div>
@@ -228,11 +254,11 @@ export function StaffTable({
                                     id="editIsActive"
                                     checked={editIsActive}
                                     onChange={(e) => setEditIsActive(e.target.checked)}
-                                    disabled={editingUser.id === currentUserId}
+                                    disabled={isSelf}
                                     className="rounded"
                                 />
                                 <label htmlFor="editIsActive" className="text-sm">有効</label>
-                                {editingUser.id === currentUserId && (
+                                {isSelf && (
                                     <span className="text-xs text-muted-foreground ml-1">（自分自身は無効化できません）</span>
                                 )}
                             </div>

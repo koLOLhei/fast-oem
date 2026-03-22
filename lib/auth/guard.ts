@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 
-type StaffRole = 'admin' | 'factory'
+export type StaffRole = 'super_admin' | 'admin' | 'factory' | 'customer'
 
 /** Mapping from role to its home portal URL */
 const ROLE_PORTAL: Record<string, string> = {
+    super_admin: '/admin',
     admin: '/admin',
     factory: '/factory',
     customer: '/mypage',
@@ -19,8 +20,10 @@ const ROLE_PORTAL: Record<string, string> = {
  * - Account disabled      → /login?error=account_disabled
  * - Wrong role (staff)    → redirect to their own portal
  * - Wrong role (customer) → /login
+ *
+ * Accepts a single role or an array of allowed roles.
  */
-export async function requireRole(requiredRole: StaffRole): Promise<void> {
+export async function requireRole(requiredRole: StaffRole | StaffRole[]): Promise<void> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -43,7 +46,8 @@ export async function requireRole(requiredRole: StaffRole): Promise<void> {
         redirect('/login?error=account_disabled')
     }
 
-    if (role !== requiredRole) {
+    const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+    if (!allowed.includes(role as StaffRole)) {
         redirect(ROLE_PORTAL[role] ?? '/login')
     }
 }

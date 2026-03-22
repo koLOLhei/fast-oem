@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import { Package, Sparkles } from 'lucide-react'
 import { ProductCard } from '@/components/product-card'
 import { getProductsFromDb } from '@/lib/products-db'
@@ -90,7 +91,7 @@ async function ProductsContent({
           {categories.map((category) => {
             const isSelected = selectedCategory === category.id
             return (
-              <a
+              <Link
                 key={category.id}
                 href={
                   category.id === 'all'
@@ -104,15 +105,15 @@ async function ProductsContent({
                 }`}
               >
                 {category.name}
-              </a>
+              </Link>
             )
           })}
         </div>
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {filteredProducts.map((product, index) => (
+            <ProductCard key={product.id} product={product} index={index} />
           ))}
         </div>
 

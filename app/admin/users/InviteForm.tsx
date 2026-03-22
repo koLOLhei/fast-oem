@@ -9,7 +9,13 @@ type Factory = {
     country: string | null
 }
 
-export function InviteForm({ factories }: { factories: Factory[] }) {
+export function InviteForm({
+    factories,
+    currentUserRole,
+}: {
+    factories: Factory[]
+    currentUserRole: string
+}) {
     const formRef = useRef<HTMLFormElement>(null)
     const [selectedRole, setSelectedRole] = useState('')
     const [factoryError, setFactoryError] = useState('')
@@ -95,6 +101,9 @@ export function InviteForm({ factories }: { factories: Factory[] }) {
                         className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background"
                     >
                         <option value="">— 選択 —</option>
+                        {currentUserRole === 'super_admin' && (
+                            <option value="super_admin">スーパー管理者</option>
+                        )}
                         <option value="admin">管理者</option>
                         <option value="factory">工場</option>
                     </select>
