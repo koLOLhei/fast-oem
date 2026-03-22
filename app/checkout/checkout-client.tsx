@@ -24,6 +24,13 @@ interface CheckoutClientProps {
   shippingFees?: Record<ShippingZone, number>
 }
 
+/** ひらがな → カタカナ変換（カナ入力欄で自動変換） */
+function toKatakana(str: string): string {
+  return str.replace(/[\u3041-\u3096]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) + 0x60)
+  )
+}
+
 export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientProps) {
   const router = useRouter()
   const { cart, isLoading } = useCart()
@@ -54,6 +61,10 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
   })
 
   const handleChange = (field: keyof ShippingAddress, value: string) => {
+    // カナ入力欄はひらがなをカタカナに自動変換
+    if (field === 'lastNameKana' || field === 'firstNameKana') {
+      value = toKatakana(value)
+    }
     setFormData((prev) => {
       const updated = { ...prev, [field]: value }
       // Recalculate shipping fee whenever postalCode or prefecture changes
@@ -92,7 +103,15 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
         const result = json.results[0]
         const prefecture = result.address1 ?? ''
         const city = `${result.address2 ?? ''}${result.address3 ?? ''}`
-        setFormData((prev) => ({ ...prev, prefecture, city, address1: '' }))
+        setFormData((prev) => {
+          // Recalculate shipping fee with the auto-filled prefecture
+          if (prefecture) {
+            const fee = calculateShippingFee(digits, prefecture, shippingFees)
+            setShippingFee(fee)
+            setShippingZoneLabel(fee > 0 ? SHIPPING_ZONE_LABELS[getShippingZone(digits, prefecture)] : '')
+          }
+          return { ...prev, prefecture, city, address1: '' }
+        })
         setErrors((prev) => {
           const next = { ...prev }
           delete next.prefecture
@@ -125,8 +144,8 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
     if (!formData.address1.trim())
       newErrors.address1 = '番地を入力してください'
     if (!formData.phone.trim()) newErrors.phone = '電話番号を入力してください'
-    if (!/^[\d-]+$/.test(formData.phone))
-      newErrors.phone = '正しい電話番号を入力してください'
+    if (!/^[\d-]+$/.test(formData.phone) || formData.phone.replace(/-/g, '').length < 10)
+      newErrors.phone = '正しい電話番号を入力してください（10桁以上の数字）'
     if (!formData.email.trim()) newErrors.email = 'メールアドレスを入力してください'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = '正しいメールアドレスを入力してください'

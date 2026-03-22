@@ -35,14 +35,17 @@ const REMOTE_ISLAND_PREFIXES: ReadonlySet<string> = new Set([
 ])
 
 export function getShippingZone(postalCode: string, prefecture: string): ShippingZone {
-  const digits = postalCode.replace(/-/g, '')
+  // Normalize postal code: convert full-width digits → half-width, strip spaces and hyphens
+  const digits = postalCode
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[\s　\-－]/g, '')
   const prefix4 = digits.slice(0, 4)
 
   // Remote island check takes priority (includes some Okinawa islands)
   if (REMOTE_ISLAND_PREFIXES.has(prefix4)) return 'remote_island'
 
-  // Okinawa main island
-  if (prefecture === '沖縄県') return 'okinawa'
+  // Okinawa main island — accept with or without trailing '県'
+  if (prefecture.trim().startsWith('沖縄')) return 'okinawa'
 
   return 'mainland'
 }

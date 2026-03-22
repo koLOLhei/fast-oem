@@ -49,14 +49,54 @@ function productToRow(p: Partial<Product> & { isActive?: boolean }) {
     return row
 }
 
+function validatePriceTiers(tiers: Product['priceTiers']): void {
+    if (!tiers || tiers.length === 0) throw new Error('価格帯を1件以上設定してください')
+    const sorted = [...tiers].sort((a, b) => a.minQuantity - b.minQuantity)
+    for (let i = 0; i < sorted.length; i++) {
+        const t = sorted[i]
+        if (t.minQuantity < 1) throw new Error('最小数量は1以上にしてください')
+        if (t.maxQuantity < t.minQuantity) throw new Error(`価格帯 ${i + 1}: 最大数量は最小数量以上にしてください`)
+        if (t.unitPrice < 1) throw new Error(`価格帯 ${i + 1}: 単価は1以上にしてください`)
+        if (i > 0) {
+            const prev = sorted[i - 1]
+            if (t.minQuantity <= prev.maxQuantity) {
+                throw new Error(`価格帯の数量が重複しています（${prev.minQuantity}〜${prev.maxQuantity} と ${t.minQuantity}〜${t.maxQuantity}）`)
+            }
+            if (t.minQuantity > prev.maxQuantity + 1) {
+                throw new Error(`価格帯の数量にギャップがあります（${prev.maxQuantity + 1}〜${t.minQuantity - 1} が未設定）`)
+            }
+        }
+    }
+}
+
 export async function updateProduct(id: string, updates: Partial<Product> & { isActive?: boolean }) {
     await requireAdmin()
+    if (updates.priceTiers !== undefined) validatePriceTiers(updates.priceTiers)
     const supabase = createServiceClient()
+
+    // If the image URL is changing, capture the old URL so we can delete it from storage after save
+    let oldImagePath: string | null = null
+    if (updates.imageUrl !== undefined) {
+        const { data: existing } = await supabase.from('products').select('image_url').eq('id', id).single()
+        if (existing?.image_url && existing.image_url !== updates.imageUrl) {
+            // Extract the storage path from the public URL (last path segment)
+            const url = existing.image_url as string
+            const bucketMarker = '/product-images/'
+            const idx = url.indexOf(bucketMarker)
+            if (idx !== -1) oldImagePath = url.slice(idx + bucketMarker.length)
+        }
+    }
+
     const { error } = await supabase
         .from('products')
         .update(productToRow(updates))
         .eq('id', id)
     if (error) throw new Error(error.message)
+
+    // Best-effort deletion — don't fail the whole operation if cleanup fails
+    if (oldImagePath) {
+        await supabase.storage.from('product-images').remove([oldImagePath]).catch(() => null)
+    }
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/products/[slug]', 'page')
@@ -72,7 +112,12 @@ export async function createProduct(product: Omit<Product, 'id'> & { id: string 
         ...productToRow(product),
     }
     const { error } = await supabase.from('products').insert(row)
-    if (error) throw new Error(error.message)
+    if (error) {
+        if (error.code === '23505' && error.message.includes('slug')) {
+            throw new Error(`スラッグ「${row.slug}」は既に使用されています。商品名を変更してください。`)
+        }
+        throw new Error(error.message)
+    }
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/')
@@ -103,15 +148,22 @@ export async function applyGlobalPriceAdjustment(percent: number) {
     const { data: products, error } = await supabase.from('products').select('id, price_tiers')
     if (error) throw new Error(error.message)
     const multiplier = percent / 100
-    const results = await Promise.allSettled((products ?? []).map((p: any) => {
+    const list = products ?? []
+    const updates = list.map((p: any) => {
         const tiers = (p.price_tiers as Array<{ minQuantity: number; maxQuantity: number; unitPrice: number }>) ?? []
-        const newTiers = tiers.map((t) => ({ ...t, unitPrice: Math.max(1, Math.round(t.unitPrice * multiplier)) }))
-        return supabase.from('products').update({ price_tiers: newTiers }).eq('id', p.id)
-    }))
-    const failed = results.filter((r) => r.status === 'rejected')
-    if (failed.length > 0) {
-        const total = results.length
-        throw new Error(`価格更新中に${failed.length}/${total}件でエラーが発生しました。成功した商品は既に更新済みです。`)
+        return { id: p.id, originalTiers: tiers, newTiers: tiers.map((t) => ({ ...t, unitPrice: Math.max(1, Math.round(t.unitPrice * multiplier)) })) }
+    })
+    const results = await Promise.allSettled(
+        updates.map((u) => supabase.from('products').update({ price_tiers: u.newTiers }).eq('id', u.id))
+    )
+    const failedIndices = results.flatMap((r, i) => r.status === 'rejected' ? [i] : [])
+    if (failedIndices.length > 0) {
+        // Roll back the successfully updated products
+        const successIndices = results.flatMap((r, i) => r.status === 'fulfilled' ? [i] : [])
+        await Promise.allSettled(
+            successIndices.map((i) => supabase.from('products').update({ price_tiers: updates[i].originalTiers }).eq('id', updates[i].id))
+        )
+        throw new Error(`価格更新中に${failedIndices.length}/${list.length}件でエラーが発生しました。変更はすべて元に戻しました。`)
     }
     revalidatePath('/admin/products')
     revalidatePath('/products')

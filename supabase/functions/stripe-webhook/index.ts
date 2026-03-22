@@ -31,7 +31,28 @@ serve(async (req: Request) => {
       )
     } catch (err: any) {
       console.error(`Webhook signature verification failed: ${err.message}`)
-      await sendSlackMessage(`🔐 *Webhook署名検証失敗*\nエラー: ${err.message}\n※不正なリクエストの可能性があります`)
+      // Rate-limit Slack alerts for signature failures to 1 per 5 minutes.
+      // Without this, a DDoS/spam attack would flood the Slack channel.
+      try {
+        const rateLimitClient = createClient(
+          Deno.env.get('SUPABASE_URL') as string,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
+        )
+        const windowStart = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        const { count } = await rateLimitClient
+          .from('admin_alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('source', 'webhook_sig_fail')
+          .gte('created_at', windowStart)
+        if ((count ?? 0) === 0) {
+          await sendSlackMessage(`🔐 *Webhook署名検証失敗*\nエラー: ${err.message}\n※不正なリクエストの可能性があります（5分間に1回のみ通知）`)
+          await rateLimitClient.from('admin_alerts').insert({
+            subject: 'Webhook署名検証失敗',
+            body: err.message,
+            source: 'webhook_sig_fail',
+          })
+        }
+      } catch (_) { /* rate limit check must never block the 400 response */ }
       return new Response(`Webhook Error: ${err.message}`, { status: 400 })
     }
 
@@ -119,21 +140,27 @@ serve(async (req: Request) => {
       // This prevents Stripe from timing out (30s limit) while Sharp converts images.
       const backgroundWork = (async () => {
         try {
-          // Process design images in parallel (base64 → Storage upload).
-          // Promise.allSettled ensures one failing image doesn't block others.
-          await Promise.allSettled(
-            (orderItems ?? [])
-              .filter((item: any) => item.design_url?.startsWith('data:'))
-              .map(async (item: any) => {
-                const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
-                if (convertedUrl) {
-                  await supabase
-                    .from('order_items')
-                    .update({ converted_design_url: convertedUrl })
-                    .eq('id', item.id)
-                }
-              })
-          )
+          // Process design images SEQUENTIALLY to avoid memory exhaustion.
+          // Running Sharp in parallel on many large images can exceed the Edge
+          // Function memory limit (256 MB).  Sequential processing keeps peak
+          // usage to a single image at a time at the cost of wall-clock time —
+          // acceptable here because this runs in the background after the 200
+          // response has already been sent to Stripe.
+          const imageItems = (orderItems ?? []).filter((item: any) => item.design_url?.startsWith('data:'))
+          for (const item of imageItems) {
+            try {
+              const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
+              if (convertedUrl) {
+                await supabase
+                  .from('order_items')
+                  .update({ converted_design_url: convertedUrl })
+                  .eq('id', item.id)
+              }
+            } catch (imgErr: any) {
+              console.error(`[${orderId}] Image processing failed for item ${item.id}: ${imgErr.message}`)
+              // Continue with remaining items — one bad image must not block others
+            }
+          }
 
           // Re-fetch items so the email has the updated converted_design_url.
           // Also resolve delivery_pdf_url storage paths → signed URLs so that
@@ -149,7 +176,7 @@ serve(async (req: Request) => {
               if (!pdfPath || pdfPath.startsWith('http')) return item
               const { data: signed } = await supabase.storage
                 .from('designs')
-                .createSignedUrl(pdfPath, 86400) // 24 hours — email delivery may be delayed
+                .createSignedUrl(pdfPath, 259200) // 72 hours — covers weekend delays and slow email opens
               return { ...item, delivery_pdf_url: signed?.signedUrl ?? null }
             })
           )
@@ -193,9 +220,11 @@ serve(async (req: Request) => {
             } catch (emailErr: any) {
               // Risk #3: record failure in DB so admin can see it and manually follow up
               console.error(`[${orderId}] Confirmation email failed: ${emailErr.message}`)
+              // Reset the claim so the next Stripe webhook re-delivery can retry the send.
+              // Without this reset the timestamp stays set and no retry ever fires.
               await supabase
                 .from('orders')
-                .update({ email_send_error: emailErr.message ?? '不明なエラー' })
+                .update({ confirmation_email_sent_at: null, email_send_error: emailErr.message ?? '不明なエラー' })
                 .eq('id', order.id)
                 .then(() => {})
               // Re-throw so the outer catch block sends a Slack alert
@@ -216,7 +245,7 @@ serve(async (req: Request) => {
                 const { data: prevOrders } = await supabase
                   .from('orders')
                   .select('id, order_number, order_items!inner(product_id)')
-                  .eq('status', 'paid')
+                  .in('status', ['paid', 'processing', 'partially_shipped', 'shipped', 'completed'])
                   .neq('id', order.id)
                   .filter('customer_info->>email', 'eq', customerInfo.email)
                   .filter('order_items.product_id', 'eq', moldItem.product_id)
@@ -444,9 +473,11 @@ serve(async (req: Request) => {
       }
     }
 
-    // ── Risk #2: charge.failed — record payment failure ───────────────────────
-    // For Embedded Checkout, payment is confirmed before the order exists,
-    // so this is uncommon but possible (e.g. ACH micro-deposit failure).
+    // ── charge.failed — alert only, do NOT cancel the order ──────────────────
+    // For Stripe Embedded Checkout the customer can retry payment within the
+    // same session, so cancelling on charge.failed would wrongly block retries.
+    // We only alert admins; if the session later expires without payment,
+    // checkout.session.expired handles the cancellation.
     if (event.type === 'charge.failed') {
       const charge = event.data.object as any
       const paymentIntentId: string | null = charge.payment_intent ?? null
@@ -459,22 +490,21 @@ serve(async (req: Request) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
         )
 
-        const { data: failedOrder } = await supabase
+        // Look up the order for context — but do NOT update its status.
+        const { data: order } = await supabase
           .from('orders')
-          .update({ status: 'cancelled' })
+          .select('id, order_number, status')
           .eq('payment_intent_id', paymentIntentId)
-          .eq('status', 'pending')
-          .select('id, order_number')
-          .single()
+          .maybeSingle()
 
-        if (failedOrder) {
-          const orderNumber = failedOrder.order_number ?? failedOrder.id
-          console.log(`[${orderNumber}] 決済失敗: ${failureCode}`)
-          await sendSlackMessage(
-            `❌ *決済失敗* 注文番号: ${orderNumber}\n` +
-            `理由: ${failureCode} — ${failureMsg}`,
-          )
-        }
+        const orderLabel = order?.order_number ?? paymentIntentId
+        console.log(`[${orderLabel}] 決済失敗 (alert only, order NOT cancelled): ${failureCode}`)
+        await sendSlackMessage(
+          `⚠️ *決済失敗（再試行可能）* 注文番号: ${orderLabel}\n` +
+          `理由: ${failureCode} — ${failureMsg}\n` +
+          `現在のステータス: ${order?.status ?? '不明'}\n` +
+          `顧客が別のカードで再試行できます。セッション期限切れ時にキャンセルされます。`,
+        )
       }
     }
 

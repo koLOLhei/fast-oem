@@ -154,6 +154,10 @@ export default async function AdminPage({
 
     // Stuck items: already filtered to paid orders in the DB query
     const stuckPaidItems = stuckItems ?? []
+    // Set of order IDs with stuck design processing — used to annotate the order list
+    const stuckOrderIds = new Set(
+        stuckPaidItems.map((item) => (item.orders as any)?.id).filter(Boolean) as string[]
+    )
 
     const statusColors: Record<string, string> = {
         paid: 'bg-green-100 text-green-800',
@@ -404,12 +408,12 @@ export default async function AdminPage({
                                 <div className="flex-1">
                                     <div className="flex gap-px h-5 rounded-full overflow-hidden bg-muted">
                                         {f.manufacturing > 0 && (
-                                            <div className="bg-blue-500 flex items-center justify-center" style={{ width: `${(f.manufacturing / maxFactoryActive) * 100}%` }}>
+                                            <div className="bg-blue-500 flex items-center justify-center" style={{ width: `${Math.max(4, (f.manufacturing / maxFactoryActive) * 100)}%` }}>
                                                 <span className="text-[10px] text-white font-bold px-1">{f.manufacturing}</span>
                                             </div>
                                         )}
                                         {f.assigned > 0 && (
-                                            <div className="bg-yellow-400 flex items-center justify-center" style={{ width: `${(f.assigned / maxFactoryActive) * 100}%` }}>
+                                            <div className="bg-yellow-400 flex items-center justify-center" style={{ width: `${Math.max(4, (f.assigned / maxFactoryActive) * 100)}%` }}>
                                                 <span className="text-[10px] text-yellow-900 font-bold px-1">{f.assigned}</span>
                                             </div>
                                         )}
@@ -533,11 +537,13 @@ export default async function AdminPage({
                                 const hasUnassigned = items.some((i) => i.status === 'unassigned')
                                 const days = daysSince(order.created_at)
                                 const isLate = !allShipped && order.status === 'paid' && days > 14
+                                const hasStuckDesign = stuckOrderIds.has(order.id)
                                 return (
-                                    <tr key={order.id} className={`border-b last:border-0 transition-colors ${isLate ? 'bg-orange-50/30 hover:bg-orange-50/50' : 'hover:bg-muted/30'}`}>
+                                    <tr key={order.id} className={`border-b last:border-0 transition-colors ${hasStuckDesign ? 'bg-amber-50/40 hover:bg-amber-50/60' : isLate ? 'bg-orange-50/30 hover:bg-orange-50/50' : 'hover:bg-muted/30'}`}>
                                         <td className="p-4">
                                             <div className="font-mono font-semibold text-sm">{order.order_number ?? '—'}</div>
                                             {isLate && <div className="text-[11px] text-orange-500 font-semibold mt-0.5">⚠ {days}日経過</div>}
+                                            {hasStuckDesign && <div className="text-[11px] text-amber-600 font-semibold mt-0.5">🔧 デザインエラー</div>}
                                         </td>
                                         <td className="p-4">
                                             <div className="font-medium">{info?.name ?? (`${info?.lastName ?? ''} ${info?.firstName ?? ''}`.trim() || '—')}</div>

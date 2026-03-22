@@ -2,20 +2,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/service'
 import { formatPrice } from '@/lib/products'
+import { addBusinessDays } from '@/lib/holidays'
 import { ReceiptButton } from './receipt-button'
 import { InvoiceButton } from './invoice-button'
-
-/** Skip weekends only for delivery estimate */
-function addBusinessDays(date: Date, days: number): Date {
-    const result = new Date(date)
-    let added = 0
-    while (added < days) {
-        result.setDate(result.getDate() + 1)
-        const dow = result.getDay()
-        if (dow !== 0 && dow !== 6) added++
-    }
-    return result
-}
+import { StatusPoller } from './status-poller'
 
 export default async function OrderStatusPage({
     params,
@@ -40,20 +30,45 @@ export default async function OrderStatusPage({
 
     if (!order) notFound()
 
+    // Generate short-lived signed URLs so the customer can re-download their design files.
+    // We do this server-side so the private bucket key never reaches the browser.
+    const itemsWithUrls = await Promise.all(
+        ((order.order_items as any[]) ?? []).map(async (item: any) => {
+            let convertedUrl: string | null = item.converted_design_url ?? null
+            let originalUrl: string | null = null
+
+            // converted_design_url is stored as a storage path after processing
+            if (convertedUrl && !convertedUrl.startsWith('http')) {
+                const { data } = await supabase.storage.from('designs').createSignedUrl(convertedUrl, 3600)
+                convertedUrl = data?.signedUrl ?? null
+            }
+            // original design: may be a storage path (not base64 / not http)
+            if (item.design_url && !item.design_url.startsWith('data:') && !item.design_url.startsWith('http')) {
+                const { data } = await supabase.storage.from('designs').createSignedUrl(item.design_url, 3600)
+                originalUrl = data?.signedUrl ?? null
+            }
+
+            return { ...item, _convertedUrl: convertedUrl, _originalUrl: originalUrl }
+        })
+    )
+
     const customerInfo = order.customer_info as any
     const addr = order.shipping_address as any
-    const items = (order.order_items as any[]) ?? []
     const personName = customerInfo?.name ?? `${customerInfo?.lastName ?? ''} ${customerInfo?.firstName ?? ''}`.trim()
-    // For the ReceiptButton default: use saved receiptAddressee or company+name
+    // For the ReceiptButton default: use saved receiptAddressee, then company name alone
+    // (most corporations want "株式会社〇〇" without appending the person's name),
+    // falling back to personal name only for individual customers.
     const companyNameStr: string = addr?.companyName?.trim() ?? ''
     const defaultReceiptAddressee = addr?.receiptAddressee?.trim()
         || customerInfo?.receiptAddressee?.trim()
-        || (companyNameStr ? `${companyNameStr} ${personName}`.trim() : personName)
+        || companyNameStr
+        || personName
     const TAX_RATE = 0.1
 
     const orderTotal: number = (order as any).total_price ?? (order as any).total_amount ?? 0
     const shippingFee: number = (order as any).shipping_fee ?? 0
 
+    const items = itemsWithUrls
     const itemsTotal = items.reduce(
         (sum: number, item: any) => sum + (item.total_price || item.unit_price * item.quantity),
         0
@@ -64,6 +79,7 @@ export default async function OrderStatusPage({
     const taxAmount = orderTotal - priceExTax
 
     const statusLabel: Record<string, string> = {
+        pending: '入金待ち',
         paid: '入金確認済み',
         processing: '製造中',
         partially_shipped: '一部発送済み',
@@ -74,6 +90,7 @@ export default async function OrderStatusPage({
     }
 
     const statusColor: Record<string, string> = {
+        pending: 'bg-yellow-100 text-yellow-800',
         paid: 'bg-blue-100 text-blue-800',
         processing: 'bg-yellow-100 text-yellow-800',
         partially_shipped: 'bg-blue-100 text-blue-800',
@@ -88,10 +105,10 @@ export default async function OrderStatusPage({
     const anyProcessing = items.some((item: any) =>
         ['manufacturing', 'ready_to_ship', 'assigned'].includes(item.status)
     )
-    // Check terminal order statuses first — cancelled/refunded orders must not
-    // show 'paid' just because their item statuses haven't been updated yet.
+    // Check terminal order statuses first — pending/cancelled/refunded orders must not
+    // be reclassified by item statuses (a pending order has no items yet).
     const displayStatus =
-        ['cancelled', 'refunded'].includes(order.status) ? order.status
+        ['pending', 'cancelled', 'refunded'].includes(order.status) ? order.status
         : allShipped ? 'shipped'
         : someShipped ? 'partially_shipped'
         : anyProcessing ? 'processing'
@@ -115,6 +132,8 @@ export default async function OrderStatusPage({
 
     return (
         <div className="min-h-screen bg-muted/30 py-12">
+            {/* Auto-refresh every 30 s so status updates are reflected without manual reload */}
+            <StatusPoller intervalMs={30000} />
             <div className="max-w-2xl mx-auto px-4 space-y-6">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
@@ -385,6 +404,58 @@ export default async function OrderStatusPage({
                                 )}
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Design file download */}
+                {items.some((item: any) => item._convertedUrl || item._originalUrl) && (
+                    <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
+                        <p className="font-semibold text-sm">入稿データのダウンロード</p>
+                        <p className="text-xs text-muted-foreground">変換済みデータ・元データをダウンロードできます（リンクは1時間有効）。</p>
+                        {items.map((item: any) => {
+                            if (!item._convertedUrl && !item._originalUrl) return null
+                            return (
+                                <div key={item.id} className="space-y-1.5">
+                                    <p className="text-xs font-medium text-muted-foreground truncate">{item.product_name}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {item._convertedUrl && (
+                                            <a
+                                                href={item._convertedUrl}
+                                                download
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition"
+                                            >
+                                                ⬇ 変換済みデータ (.png)
+                                            </a>
+                                        )}
+                                        {item._originalUrl && (
+                                            <a
+                                                href={item._originalUrl}
+                                                download
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded-lg hover:bg-muted transition"
+                                            >
+                                                ⬇ 元データ
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+
+                {/* Address correction request — only shown before shipment starts */}
+                {['pending', 'paid', 'processing'].includes(displayStatus) && (
+                    <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
+                        <p className="font-semibold text-sm">配送先住所の変更依頼</p>
+                        <p className="text-xs text-muted-foreground">
+                            製造開始前であれば住所を変更できる場合があります。できるだけお早めにご連絡ください。
+                        </p>
+                        <a
+                            href={`mailto:contact@soara-mu.com?subject=${encodeURIComponent(`【住所変更依頼】注文番号: ${(order as any).order_number ?? id}`)}&body=${encodeURIComponent(`注文番号: ${(order as any).order_number ?? id}\n\n変更後の住所:\n〒\n都道府県:\n市区町村:\n番地:\nマンション名等:\n\nお名前:\n`)}`}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition"
+                        >
+                            📧 住所変更をメールで依頼する
+                        </a>
                     </div>
                 )}
 

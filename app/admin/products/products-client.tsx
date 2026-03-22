@@ -42,6 +42,11 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
     const [draft, setDraft] = useState<Product | null>(null)
 
     const selectProduct = (p: Product) => {
+        if (draft && selected && draft.id === selected.id) {
+            if (JSON.stringify(draft) !== JSON.stringify(selected)) {
+                if (!window.confirm('保存されていない変更があります。破棄して切り替えますか？')) return
+            }
+        }
         setSelected(p)
         setDraft(JSON.parse(JSON.stringify(p)))
         setTab('basic')
@@ -665,7 +670,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
     const [expandedOpt, setExpandedOpt] = useState<string | null>(null)
 
     const addOption = () => {
-        const newId = `option-${Date.now()}`
+        const newId = `option-${crypto.randomUUID()}`
         setOptions([...draft.options, { id: newId, name: '新しいオプション', type: 'list', values: [] }])
         setExpandedOpt(newId)
     }
@@ -682,7 +687,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
     const addValue = (optId: string) => {
         setOptions(draft.options.map((o) => {
             if (o.id !== optId) return o
-            const newVal: OptionValue = { id: `val-${Date.now()}`, label: '新しい値' }
+            const newVal: OptionValue = { id: `val-${crypto.randomUUID()}`, label: '新しい値' }
             return { ...o, values: [...o.values, newVal] }
         }))
     }

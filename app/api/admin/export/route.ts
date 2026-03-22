@@ -189,11 +189,13 @@ export async function GET(req: NextRequest) {
 
 function escapeCell(value: unknown): string {
     const str = String(value ?? '')
+    // Sanitize CSV formula injection: Excel/Sheets execute cells starting with =, +, -, @
+    const sanitized = str.length > 0 && '=+-@\t\r'.includes(str[0]) ? `'${str}` : str
     // Wrap in quotes if contains comma, newline, or quote; escape inner quotes
-    if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-        return `"${str.replace(/"/g, '""')}"`
+    if (sanitized.includes(',') || sanitized.includes('\n') || sanitized.includes('"')) {
+        return `"${sanitized.replace(/"/g, '""')}"`
     }
-    return str
+    return sanitized
 }
 
 function csvResponse(headers: string[], rows: unknown[][], filename: string): NextResponse {

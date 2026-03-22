@@ -35,7 +35,15 @@ export async function inviteStaffUser(formData: FormData) {
     if (!email || !role) throw new Error('メールアドレスとロールは必須です')
     if (role === 'factory' && !factoryId) throw new Error('工場ユーザーには工場の選択が必要です')
 
-    // Upsert invitation record (overwrite if re-inviting)
+    // Block re-invite if the email already has an accepted invitation
+    const { data: existing } = await service
+        .from('staff_invitations')
+        .select('used_at')
+        .eq('email', email)
+        .maybeSingle()
+    if (existing?.used_at != null) throw new Error('このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。')
+
+    // Upsert invitation record (overwrite only if not yet accepted)
     const { error: inviteRecordError } = await service
         .from('staff_invitations')
         .upsert(
@@ -61,7 +69,8 @@ export async function inviteStaffUser(formData: FormData) {
  * Update an existing user's role and factory assignment.
  */
 export async function updateUserRole(userId: string, role: string, factoryId: string | null) {
-    await requireAdmin()
+    const { adminId } = await requireAdmin()
+    if (userId === adminId && role !== 'admin') throw new Error('自分自身のロールを変更することはできません')
     const service = createServiceClient()
 
     const update: Record<string, unknown> = { role }
@@ -82,7 +91,8 @@ export async function updateUserRole(userId: string, role: string, factoryId: st
  * Inactive users are blocked at the middleware level.
  */
 export async function setUserActive(userId: string, isActive: boolean) {
-    await requireAdmin()
+    const { adminId } = await requireAdmin()
+    if (!isActive && userId === adminId) throw new Error('自分自身を無効化することはできません')
     const service = createServiceClient()
 
     const { error } = await service

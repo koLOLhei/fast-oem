@@ -32,8 +32,8 @@ export function ShippingFeesForm({ fields }: { fields: Field[] }) {
         e.preventDefault()
         // Validate: must be non-negative integers
         for (const [key, val] of Object.entries(values)) {
-            const n = parseInt(val)
-            if (isNaN(n) || n < 0) {
+            const n = parseInt(val, 10)
+            if (isNaN(n) || n < 0 || !Number.isInteger(Number(val))) {
                 setError(`${LABELS[key] ?? key}: 0以上の整数を入力してください`)
                 return
             }

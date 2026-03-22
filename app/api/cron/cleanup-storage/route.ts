@@ -7,10 +7,10 @@ export const runtime = 'nodejs'
 export async function GET(request: Request) {
   // 認証チェック
   const authHeader = request.headers.get('authorization') ?? ''
-  const secret = process.env.CLEANUP_SECRET ?? ''
+  const secret = (process.env.CLEANUP_SECRET ?? '').trim()
 
   try {
-    const a = Buffer.from(authHeader)
+    const a = Buffer.from(authHeader.trim())
     const b = Buffer.from(`Bearer ${secret}`)
     if (a.length !== b.length || !timingSafeEqual(a, b)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

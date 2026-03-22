@@ -51,9 +51,14 @@ export async function processImage(
             imageBuffer = await fileData.arrayBuffer()
         }
 
-        // Convert to standard PNG using Sharp
+        // Convert to standard PNG using Sharp.
+        // withMetadata(false) explicitly strips EXIF/GPS/ICC metadata so that
+        // no customer PII (e.g. GPS location from phone photos) reaches the factory.
+        // compressionLevel:9 applies maximum lossless compression (PNG quality is always lossless;
+        // the `quality` param has no effect on PNG — compressionLevel controls file size).
         const convertedBuffer = await sharp(imageBuffer)
-            .png({ quality: 100 })
+            .withMetadata(false)
+            .png({ compressionLevel: 9 })
             .toBuffer()
 
         // Upload converted file to Storage

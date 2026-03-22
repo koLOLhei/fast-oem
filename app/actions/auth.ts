@@ -95,11 +95,17 @@ export async function signup(formData: FormData) {
     // The DB trigger does this too, but may race on cold starts.
     // ignoreDuplicates: true — never overwrite an existing row (preserves admin/factory roles
     // that were set via staff_invitation before this signup completed).
+    // Use service client to bypass RLS — the new user's JWT may not be propagated yet.
     if (data.user) {
-        await supabase.from('profiles').upsert(
+        const serviceClient = createServiceClient()
+        const { error: upsertError } = await serviceClient.from('profiles').upsert(
             { id: data.user.id, email, role: 'customer' },
             { onConflict: 'id', ignoreDuplicates: true }
         )
+        if (upsertError) {
+            // DB trigger is a backup, but log for monitoring
+            console.error('[signup] Profile upsert failed (DB trigger should recover):', upsertError)
+        }
     }
 
     return redirect('/mypage?message=' + encodeURIComponent('登録確認メールを送信しました。メールを確認してください'))

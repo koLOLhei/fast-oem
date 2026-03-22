@@ -250,6 +250,7 @@ interface EmailData {
 }
 
 const SITE_URL = Deno.env.get('NEXT_PUBLIC_SITE_URL') ?? 'https://fast-oem.soara-mu.jp'
+const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'FAST OEM <noreply@soara-mu.com>'
 const DEFAULT_FACTORY_EMAIL = (() => {
   const v = Deno.env.get('FACTORY_DEFAULT_EMAIL')
   if (!v) {
@@ -405,7 +406,7 @@ export async function sendCancellationNotification(data: CancellationData): Prom
   const groups = groupItemsByEmail(orderItems, productEmailMap)
   for (const [emailKey, groupItems] of groups) {
     await sendWithRetry({
-      from: 'FAST OEM <noreply@soara-mu.com>',
+      from: FROM_EMAIL,
       to: toAddressees(emailKey),
       subject: `[ORDER CANCELLED] ${orderNumber}`,
       html: buildCancelHtml(groupItems),
@@ -610,7 +611,7 @@ export async function sendEmails(data: EmailData) {
       }
 
       await sendWithRetry({
-        from: 'FAST OEM <noreply@soara-mu.com>',
+        from: FROM_EMAIL,
         to: toAddressees(emailKey),
         subject: `[NEW ORDER${groupHasExpress ? ' ⚡EXPRESS' : ''}] ${displayOrderNumber}`,
         ...(pdfAttachments.length > 0 ? { attachments: pdfAttachments } : {}),
@@ -710,7 +711,7 @@ export async function sendEmails(data: EmailData) {
     const receiptFilename = `receipt-${displayOrderNumber.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`
 
     await sendWithRetry({
-      from: 'FAST OEM <noreply@soara-mu.com>',
+      from: FROM_EMAIL,
       to: customerEmail,
       subject: `【FAST OEM】ご注文ありがとうございます（注文番号: ${displayOrderNumber}）`,
       ...(receiptBase64 ? { attachments: [{ filename: receiptFilename, content: receiptBase64, contentType: 'application/pdf' }] } : {}),

@@ -61,6 +61,7 @@ export function CompleteClient() {
 
   useEffect(() => {
     let cancelled = false
+    let timerId: ReturnType<typeof setTimeout>
 
     const savedOrder = sessionStorage.getItem('completed-order')
     if (savedOrder) {
@@ -72,7 +73,6 @@ export function CompleteClient() {
         if (parsed.sessionId) {
           setStatusUrlPending(true)
           let attempts = 0
-          let timerId: ReturnType<typeof setTimeout>
 
           const poll = async () => {
             if (cancelled) return
@@ -110,7 +110,7 @@ export function CompleteClient() {
     }
     setIsLoading(false)
 
-    return () => { cancelled = true }
+    return () => { cancelled = true; clearTimeout(timerId) }
   }, [])
 
   // Calculate totals

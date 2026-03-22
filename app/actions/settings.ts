@@ -22,11 +22,14 @@ export async function updateSiteSettings(updates: Record<string, string>) {
     if (profile?.role !== 'admin') throw new Error('管理者権限が必要です')
 
     const service = createServiceClient()
+    const errors: string[] = []
     for (const [key, value] of Object.entries(updates)) {
-        await service
+        const { error } = await service
             .from('site_settings')
             .update({ value, updated_at: new Date().toISOString() })
             .eq('key', key)
+        if (error) errors.push(`${key}: ${error.message}`)
     }
+    if (errors.length > 0) throw new Error(`設定の保存に失敗しました: ${errors.join(', ')}`)
     revalidatePath('/admin/settings')
 }

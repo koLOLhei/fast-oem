@@ -45,6 +45,7 @@ interface OrderNotificationData {
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? '${CONTACT_EMAIL}'
 const FACTORY_DEFAULT_EMAIL = process.env.FACTORY_DEFAULT_EMAIL ?? ''
 
 // Send order notification to the factory (in English)
@@ -174,7 +175,7 @@ export async function sendCustomerConfirmation(data: OrderNotificationData) {
           </p>
         </div>
         <p style="font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:16px;">
-          ご不明な点は <a href="mailto:contact@soara-mu.com" style="color:#6b7280;">contact@soara-mu.com</a> までお問い合わせください。<br/>
+          ご不明な点は <a href="mailto:${CONTACT_EMAIL}" style="color:#6b7280;">${CONTACT_EMAIL}</a> までお問い合わせください。<br/>
           平日 10:00〜18:00（土日祝除く）※メール対応のみ
         </p>
       </div>
@@ -230,7 +231,7 @@ ${statusLink}
 ■ お問い合わせ
 ------------------------------------
 ご不明な点がございましたら、下記までお問い合わせください。
-メール: contact@soara-mu.com（平日10:00-18:00 ※メール対応のみ）
+メール: ${CONTACT_EMAIL}（平日10:00-18:00 ※メール対応のみ）
 
 ====================================
 FAST OEM
@@ -242,6 +243,7 @@ ${SITE_URL}
     from: FROM_EMAIL,
     to: customerEmail,
     subject: `【FAST OEM】ご注文の商品を発送しました（注文番号: ${orderNumber}）`,
+    text: content,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #1f2937;">${customerName} 様</h2>
@@ -267,7 +269,7 @@ ${SITE_URL}
           </a>
           <p style="margin: 10px 0 0; font-size: 11px; color: #6b7280; word-break: break-all;">${statusLink}</p>
         </div>
-        <p style="font-size: 12px; color: #9ca3af;">ご不明な点は <a href="mailto:contact@soara-mu.com">contact@soara-mu.com</a> までご連絡ください。</p>
+        <p style="font-size: 12px; color: #9ca3af;">ご不明な点は <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> までご連絡ください。</p>
       </div>
     `,
   })
@@ -342,7 +344,7 @@ export async function sendAllShippedNotification({
         </div>
 
         <p style="font-size:12px; color:#9ca3af; border-top:1px solid #f3f4f6; padding-top:16px; margin-top:8px;">
-          ご不明な点は <a href="mailto:contact@soara-mu.com" style="color:#6b7280;">contact@soara-mu.com</a> までお気軽にご連絡ください。<br/>
+          ご不明な点は <a href="mailto:${CONTACT_EMAIL}" style="color:#6b7280;">${CONTACT_EMAIL}</a> までお気軽にご連絡ください。<br/>
           平日 10:00〜18:00 対応（土日祝除く）
         </p>
       </div>

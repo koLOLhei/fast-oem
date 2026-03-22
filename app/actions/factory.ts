@@ -11,6 +11,7 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
 
 // ---------------------------------------------------------------------------
 // Role helpers — called at the top of every server action that should be
@@ -77,6 +78,7 @@ export async function updateItemStatus(itemId: string, status: string) {
     revalidatePath('/admin')
     revalidatePath('/factory')
     revalidatePath('/admin/orders/[id]', 'page')
+    revalidatePath('/orders/[id]/status', 'page')
 }
 
 /**
@@ -104,15 +106,22 @@ export async function revertItemStatus(itemId: string) {
     // manufacturing → assigned, ready_to_ship → manufacturing
     const targetStatus = item.status === 'ready_to_ship' ? 'manufacturing' : 'assigned'
 
-    const { error } = await service
+    // Optimistic lock: include status in WHERE to detect concurrent changes
+    const { data: updated, error } = await service
         .from('order_items')
         .update({ status: targetStatus })
         .eq('id', itemId)
+        .eq('status', item.status)
+        .select('id')
 
     if (error) throw new Error(error.message)
+    if (!updated || updated.length === 0) {
+        throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
+    }
     revalidatePath('/factory')
     revalidatePath('/admin')
     revalidatePath('/admin/orders/[id]', 'page')
+    revalidatePath('/orders/[id]/status', 'page')
 }
 
 export async function createFactory(formData: FormData) {
@@ -225,8 +234,9 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
         .select('id, status')
         .eq('order_id', orderId)
 
-    const allShipped = (siblings ?? []).every((s) => s.id === itemId || s.status === 'shipped')
-    const anyShipped = (siblings ?? []).some((s) => s.id === itemId || s.status === 'shipped')
+    const activeSiblings = (siblings ?? []).filter((s) => s.status !== 'cancelled')
+    const allShipped = activeSiblings.every((s) => s.id === itemId || s.status === 'shipped')
+    const anyShipped = activeSiblings.some((s) => s.id === itemId || s.status === 'shipped')
     if (orderId) {
         if (allShipped) {
             await service.from('orders').update({ status: 'shipped' }).eq('id', orderId)
@@ -309,6 +319,7 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
     revalidatePath('/factory')
     revalidatePath('/admin')
     revalidatePath(`/admin/orders/${orderId}`)
+    revalidatePath('/orders/[id]/status', 'page')
 }
 
 export async function updateOrderNote(orderId: string, note: string) {
@@ -544,7 +555,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                     ` : ''}
 
                     <p style="font-size:12px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:16px;margin-top:8px;">
-                      お問い合わせ：<a href="mailto:contact@soara-mu.com" style="color:#6b7280;">contact@soara-mu.com</a><br/>
+                      お問い合わせ：<a href="mailto:${CONTACT_EMAIL}" style="color:#6b7280;">${CONTACT_EMAIL}</a><br/>
                       平日 10:00〜18:00（土日祝除く）
                     </p>
                   </div>
