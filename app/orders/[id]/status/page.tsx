@@ -133,7 +133,7 @@ export default async function OrderStatusPage({
     return (
         <div className="min-h-screen bg-muted/30 py-12">
             {/* Auto-refresh every 30 s so status updates are reflected without manual reload */}
-            <StatusPoller intervalMs={30000} />
+            <StatusPoller orderId={id} currentStatus={displayStatus} intervalMs={30000} />
             <div className="max-w-2xl mx-auto px-4 space-y-6">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
