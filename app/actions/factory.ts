@@ -21,7 +21,8 @@ async function requireAdmin() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
-    const { data: profile } = await supabase
+    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
+    const { data: profile } = await createServiceClient()
         .from('profiles')
         .select('role')
         .eq('id', user.id)
@@ -34,18 +35,19 @@ async function requireFactory() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
-    const { data: profile } = await supabase
+    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
+    const { data: profile } = await createServiceClient()
         .from('profiles')
         .select('role, factory_id')
         .eq('id', user.id)
         .single()
     if (profile?.role !== 'factory') throw new Error('工場権限が必要です')
-    return { supabase, factoryId: profile.factory_id as string | null }
+    return { factoryId: profile.factory_id as string | null }
 }
 
 export async function assignFactory(itemId: string, factoryId: string) {
-    const supabase = await requireAdmin()
-    const { error } = await supabase
+    await requireAdmin()
+    const { error } = await createServiceClient()
         .from('order_items')
         .update({ factory_id: factoryId, status: 'assigned' })
         .eq('id', itemId)
@@ -55,17 +57,17 @@ export async function assignFactory(itemId: string, factoryId: string) {
         throw new Error(error.message)
     }
     revalidatePath('/admin')
-    revalidatePath(`/admin/orders`)
+    revalidatePath('/admin/orders/[id]', 'page')
 }
 
 export async function updateItemStatus(itemId: string, status: string) {
     // Factory users may only update items assigned to their factory.
     // If factoryId is null the account has no factory assignment — deny outright
     // to prevent an unconstrained UPDATE that would touch all items.
-    const { supabase, factoryId } = await requireFactory()
+    const { factoryId } = await requireFactory()
     if (!factoryId) throw new Error('工場が割り当てられていません。管理者に連絡してください。')
 
-    const { error } = await supabase
+    const { error } = await createServiceClient()
         .from('order_items')
         .update({ status })
         .eq('id', itemId)
@@ -74,6 +76,7 @@ export async function updateItemStatus(itemId: string, status: string) {
     if (error) throw new Error(error.message)
     revalidatePath('/admin')
     revalidatePath('/factory')
+    revalidatePath('/admin/orders/[id]', 'page')
 }
 
 /**
@@ -109,10 +112,11 @@ export async function revertItemStatus(itemId: string) {
     if (error) throw new Error(error.message)
     revalidatePath('/factory')
     revalidatePath('/admin')
+    revalidatePath('/admin/orders/[id]', 'page')
 }
 
 export async function createFactory(formData: FormData) {
-    const supabase = await requireAdmin()
+    await requireAdmin()
     const name = (formData.get('name') as string)?.trim()
     const country = (formData.get('country') as string)?.trim()
     const contact_email = (formData.get('contact_email') as string)?.trim()
@@ -125,23 +129,24 @@ export async function createFactory(formData: FormData) {
     const validCountries = ['China', 'Vietnam', 'Japan', 'Other']
     if (country && !validCountries.includes(country)) throw new Error('無効な国が選択されています')
 
-    const { error } = await supabase
+    const { error } = await createServiceClient()
         .from('factories')
         .insert({ name, country: country || null, contact_email: contact_email || null })
 
     if (error) throw new Error(error.message)
-    revalidatePath('/admin/factories')
+    revalidatePath('/admin')
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {
-    const supabase = await requireAdmin()
-    const { error } = await supabase
+    await requireAdmin()
+    const { error } = await createServiceClient()
         .from('orders')
         .update({ status })
         .eq('id', orderId)
 
     if (error) throw new Error(error.message)
     revalidatePath('/admin')
+    revalidatePath(`/admin/orders/${orderId}`)
 }
 
 /**
@@ -303,35 +308,39 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
 
     revalidatePath('/factory')
     revalidatePath('/admin')
+    revalidatePath(`/admin/orders/${orderId}`)
 }
 
 export async function updateOrderNote(orderId: string, note: string) {
-    const supabase = await requireAdmin()
+    await requireAdmin()
+    // Use service client to bypass RLS — same pattern as adminCancelOrder
+    const service = createServiceClient()
     const trimmed = note.trim().slice(0, 1000)
     if (!trimmed) {
         // Allow clearing: just save empty
-        const { error } = await supabase.from('orders').update({ admin_notes: '' }).eq('id', orderId)
+        const { error } = await service.from('orders').update({ admin_notes: '' }).eq('id', orderId)
         if (error) throw new Error(error.message)
         revalidatePath(`/admin/orders/${orderId}`)
         return
     }
 
     // Prepend new entry with timestamp, preserving history
-    const { data: existing } = await supabase
+    const { data: existing } = await service
         .from('orders').select('admin_notes').eq('id', orderId).single()
     const stamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
     const prev = (existing as any)?.admin_notes ?? ''
     const newNotes = `[${stamp}]\n${trimmed}${prev ? `\n\n${prev}` : ''}`.slice(0, 4000)
 
-    const { error } = await supabase
+    const { error } = await service
         .from('orders').update({ admin_notes: newNotes }).eq('id', orderId)
     if (error) throw new Error(error.message)
     revalidatePath(`/admin/orders/${orderId}`)
 }
 
 export async function updateFactoryNote(orderId: string, note: string) {
-    const supabase = await requireAdmin()
-    const { error } = await supabase
+    await requireAdmin()
+    // Use service client to bypass RLS — same pattern as adminCancelOrder
+    const { error } = await createServiceClient()
         .from('orders')
         .update({ factory_note: note.slice(0, 1000) })
         .eq('id', orderId)
@@ -341,8 +350,8 @@ export async function updateFactoryNote(orderId: string, note: string) {
 }
 
 export async function bulkAssignFactory(orderId: string, factoryId: string) {
-    const supabase = await requireAdmin()
-    const { error } = await supabase
+    await requireAdmin()
+    const { error } = await createServiceClient()
         .from('order_items')
         .update({ factory_id: factoryId, status: 'assigned' })
         .eq('order_id', orderId)
@@ -436,6 +445,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                 } else if (!isPartiallyShipped) {
                     // Full refund
                     await stripe.refunds.create({ payment_intent: piId })
+                    refundAmount = (order as any).total_price ?? 0
                 }
                 refundIssued = true
             } else {
@@ -458,7 +468,10 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
             status: refundIssued ? 'refunded' : 'cancelled',
             admin_cancel_reason: reason.trim(),
             cancelled_by_admin_at: new Date().toISOString(),
-            ...(refundIssued ? { refunded_at: new Date().toISOString() } : {}),
+            ...(refundIssued ? {
+                refunded_at: new Date().toISOString(),
+                refunded_amount: refundAmount,
+            } : {}),
         })
         .eq('id', orderId)
 
@@ -558,18 +571,19 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
     ).catch(() => {})
 
     revalidatePath(`/admin/orders/${orderId}`)
-    revalidatePath('/admin/orders')
+    revalidatePath('/admin/orders/[id]', 'page')
     revalidatePath('/admin')
+    revalidatePath('/orders/[id]/status', 'page')
 }
 
 // Assign a Supabase Auth user to a factory (factory role)
 export async function linkUserToFactory(userId: string, factoryId: string) {
-    const supabase = await requireAdmin()
-    const { error } = await supabase
+    await requireAdmin()
+    const { error } = await createServiceClient()
         .from('profiles')
         .update({ factory_id: factoryId, role: 'factory' })
         .eq('id', userId)
 
     if (error) throw new Error(error.message)
-    revalidatePath('/admin/factories')
+    revalidatePath('/admin')
 }

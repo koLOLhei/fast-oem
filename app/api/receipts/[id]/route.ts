@@ -96,6 +96,28 @@ export async function GET(
         ? await pdfDoc.embedFont(jaFontBytes, { subset: true })
         : await pdfDoc.embedFont(StandardFonts.Helvetica)
 
+    // Track current page so drawText/drawLine always write to the active page.
+    let currentPage = page
+    const FOOTER_MARGIN = 80 // leave room for footer (footer is at y=55, totals need ~60px above)
+
+    // Add a new page when content would overflow into the footer area.
+    const ensureSpace = (neededPx: number): number => {
+        if (y - neededPx >= FOOTER_MARGIN) return y
+        // Draw footer on current page before starting a new one
+        currentPage.drawLine({
+            start: { x: 40, y: 55 },
+            end: { x: width - 40, y: 55 },
+            thickness: 0.5,
+            color: rgb(0.8, 0.8, 0.8),
+        })
+        currentPage.drawText(
+            `${COMPANY_NAME}  |  適格請求書（インボイス）登録番号: ${INVOICE_NUMBER}`,
+            { x: 40, y: 42, size: 7, font, color: rgb(0.5, 0.5, 0.5) },
+        )
+        currentPage = pdfDoc.addPage([595, 842])
+        return height - 60
+    }
+
     const drawText = (
         text: string,
         x: number,
@@ -104,11 +126,11 @@ export async function GET(
         _bold = false,      // bold param kept for API compat; use larger size for emphasis
         color = rgb(0, 0, 0)
     ) => {
-        page.drawText(text, { x, y: yPos, size, font, color })
+        currentPage.drawText(text, { x, y: yPos, size, font, color })
     }
 
     const drawLine = (yPos: number, x1 = 40, x2 = width - 40) => {
-        page.drawLine({
+        currentPage.drawLine({
             start: { x: x1, y: yPos },
             end: { x: x2, y: yPos },
             thickness: 0.5,
@@ -170,6 +192,11 @@ export async function GET(
     y -= 16
 
     for (const item of orderItems) {
+        // Each item needs at least 16px; options/fees add up to 46px more
+        const optLines = (item.options?.length > 0 ? 14 : 0)
+        const feeLines = (item.mold_fee > 0 ? 16 : 0) + (item.express_delivery_fee > 0 ? 16 : 0)
+        y = ensureSpace(16 + optLines + feeLines)
+
         const itemPriceExTax = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
         drawText(item.product_name.slice(0, 38), 40, y, 9)
         drawText(`${item.quantity}`, 370, y, 9)
@@ -201,6 +228,7 @@ export async function GET(
     y -= 20
 
     if (shippingFee > 0) {
+        y = ensureSpace(42)
         drawText('送料（離島・遠隔地）', 40, y, 8, false, rgb(0.3, 0.3, 0.8))
         drawText('1', 370, y, 8, false, rgb(0.3, 0.3, 0.8))
         drawText(`¥${shippingFeeExTax.toLocaleString('ja-JP')}`, 440, y, 8, false, rgb(0.3, 0.3, 0.8))
@@ -209,6 +237,8 @@ export async function GET(
         y -= 10
     }
 
+    // Totals block: ~100px needed (subtotal + tax + total + "received" line)
+    y = ensureSpace(100)
     drawText('小計（税抜）', 340, y, 9)
     drawText(`¥${priceExTax.toLocaleString('ja-JP')}`, 470, y, 9)
     y -= 16

@@ -120,7 +120,7 @@ async function isRateLimited(ip: string): Promise<boolean> {
     // Only scan when the store has grown to avoid unnecessary iteration on every request
     if (rateLimitStore.size > 5000) {
         for (const [k, v] of rateLimitStore) {
-            if (now > v.resetAt + WINDOW_MS) rateLimitStore.delete(k)
+            if (now > v.resetAt) rateLimitStore.delete(k)
         }
     }
 

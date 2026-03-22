@@ -1,13 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { createServiceClient } from '@/lib/supabase/service'
 import { createFactory } from '@/app/actions/factory'
 
 export default async function FactoriesPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
-
-    const { data: factories } = await supabase
+    const { data: factories } = await createServiceClient()
         .from('factories')
         .select('*, profiles(id, name)')
         .order('name')

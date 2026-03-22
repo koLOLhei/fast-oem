@@ -132,6 +132,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
             await updateItemStatus(itemId, targetStatus)
             const msg = targetStatus === 'ready_to_ship' ? t.successReadyToShip : t.successUpdated
             showSuccess(itemId, msg)
+            router.refresh()
         } catch (err: any) {
             alert(err?.message ?? 'Error')
         } finally {
@@ -151,6 +152,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
         try {
             await revertItemStatus(itemId)
             showSuccess(itemId, locale === 'ja' ? '「割り当て済み」に戻しました' : locale === 'zh' ? '已恢复为"已分配"' : locale === 'vi' ? 'Đã hoàn tác về "Đã phân công"' : 'Reverted to Assigned')
+            router.refresh()
         } catch (err: any) {
             alert(err?.message ?? 'Error')
         } finally {
@@ -175,6 +177,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
             await submitTrackingNumber(itemId, tracking)
             showSuccess(itemId, t.successShipped)
             setTrackingInputs((prev) => { const n = { ...prev }; delete n[itemId]; return n })
+            router.refresh()
         } catch (err: any) {
             setTrackingErrors((prev) => ({ ...prev, [itemId]: err?.message ?? 'Error' }))
         } finally {

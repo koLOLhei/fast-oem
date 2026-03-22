@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
-    const { data: profile } = await supabase
+    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
+    const { data: profile } = await createServiceClient()
         .from('profiles')
         .select('role')
         .eq('id', user.id)

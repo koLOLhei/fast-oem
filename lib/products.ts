@@ -45,6 +45,7 @@ export interface Product {
   expressDeliveryFee?: number   // flat fee for 10-day express delivery (0 = unavailable)
   notificationEmail?: string    // factory order email; falls back to FACTORY_DEFAULT_EMAIL if empty
   defaultFactoryId?: string     // auto-assign order_items to this factory on checkout
+  isActive?: boolean            // false = hidden from storefront
 }
 
 export const PRODUCTS: Product[] = [

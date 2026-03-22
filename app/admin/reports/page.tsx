@@ -1,5 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,9 +15,8 @@ function monthLabel(key: string) {
 }
 
 export default async function ReportsPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    // Auth + role already enforced by admin/layout.tsx — use service client to skip RLS.
+    const supabase = createServiceClient()
 
     // ── Fetch last 6 months of paid orders ────────────────────────────────
     const sixMonthsAgo = new Date()
@@ -26,20 +24,41 @@ export default async function ReportsPage() {
     sixMonthsAgo.setDate(1)
     sixMonthsAgo.setHours(0, 0, 0, 0)
 
-    const { data: paidOrders } = await supabase
-        .from('orders')
-        .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
-        .eq('status', 'paid')
-        .gte('created_at', sixMonthsAgo.toISOString())
-        .order('created_at', { ascending: true })
-
-    // Also fetch partially_shipped and shipped orders for same period
-    const { data: shippedOrders } = await supabase
-        .from('orders')
-        .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
-        .in('status', ['shipped', 'partially_shipped'])
-        .gte('created_at', sixMonthsAgo.toISOString())
-        .order('created_at', { ascending: true })
+    // Run all 4 queries in parallel
+    const [
+        { data: paidOrders },
+        { data: shippedOrders },
+        { data: activeItems },
+        { data: shippedItems },
+    ] = await Promise.all([
+        supabase
+            .from('orders')
+            .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
+            .eq('status', 'paid')
+            .gte('created_at', sixMonthsAgo.toISOString())
+            .order('created_at', { ascending: true }),
+        // Also fetch partially_shipped and shipped orders for same period
+        supabase
+            .from('orders')
+            .select('id, total_price, created_at, order_items(product_name, total_price, factory_id, status, factories(name))')
+            .in('status', ['shipped', 'partially_shipped'])
+            .gte('created_at', sixMonthsAgo.toISOString())
+            .order('created_at', { ascending: true }),
+        // Fetch all active items (non-shipped) with factory info, capped to prevent full scans
+        supabase
+            .from('order_items')
+            .select('id, status, factory_id, created_at, orders(created_at, status), factories(name)')
+            .not('factory_id', 'is', null)
+            .not('status', 'in', '("shipped","cancelled")')
+            .limit(2000),
+        // Count shipped items per factory (last 6 months)
+        supabase
+            .from('order_items')
+            .select('factory_id, factories(name)')
+            .eq('status', 'shipped')
+            .gte('created_at', sixMonthsAgo.toISOString())
+            .not('factory_id', 'is', null),
+    ])
 
     const allOrders = [...(paidOrders ?? []), ...(shippedOrders ?? [])]
 
@@ -79,13 +98,6 @@ export default async function ReportsPage() {
     const maxProductRevenue = Math.max(1, ...topProducts.map(([, v]) => v))
 
     // ── Factory performance ────────────────────────────────────────────────
-    // Fetch all active items (non-shipped) with factory info
-    const { data: activeItems } = await supabase
-        .from('order_items')
-        .select('id, status, factory_id, created_at, orders(created_at, status), factories(name)')
-        .not('factory_id', 'is', null)
-        .not('status', 'in', '("shipped","cancelled")')
-
     const factoryStats: Record<string, { name: string; total: number; delayed: number; shipped: number }> = {}
     const DELAY_DAYS = 14
     const now = Date.now()
@@ -101,14 +113,6 @@ export default async function ReportsPage() {
             if (daysOld > DELAY_DAYS) factoryStats[fId].delayed++
         }
     }
-
-    // Also count shipped items per factory (last 6 months)
-    const { data: shippedItems } = await supabase
-        .from('order_items')
-        .select('factory_id, factories(name)')
-        .eq('status', 'shipped')
-        .gte('created_at', sixMonthsAgo.toISOString())
-        .not('factory_id', 'is', null)
 
     for (const item of shippedItems ?? []) {
         const fId = item.factory_id as string

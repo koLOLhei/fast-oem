@@ -60,6 +60,8 @@ export function CompleteClient() {
   const [copiedUrl, setCopiedUrl] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+
     const savedOrder = sessionStorage.getItem('completed-order')
     if (savedOrder) {
       try {
@@ -70,8 +72,10 @@ export function CompleteClient() {
         if (parsed.sessionId) {
           setStatusUrlPending(true)
           let attempts = 0
+          let timerId: ReturnType<typeof setTimeout>
 
           const poll = async () => {
+            if (cancelled) return
             attempts++
             try {
               const res = await fetch(
@@ -79,28 +83,34 @@ export function CompleteClient() {
               )
               if (res.ok) {
                 const data = await res.json()
-                setStatusUrl(data.statusUrl)
-                setStatusUrlPending(false)
+                if (!cancelled) {
+                  setStatusUrl(data.statusUrl)
+                  setStatusUrlPending(false)
+                }
                 return
               }
             } catch {
               // network error — retry
             }
-            if (attempts < MAX_POLLS) {
-              setTimeout(poll, POLL_INTERVAL_MS)
-            } else {
-              setStatusUrlPending(false)
+            if (!cancelled) {
+              if (attempts < MAX_POLLS) {
+                timerId = setTimeout(poll, POLL_INTERVAL_MS)
+              } else {
+                setStatusUrlPending(false)
+              }
             }
           }
 
           // Start first poll after 3 seconds (give webhook time to fire)
-          setTimeout(poll, POLL_INTERVAL_MS)
+          timerId = setTimeout(poll, POLL_INTERVAL_MS)
         }
       } catch {
         console.error('Failed to parse order data')
       }
     }
     setIsLoading(false)
+
+    return () => { cancelled = true }
   }, [])
 
   // Calculate totals
@@ -360,20 +370,22 @@ export function CompleteClient() {
         )}
 
         {/* Estimated Delivery Banner */}
-        <div className="mb-6 rounded-xl border border-[#00c8c8]/40 bg-gradient-to-r from-[#00c8c8]/10 to-[#00c8c8]/5 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-[#00c8c8]/20 flex items-center justify-center flex-shrink-0">
-            <Truck className="h-6 w-6 text-[#00c8c8]" />
+        {order && (
+          <div className="mb-6 rounded-xl border border-[#00c8c8]/40 bg-gradient-to-r from-[#00c8c8]/10 to-[#00c8c8]/5 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-[#00c8c8]/20 flex items-center justify-center flex-shrink-0">
+              <Truck className="h-6 w-6 text-[#00c8c8]" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground mb-0.5">お届け予定日</p>
+              <p className="text-xl font-bold text-foreground">
+                {formatDateJa(estimatedDeliveryDate)} 頃
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {hasExpress ? '⚡ 特急プランの場合（目安）' : '通常プラン（目安）'} ・ 土日祝を除く{deliveryBusinessDays}営業日
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-0.5">お届け予定日</p>
-            <p className="text-xl font-bold text-foreground">
-              {formatDateJa(estimatedDeliveryDate)} 頃
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {hasExpress ? '⚡ 特急プランの場合（目安）' : '通常プラン（目安）'} ・ 土日祝を除く{deliveryBusinessDays}営業日
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Next Steps */}
         <Card className="mb-8">

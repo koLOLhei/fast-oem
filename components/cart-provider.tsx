@@ -12,7 +12,7 @@ import { calculateUnitPrice, calculateTotalPrice, getProductById } from '@/lib/p
 
 interface CartContextType {
   cart: Cart
-  addItem: (item: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'>) => void
+  addItem: (item: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'> & { unitPrice?: number; totalPrice?: number }) => void
   updateItemQuantity: (itemId: string, quantity: number) => void
   removeItem: (itemId: string) => void
   clearCart: () => void
@@ -82,18 +82,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart, isLoading])
 
-  const addItem = (itemData: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'>) => {
-    const product = getProductById(itemData.productId)
-    if (!product) return
+  const addItem = (itemData: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'> & { unitPrice?: number; totalPrice?: number }) => {
+    let unitPrice = itemData.unitPrice
+    let totalPrice = itemData.totalPrice
 
-    // Convert options array to Record<string, string> for price calculation
-    const selectedOptions: Record<string, string> = {}
-    itemData.options.forEach((opt) => {
-      selectedOptions[opt.id] = opt.value
-    })
+    if (unitPrice === undefined || totalPrice === undefined) {
+      // Fall back to calculation from the hardcoded PRODUCTS array.
+      // This path handles products not yet migrated to DB.
+      const product = getProductById(itemData.productId)
+      if (!product) return
 
-    const unitPrice = calculateUnitPrice(product, itemData.quantity, selectedOptions)
-    const totalPrice = calculateTotalPrice(product, itemData.quantity, selectedOptions)
+      const selectedOptions: Record<string, string> = {}
+      itemData.options.forEach((opt) => {
+        selectedOptions[opt.id] = opt.value
+      })
+      unitPrice = calculateUnitPrice(product, itemData.quantity, selectedOptions)
+      totalPrice = calculateTotalPrice(product, itemData.quantity, selectedOptions)
+    }
 
     const newItem: CartItem = {
       ...itemData,

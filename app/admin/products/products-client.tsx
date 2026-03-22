@@ -83,14 +83,17 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
     }
 
     const handleToggleActive = (p: Product) => {
-        const next = !(p as any).isActive
+        // isActive defaults to true if not yet set (DB default is TRUE)
+        const current = p.isActive ?? true
+        const next = !current
         startSave(async () => {
             try {
                 await toggleProductActive(p.id, next)
-                setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, isActive: next } as any : x)))
-                if (draft?.id === p.id) setDraft((prev) => prev ? { ...prev, isActive: next } as any : prev)
-            } catch {
-                setSaveMsg('❌ 表示切替に失敗しました。再度お試しください。')
+                setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, isActive: next } : x)))
+                if (draft?.id === p.id) setDraft((prev) => prev ? { ...prev, isActive: next } : prev)
+                if (selected?.id === p.id) setSelected((prev) => prev ? { ...prev, isActive: next } : prev)
+            } catch (e: any) {
+                setSaveMsg(`❌ 表示切替に失敗しました: ${e?.message ?? '再度お試しください'}`)
             }
         })
     }

@@ -1,36 +1,37 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { redirect } from 'next/navigation'
 import { inviteStaffUser, updateUserRole, setUserActive, cancelInvitation } from '@/app/actions/users'
 
 export const dynamic = 'force-dynamic'
 
 export default async function UsersPage() {
+    // Auth + role already enforced by layout. We still need user.id for the "isSelf" check.
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
 
     const service = createServiceClient()
 
-    // Fetch all staff profiles (admin + factory)
-    const { data: staffProfiles } = await service
-        .from('profiles')
-        .select('id, name, email, role, factory_id, is_active, created_at, factories(name)')
-        .in('role', ['admin', 'factory'])
-        .order('created_at', { ascending: false })
-
-    // Fetch pending (unused) invitations
-    const { data: pendingInvites } = await service
-        .from('staff_invitations')
-        .select('id, email, role, factory_id, created_at, factories(name)')
-        .is('used_at', null)
-        .order('created_at', { ascending: false })
-
-    // Fetch factories for dropdowns
-    const { data: factories } = await service
-        .from('factories')
-        .select('id, name, country')
-        .order('name')
+    // Fetch all three lists in parallel
+    const [
+        { data: staffProfiles },
+        { data: pendingInvites },
+        { data: factories },
+    ] = await Promise.all([
+        service
+            .from('profiles')
+            .select('id, name, email, role, factory_id, is_active, created_at, factories(name)')
+            .in('role', ['admin', 'factory'])
+            .order('created_at', { ascending: false }),
+        service
+            .from('staff_invitations')
+            .select('id, email, role, factory_id, created_at, factories(name)')
+            .is('used_at', null)
+            .order('created_at', { ascending: false }),
+        service
+            .from('factories')
+            .select('id, name, country')
+            .order('name'),
+    ])
 
     const roleLabel: Record<string, string> = {
         admin: '管理者',

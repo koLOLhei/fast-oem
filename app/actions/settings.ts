@@ -17,7 +17,8 @@ export async function updateSiteSettings(updates: Record<string, string>) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
+    const { data: profile } = await createServiceClient().from('profiles').select('role').eq('id', user.id).single()
     if (profile?.role !== 'admin') throw new Error('管理者権限が必要です')
 
     const service = createServiceClient()

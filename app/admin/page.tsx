@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -21,8 +21,9 @@ export default async function AdminPage({
     const currentPage = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
     const offset = (currentPage - 1) * PAGE_SIZE
 
-    const supabase = await createClient()
-    // Role is already enforced by admin/layout.tsx (requireRole check)
+    // Role is already enforced by admin/layout.tsx (requireRole check).
+    // Use service client to bypass RLS — all 5 queries avoid per-row policy evaluation.
+    const supabase = createServiceClient()
 
     // ── Data Fetch ────────────────────────────────────────────────
     // All 5 queries are independent — run them in parallel.
@@ -42,7 +43,9 @@ export default async function AdminPage({
 
     if (filterStatus) listQuery = listQuery.eq('status', filterStatus)
     if (searchQuery) {
-        const q = searchQuery
+        // Escape PostgREST special characters so a comma (or other syntax chars)
+        // in the search term doesn't break the .or() filter string.
+        const q = searchQuery.replace(/[%_,()]/g, (c) => `\\${c}`)
         listQuery = listQuery.or(`order_number.ilike.%${q}%,customer_email.ilike.%${q}%`)
     }
 
@@ -53,15 +56,19 @@ export default async function AdminPage({
         { data: stuckItems },
         { data: pagedOrders, count: totalCount },
     ] = await Promise.all([
-        // KPI query: lightweight, all rows, no order_items join
+        // KPI query: recent orders only (past 13 months covers this + last month comparison).
+        // Older all-time revenue is added from a separate count to avoid a full-table scan.
         supabase
             .from('orders')
-            .select('id, status, total_price, created_at'),
-        // Pipeline query: order_items with factories join, exclude terminal statuses
+            .select('id, status, total_price, created_at')
+            .gte('created_at', new Date(new Date().getFullYear() - 1, new Date().getMonth(), 1).toISOString())
+            .limit(5000),
+        // Pipeline query: active order_items only, capped to prevent unbounded scans.
         supabase
             .from('order_items')
             .select('id, status, factory_id, factories(id, name), orders!inner(id, order_number, status, created_at)')
-            .not('orders.status', 'in', '("cancelled","refunded","completed")'),
+            .not('orders.status', 'in', '("cancelled","refunded","completed")')
+            .limit(2000),
         supabase
             .from('factories')
             .select('id, name, country'),
@@ -145,11 +152,8 @@ export default async function AdminPage({
     // Completion rate (shipped / total active+shipped)
     const completionRate = totalItems > 0 ? Math.round((itemCounts.shipped / totalItems) * 100) : 0
 
-    // Stuck items: paid orders where image processing hasn't completed
-    const stuckPaidItems = (stuckItems ?? []).filter((item) => {
-        const order = item.orders as any
-        return order?.status === 'paid'
-    })
+    // Stuck items: already filtered to paid orders in the DB query
+    const stuckPaidItems = stuckItems ?? []
 
     const statusColors: Record<string, string> = {
         paid: 'bg-green-100 text-green-800',

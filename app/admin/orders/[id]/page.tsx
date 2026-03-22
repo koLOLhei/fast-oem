@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { createServiceClient } from '@/lib/supabase/service'
+import { notFound, redirect } from 'next/navigation'
 import { assignFactory, updateOrderNote, updateFactoryNote } from '@/app/actions/factory'
 import { SecretUrlCopier } from './secret-url-copier'
 import { ConfirmBulkAssignForm } from './confirm-bulk-assign-button'
 import { CancelOrderForm } from './cancel-order-form'
-import { toSignedUrl } from '@/lib/supabase/storage'
+import { toSignedUrls } from '@/lib/supabase/storage'
 
 export default async function OrderDetailPage({
     params,
@@ -15,15 +15,18 @@ export default async function OrderDetailPage({
 }) {
     const { id } = await params
     const { msg } = await searchParams
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    // Auth + role already enforced by admin/layout.tsx — use service client to skip RLS.
+    const supabase = createServiceClient()
 
-    const { data: order } = await supabase
-        .from('orders')
-        .select(`*, order_items(*, factories(id, name))`)
-        .eq('id', id)
-        .single()
+    // Run order and factories lookups in parallel.
+    const [{ data: order }, { data: factories }] = await Promise.all([
+        supabase
+            .from('orders')
+            .select(`*, order_items(*, factories(id, name))`)
+            .eq('id', id)
+            .single(),
+        supabase.from('factories').select('id, name, country'),
+    ])
 
     if (!order) notFound()
 
@@ -42,18 +45,20 @@ export default async function OrderDetailPage({
         }
     }
 
-    const { data: factories } = await supabase.from('factories').select('id, name, country')
-
     // Pre-sign all design/PDF URLs so client receives only short-lived signed URLs.
     // `isSafeStorageUrl` still guards against open-redirect, but signed URLs are
     // the primary access control mechanism once the bucket is set to private.
-    const orderItems: any[] = await Promise.all(
-        ((order.order_items as any[]) ?? []).map(async (item) => ({
-            ...item,
-            delivery_pdf_url: await toSignedUrl(item.delivery_pdf_url, 43200),
-            converted_design_url: await toSignedUrl(item.converted_design_url, 43200),
-        }))
-    )
+    const rawItems = (order.order_items as any[]) ?? []
+    const allPaths = rawItems.flatMap((item) => [
+        item.converted_design_url as string | null,
+        item.delivery_pdf_url as string | null,
+    ])
+    const signedUrls = await toSignedUrls(allPaths, 43200)
+    const orderItems: any[] = rawItems.map((item, i) => ({
+        ...item,
+        converted_design_url: signedUrls[i * 2],
+        delivery_pdf_url: signedUrls[i * 2 + 1],
+    }))
 
     const unassignedCount = orderItems.filter((i) => i.status === 'unassigned').length
     const msgDecoded = msg ? decodeURIComponent(msg) : null

@@ -58,9 +58,10 @@ export function PaymentClient() {
       shippingFee,
     })
 
+    if (!result.clientSecret) throw new Error('決済セッションの初期化に失敗しました。再度お試しください。')
     setOrderId(result.orderId)
     setSessionId(result.sessionId)
-    return result.clientSecret!
+    return result.clientSecret
   }, [cart, shippingAddress, shippingFee])
 
   const handleComplete = useCallback(async () => {

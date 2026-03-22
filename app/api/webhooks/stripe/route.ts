@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/service'
+import { revalidatePath } from 'next/cache'
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
       }
 
+      revalidatePath('/admin')
+      revalidatePath('/admin/orders/[id]', 'page')
       console.log(`Webhook: order status updated for session ${session.id}`)
     } catch (error) {
       console.error('Error processing webhook:', error)

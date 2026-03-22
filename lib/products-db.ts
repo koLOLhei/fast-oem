@@ -3,6 +3,7 @@
  * Falls back to the hardcoded PRODUCTS array if the DB is unavailable or empty.
  */
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { type Product, PRODUCTS } from './products'
 
 function rowToProduct(row: any): Product {
@@ -26,6 +27,7 @@ function rowToProduct(row: any): Product {
         quantityPresets: row.quantity_presets ?? [],
         priceTiers: row.price_tiers ?? [],
         options: row.options ?? [],
+        isActive: row.is_active ?? true,
     }
 }
 
@@ -62,8 +64,9 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
 
 /** Used by admin page — returns ALL products including inactive */
 export async function getAllProductsForAdmin() {
-    const supabase = await createClient()
-    const { data, error } = await supabase
+    // Use service client to bypass RLS: the public policy only allows is_active=TRUE,
+    // so the regular client would hide inactive products from the admin.
+    const { data, error } = await createServiceClient()
         .from('products')
         .select('*')
         .order('created_at')

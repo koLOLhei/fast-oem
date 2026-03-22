@@ -150,7 +150,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {relatedProducts.map((rel) => {
                 const lowestPrice = rel.priceTiers.length > 0
-                  ? rel.priceTiers[rel.priceTiers.length - 1].unitPrice
+                  ? Math.min(...rel.priceTiers.map((t) => t.unitPrice))
                   : 0
                 return (
                   <Link

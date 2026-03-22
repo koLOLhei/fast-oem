@@ -53,6 +53,7 @@ export async function checkMoldReuse(
             customer_info,
             order_items (
                 product_id,
+                mold_fee,
                 options
             )
         `)
@@ -93,6 +94,15 @@ export async function checkMoldReuse(
         return {
             valid: false,
             reason: 'この注文番号に同じ商品の型がありません。別の注文番号をお試しください。',
+        }
+    }
+
+    // The referenced order_item must have paid a mold fee — otherwise someone could
+    // chain-reference a previously mold-free order and bypass the mold fee indefinitely.
+    if (!matchedItem.mold_fee || matchedItem.mold_fee <= 0) {
+        return {
+            valid: false,
+            reason: 'この注文では型代が発生していないため、型の再利用元として使用できません。型代を支払った最初の注文番号を入力してください。',
         }
     }
 

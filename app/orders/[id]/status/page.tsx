@@ -69,6 +69,8 @@ export default async function OrderStatusPage({
         partially_shipped: '一部発送済み',
         shipped: '発送完了',
         completed: '完了',
+        cancelled: 'キャンセル済み',
+        refunded: '返金済み',
     }
 
     const statusColor: Record<string, string> = {
@@ -77,6 +79,8 @@ export default async function OrderStatusPage({
         partially_shipped: 'bg-blue-100 text-blue-800',
         shipped: 'bg-green-100 text-green-800',
         completed: 'bg-gray-100 text-gray-700',
+        cancelled: 'bg-red-100 text-red-700',
+        refunded: 'bg-red-100 text-red-700',
     }
 
     const allShipped = items.every((item: any) => item.status === 'shipped')
@@ -84,9 +88,11 @@ export default async function OrderStatusPage({
     const anyProcessing = items.some((item: any) =>
         ['manufacturing', 'ready_to_ship', 'assigned'].includes(item.status)
     )
-    // Use DB-level partially_shipped if set, otherwise derive from item statuses
+    // Check terminal order statuses first — cancelled/refunded orders must not
+    // show 'paid' just because their item statuses haven't been updated yet.
     const displayStatus =
-        allShipped ? 'shipped'
+        ['cancelled', 'refunded'].includes(order.status) ? order.status
+        : allShipped ? 'shipped'
         : someShipped ? 'partially_shipped'
         : anyProcessing ? 'processing'
         : 'paid'
@@ -191,7 +197,7 @@ export default async function OrderStatusPage({
                                                         {(item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')}
                                                     </p>
                                                 )}
-                                                {item.mold_fee > 0 && (
+                                                {(item.mold_fee ?? 0) > 0 && (
                                                     <p className="text-xs text-orange-600 mt-0.5">+ 型代 {formatPrice(item.mold_fee)}</p>
                                                 )}
                                             </div>

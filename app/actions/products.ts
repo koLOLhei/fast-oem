@@ -15,7 +15,8 @@ async function requireAdmin(): Promise<void> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
-    const { data: profile } = await supabase
+    // Use service client to bypass RLS — same pattern as auth.ts and guard.ts
+    const { data: profile } = await createServiceClient()
         .from('profiles')
         .select('role')
         .eq('id', user.id)

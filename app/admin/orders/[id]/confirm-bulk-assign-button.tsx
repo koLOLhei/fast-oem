@@ -29,6 +29,7 @@ export function ConfirmBulkAssignForm({ orderId, unassignedCount, factories }: P
         setLoading(true)
         try {
             await bulkAssignFactory(orderId, factoryId)
+            router.refresh()
             router.push(`/admin/orders/${orderId}?msg=${encodeURIComponent('未割当アイテムをすべて割り当てました')}`)
         } catch (err: any) {
             alert(err?.message ?? '割り当てに失敗しました')

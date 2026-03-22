@@ -142,6 +142,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       productId: product.id,
       productName: product.name,
       quantity,
+      unitPrice,
+      totalPrice: totalPriceItems,
       options,
       designImage,
       designFileName,
