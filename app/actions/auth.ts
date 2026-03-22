@@ -58,7 +58,7 @@ export async function login(formData: FormData) {
         return redirect('/login?message=' + encodeURIComponent('このアカウントは無効化されています。管理者にお問い合わせください'))
     }
 
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'super_admin') {
         return redirect('/admin')
     } else if (role === 'factory') {
         return redirect('/factory')
@@ -88,12 +88,7 @@ export async function signup(formData: FormData) {
     })
 
     if (error) {
-        const signupMsg = error.message.includes('over_email_send_rate_limit') || error.message.includes('Too many requests')
-            ? 'アクセスが集中しています。しばらく時間をおいてから再度お試しください'
-            : error.message.includes('already registered') || error.message.includes('already been registered')
-            ? 'このメールアドレスはすでに登録されています'
-            : '登録に失敗しました。しばらく時間をおいて再度お試しください'
-        return redirect('/signup?message=' + encodeURIComponent(signupMsg))
+        return redirect('/signup?message=' + encodeURIComponent(error.message))
     }
 
     // Belt-and-suspenders: ensure the profile row exists with the correct email.
