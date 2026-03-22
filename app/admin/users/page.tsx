@@ -153,7 +153,7 @@ export default async function UsersPage() {
                                         <form>
                                             <input type="hidden" name="userId" value={p.id} />
                                             <input type="hidden" name="isActive" value={p.is_active ? 'false' : 'true'} />
-                                            <ToggleActiveButton isActive={p.is_active} isSelf={p.id === user.id} />
+                                            <ToggleActiveButton isActive={p.is_active} isSelf={p.id === user?.id} />
                                         </form>
                                     </div>
                                 </td>

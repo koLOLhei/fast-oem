@@ -59,7 +59,7 @@ export async function updateProduct(id: string, updates: Partial<Product> & { is
     if (error) throw new Error(error.message)
     revalidatePath('/admin/products')
     revalidatePath('/products')
-    revalidatePath(`/products/${id}`)
+    revalidatePath('/products/[slug]', 'page')
     revalidatePath('/')
 }
 

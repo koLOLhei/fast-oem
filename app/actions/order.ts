@@ -239,7 +239,7 @@ ${SITE_URL}
 `
 
   await resend.emails.send({
-    from: 'FAST OEM <noreply@soara-mu.com>',
+    from: FROM_EMAIL,
     to: customerEmail,
     subject: `【FAST OEM】ご注文の商品を発送しました（注文番号: ${orderNumber}）`,
     html: `
@@ -305,7 +305,7 @@ export async function sendAllShippedNotification({
     .join('')
 
   await resend.emails.send({
-    from: 'FAST OEM <noreply@soara-mu.com>',
+    from: FROM_EMAIL,
     to: customerEmail,
     subject: `【FAST OEM】ご注文の全商品を発送しました（注文番号: ${orderNumber}）`,
     html: `

@@ -74,7 +74,7 @@ export async function checkMoldReuse(
         if (new Date((order as any).created_at) < cutoff) {
             return {
                 valid: false,
-                reason: `ご注文から1年以上経過しているため、型の再利用ができません。`,
+                reason: `ご注文から${reuseMonths}ヶ月以上経過しているため、型の再利用ができません。`,
             }
         }
     }

@@ -126,6 +126,7 @@ export async function GET(req: NextRequest) {
             order_items ( id, product_name, quantity, unit_price, total_price, mold_fee, express_delivery_fee, status, tracking_number )
         `)
         .order('created_at', { ascending: false })
+        .limit(EXPORT_MAX_ROWS)
 
     if (statusFilter) ordersQuery = ordersQuery.eq('status', statusFilter) as typeof ordersQuery
     if (fromDate) ordersQuery = ordersQuery.gte('created_at', `${fromDate}T00:00:00Z`) as typeof ordersQuery
@@ -134,6 +135,8 @@ export async function GET(req: NextRequest) {
     const { data: orders, error } = await ordersQuery
 
     if (error) return new NextResponse('DB Error: ' + error.message, { status: 500 })
+
+    const truncated = (orders?.length ?? 0) >= EXPORT_MAX_ROWS
 
     const headers = [
         '注文番号', 'UUID', '注文日時', '顧客名', 'メールアドレス', '会社名', '部署名',
@@ -177,7 +180,9 @@ export async function GET(req: NextRequest) {
         ]
     })
 
-    return csvResponse(headers, rows, `orders-${dateStamp()}.csv`)
+    const res = csvResponse(headers, rows, `orders-${dateStamp()}.csv`)
+    if (truncated) res.headers.set('X-Export-Truncated', `true; limit=${EXPORT_MAX_ROWS}`)
+    return res
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
