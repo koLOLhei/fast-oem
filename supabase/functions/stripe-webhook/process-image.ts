@@ -61,10 +61,11 @@ export async function processImage(
             .png({ compressionLevel: 9 })
             .toBuffer()
 
-        // Upload converted file to Storage
-        // Include timestamp to prevent collision when the same product is reordered
-        const timestamp = Date.now()
-        const newPath = `processed/${orderId}_${productId}_${timestamp}_converted.png`
+        // Upload converted file to Storage.
+        // Use crypto.randomUUID() instead of Date.now() to guarantee uniqueness
+        // even when multiple items of the same product are processed concurrently.
+        const uniqueId = crypto.randomUUID()
+        const newPath = `processed/${orderId}_${productId}_${uniqueId}_converted.png`
 
         const { error: uploadError } = await supabase
             .storage

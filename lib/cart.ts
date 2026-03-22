@@ -43,5 +43,11 @@ export function calculateCartTotals(items: CartItem[]): { totalItems: number; to
 }
 
 export function generateCartItemId(): string {
+  // crypto.randomUUID() guarantees uniqueness even when items are added
+  // in rapid succession (bulk add), unlike Date.now() which can collide.
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `cart-${crypto.randomUUID()}`
+  }
+  // Fallback for very old environments
   return `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }

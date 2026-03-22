@@ -116,8 +116,12 @@ export default async function OrderStatusPage({
         : anyProcessing ? 'processing'
         : 'paid'
 
-    // Mold expiry: 1 year from order date
-    const orderDate = new Date(order.created_at)
+    // Interpret created_at in JST for all date calculations.
+    // Supabase stores timestamps in UTC; on Vercel (UTC server) Date methods
+    // return UTC values. Offsetting by +9 h makes local date methods return
+    // the JST calendar date, so business-day and holiday checks are correct.
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000
+    const orderDate = new Date(new Date(order.created_at).getTime() + JST_OFFSET_MS)
     const moldExpiryDate = new Date(orderDate)
     moldExpiryDate.setFullYear(moldExpiryDate.getFullYear() + 1)
     const hasMoldItems = items.some((item: any) => (item.mold_fee ?? 0) > 0)

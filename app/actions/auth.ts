@@ -88,7 +88,12 @@ export async function signup(formData: FormData) {
     })
 
     if (error) {
-        return redirect('/signup?message=' + encodeURIComponent(error.message))
+        const signupMsg = error.message.includes('over_email_send_rate_limit') || error.message.includes('Too many requests')
+            ? 'アクセスが集中しています。しばらく時間をおいてから再度お試しください'
+            : error.message.includes('already registered') || error.message.includes('already been registered')
+            ? 'このメールアドレスはすでに登録されています'
+            : '登録に失敗しました。しばらく時間をおいて再度お試しください'
+        return redirect('/signup?message=' + encodeURIComponent(signupMsg))
     }
 
     // Belt-and-suspenders: ensure the profile row exists with the correct email.

@@ -70,9 +70,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const relatedProducts = allProducts.filter((p) => p.slug !== slug).slice(0, 3)
 
-  const minPrice = product.priceTiers.length > 0
+  const minPriceExTax = product.priceTiers.length > 0
     ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
     : undefined
+  // Schema.org price should reflect the tax-inclusive price shown to consumers
+  const minPrice = minPriceExTax !== undefined ? Math.round(minPriceExTax * 1.1) : undefined
 
   const jsonLd = {
     '@context': 'https://schema.org',

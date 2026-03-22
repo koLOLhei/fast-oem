@@ -366,21 +366,23 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                     )}
                     <div className="flex gap-1.5 flex-wrap ml-auto">
                         {[
-                            { value: 'all',           label: locale === 'ja' ? `全て (${nonCancelledItems.length})` : locale === 'zh' ? `全部 (${nonCancelledItems.length})` : locale === 'vi' ? `Tất cả (${nonCancelledItems.length})` : `All (${nonCancelledItems.length})` },
-                            { value: 'assigned',      label: t.assigned },
-                            { value: 'manufacturing', label: t.manufacturing },
-                            { value: 'ready_to_ship', label: t.ready_to_ship },
-                            { value: 'shipped',       label: t.shipped },
-                        ].map(({ value, label }) => (
+                            { value: 'all',           label: locale === 'ja' ? '全て' : locale === 'zh' ? '全部' : locale === 'vi' ? 'Tất cả' : 'All', count: nonCancelledItems.length },
+                            { value: 'assigned',      label: t.assigned,      count: nonCancelledItems.filter((i) => i.status === 'assigned').length },
+                            { value: 'manufacturing', label: t.manufacturing, count: nonCancelledItems.filter((i) => i.status === 'manufacturing').length },
+                            { value: 'ready_to_ship', label: t.ready_to_ship, count: nonCancelledItems.filter((i) => i.status === 'ready_to_ship').length },
+                            { value: 'shipped',       label: t.shipped,       count: nonCancelledItems.filter((i) => i.status === 'shipped').length },
+                        ].map(({ value, label, count }) => (
                             <button
                                 key={value}
                                 onClick={() => setStatusFilter(value)}
                                 className={`px-3 py-2 rounded-lg text-xs font-semibold transition min-h-[36px] ${statusFilter === value
                                     ? 'bg-primary text-primary-foreground shadow'
+                                    : count === 0
+                                    ? 'bg-muted text-muted-foreground/40 cursor-default'
                                     : 'bg-muted text-muted-foreground hover:text-foreground'
                                 }`}
                             >
-                                {label}
+                                {label} ({count})
                             </button>
                         ))}
                     </div>

@@ -110,7 +110,8 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
             setShippingFee(fee)
             setShippingZoneLabel(fee > 0 ? SHIPPING_ZONE_LABELS[getShippingZone(digits, prefecture)] : '')
           }
-          return { ...prev, prefecture, city, address1: '' }
+          // Preserve any street address the user already typed
+          return { ...prev, prefecture, city }
         })
         setErrors((prev) => {
           const next = { ...prev }

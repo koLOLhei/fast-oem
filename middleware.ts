@@ -36,12 +36,31 @@ const serviceSupabase = createSupabaseClient(
 //   ADMIN_ALLOWED_IPS=203.0.113.1,203.0.113.2
 // Leave unset (or set to "*") to allow all IPs (useful during development).
 // ---------------------------------------------------------------------------
+/** Basic sanity check: reject strings that clearly aren't IP addresses. */
+function isValidIpFormat(ip: string): boolean {
+    // IPv4: four octets of 0-255
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return true
+    // IPv6: contains at least one colon and only hex digits / colons / brackets
+    if (/^[0-9a-fA-F:[\]]+$/.test(ip) && ip.includes(':')) return true
+    return false
+}
+
 function getClientIp(req: NextRequest): string {
-    return (
-        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-        req.headers.get('x-real-ip') ??
-        '127.0.0.1'
-    )
+    // On Vercel/Cloudflare the platform prepends the real IP to x-forwarded-for,
+    // making the first entry trustworthy. We still validate the format to guard
+    // against malformed values reaching isIpAllowed/ipToInt.
+    const xfwdRaw = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
+    if (xfwdRaw && isValidIpFormat(xfwdRaw)) return xfwdRaw
+
+    const realIp = req.headers.get('x-real-ip') ?? ''
+    if (realIp && isValidIpFormat(realIp)) return realIp
+
+    return '127.0.0.1'
+}
+
+/** Return true if the string looks like an IPv6 address (contains a colon). */
+function isIPv6(ip: string): boolean {
+    return ip.includes(':')
 }
 
 /** Convert an IPv4 address string to a 32-bit integer. */
@@ -53,23 +72,31 @@ function ipToInt(ip: string): number {
  * Check whether `ip` matches an entry in ADMIN_ALLOWED_IPS.
  * Each entry can be an exact IPv4 address (e.g. 203.0.113.1) or
  * a CIDR block (e.g. 203.0.113.0/24).
+ * IPv6 addresses are supported via exact match only (CIDR matching is IPv4-only).
  */
 function isIpAllowed(ip: string): boolean {
     // PRODUCTION: set ADMIN_ALLOWED_IPS to a comma-separated list of allowed IPs or CIDR blocks.
     // Leaving it unset (or "*") permits all IPs — acceptable in development only.
     if (!ALLOWED_IP_ENTRIES) return true
-    const clientInt = ipToInt(ip)
+
+    const clientIsIPv6 = isIPv6(ip)
+
     for (const entry of ALLOWED_IP_ENTRIES) {
         if (entry.includes('/')) {
-            // CIDR match
+            // CIDR match — only valid for IPv4; skip if the client IP is IPv6
+            if (clientIsIPv6) continue
             const [network, prefixStr] = entry.split('/')
+            // Also skip if the CIDR network address looks like IPv6
+            if (isIPv6(network)) continue
             const prefix = parseInt(prefixStr, 10)
             if (prefix < 0 || prefix > 32) continue
             const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0
+            const clientInt = ipToInt(ip)
             if ((clientInt & mask) === (ipToInt(network) & mask)) return true
         } else {
-            // Exact match
-            if (entry === ip) return true
+            // Exact match — works for both IPv4 and IPv6
+            // Normalise IPv6 to lowercase for case-insensitive comparison
+            if (entry.toLowerCase() === ip.toLowerCase()) return true
         }
     }
     return false
@@ -150,6 +177,7 @@ export async function middleware(request: NextRequest) {
         pathname.startsWith('/api/admin')
     ) {
         if (!isIpAllowed(clientIp)) {
+            console.warn(`[middleware] IP blocked: ${clientIp} attempted ${pathname}`)
             return new NextResponse('Forbidden', { status: 403 })
         }
     }

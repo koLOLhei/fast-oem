@@ -68,7 +68,10 @@ export async function GET(req: NextRequest) {
 
         const { data: items, error } = await itemsQuery
 
-        if (error) return new NextResponse('DB Error: ' + error.message, { status: 500 })
+        if (error) {
+            console.error('[export] DB error:', error.message)
+            return new NextResponse('データの取得に失敗しました', { status: 500 })
+        }
 
         const truncated = (items?.length ?? 0) >= EXPORT_MAX_ROWS
 
@@ -190,7 +193,8 @@ export async function GET(req: NextRequest) {
 function escapeCell(value: unknown): string {
     const str = String(value ?? '')
     // Sanitize CSV formula injection: Excel/Sheets execute cells starting with =, +, -, @
-    const sanitized = str.length > 0 && '=+-@\t\r'.includes(str[0]) ? `'${str}` : str
+    // Also prefix % and | which are used by DDE payloads in some legacy spreadsheet parsers
+    const sanitized = str.length > 0 && '=+-@\t\r%|'.includes(str[0]) ? `'${str}` : str
     // Wrap in quotes if contains comma, newline, or quote; escape inner quotes
     if (sanitized.includes(',') || sanitized.includes('\n') || sanitized.includes('"')) {
         return `"${sanitized.replace(/"/g, '""')}"`
@@ -216,5 +220,7 @@ function csvResponse(headers: string[], rows: unknown[][], filename: string): Ne
 }
 
 function dateStamp(): string {
-    return new Date().toISOString().slice(0, 10)
+    const date = new Date().toISOString().slice(0, 10)
+    const token = crypto.randomUUID().slice(0, 8)
+    return `${date}-${token}`
 }
