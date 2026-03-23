@@ -61,6 +61,10 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: BASE_URL,
+    languages: {
+      'ja': BASE_URL,
+      'x-default': BASE_URL,
+    },
   },
   icons: {
     icon: '/icon.png',
@@ -70,6 +74,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#1e3a5f',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default async function RootLayout({

@@ -109,6 +109,20 @@ const organizationJsonLd = {
   url: BASE_URL,
   logo: `${BASE_URL}/logo.png`,
   description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    email: 'contact@soara-mu.com',
+    contactType: 'customer service',
+    availableLanguage: 'Japanese',
+  },
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: '横浜市',
+    addressRegion: '神奈川県',
+    postalCode: '221-0056',
+    streetAddress: '神奈川区金港町5-14 クアドリフォリオ8階',
+    addressCountry: 'JP',
+  },
   sameAs: [],
 }
 

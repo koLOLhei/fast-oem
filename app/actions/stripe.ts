@@ -59,9 +59,10 @@ function computeUnitPrice(
   }
 
   let price = base
-  for (const [optionId, valueId] of Object.entries(selectedOptions)) {
+  for (const [optionId, valueIdOrLabel] of Object.entries(selectedOptions)) {
     const option = options.find((o) => o.id === optionId)
-    const value = option?.values.find((v) => v.id === valueId)
+    // Cart stores option value LABELS (not IDs), so match by label first, then ID
+    const value = option?.values.find((v) => v.label === valueIdOrLabel || v.id === valueIdOrLabel)
     const mod = value?.priceModifier
     if (!mod) continue
     if (mod.type === 'add') price += mod.value

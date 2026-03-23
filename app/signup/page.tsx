@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
 import { signup } from '@/app/actions/auth'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { SubmitButton } from '@/components/submit-button'
+
+export const metadata: Metadata = {
+    title: '新規会員登録',
+    robots: { index: false, follow: false },
+}
 
 export default async function SignupPage(
     props: { searchParams: Promise<{ message: string }> }
@@ -38,9 +44,9 @@ export default async function SignupPage(
                     minLength={8}
                     required
                 />
-                <Button formAction={signup} className="bg-primary px-4 py-2 rounded-md mb-2">
+                <SubmitButton formAction={signup} className="bg-primary px-4 py-2 rounded-md mb-2">
                     登録する
-                </Button>
+                </SubmitButton>
                 {searchParams?.message && (
                     <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center rounded-md">
                         {searchParams.message}

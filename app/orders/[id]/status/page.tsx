@@ -72,11 +72,11 @@ export default async function OrderStatusPage({
 
     const items = itemsWithUrls
     const itemsTotal = items.reduce(
-        (sum: number, item: any) => sum + (item.total_price || item.unit_price * item.quantity),
+        (sum: number, item: any) => sum + (item.total_price ?? (item.unit_price * item.quantity)),
         0
     )
-    const moldTotal = items.reduce((sum: number, item: any) => sum + (item.mold_fee || 0), 0)
-    const expressTotal = items.reduce((sum: number, item: any) => sum + (item.express_delivery_fee || 0), 0)
+    const moldTotal = items.reduce((sum: number, item: any) => sum + (item.mold_fee ?? 0), 0)
+    const expressTotal = items.reduce((sum: number, item: any) => sum + (item.express_delivery_fee ?? 0), 0)
     const priceExTax = Math.round(orderTotal / (1 + TAX_RATE))
     const taxAmount = orderTotal - priceExTax
 
@@ -239,7 +239,7 @@ export default async function OrderStatusPage({
                                         {item.quantity}個
                                     </td>
                                     <td className="p-4 text-right whitespace-nowrap">
-                                        {formatPrice(item.total_price || item.unit_price * item.quantity)}
+                                        {formatPrice(item.total_price ?? (item.unit_price * item.quantity))}
                                     </td>
                                 </tr>
                                 )

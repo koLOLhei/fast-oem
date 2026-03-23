@@ -1,6 +1,13 @@
+import type { Metadata } from 'next'
 import { login } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { SubmitButton } from '@/components/submit-button'
+
+export const metadata: Metadata = {
+    title: 'ログイン',
+    robots: { index: false, follow: false },
+}
 
 export default async function LoginPage(
     props: { searchParams: Promise<{ message?: string; error?: string }> }
@@ -63,9 +70,9 @@ export default async function LoginPage(
                         パスワードをお忘れの方はこちら
                     </Link>
                 </div>
-                <Button formAction={login} className="bg-primary px-4 py-2 rounded-md mb-2">
+                <SubmitButton formAction={login} className="bg-primary px-4 py-2 rounded-md mb-2">
                     ログイン
-                </Button>
+                </SubmitButton>
                 {errorMessage && (
                     <p className={`mt-4 p-4 text-center rounded-md text-sm ${
                         isSuccess

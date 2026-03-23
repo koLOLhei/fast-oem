@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
@@ -5,12 +6,19 @@ import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
 import { ORDER_STATUS_LABELS } from '@/lib/status-labels'
 
+export const metadata: Metadata = {
+    title: 'マイページ',
+    robots: { index: false, follow: false },
+}
+
 export default async function MypagePage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Run profile check and orders fetch in parallel to reduce latency
+    // Run profile check and orders fetch in parallel to reduce latency.
+    // Use service client for both to bypass RLS — customers don't have
+    // SELECT policies on orders, so the anon client would return empty results.
     const serviceClient = createServiceClient()
     const [{ data: profile }, { data: orders }] = await Promise.all([
         serviceClient
@@ -18,15 +26,15 @@ export default async function MypagePage() {
             .select('role')
             .eq('id', user.id)
             .single(),
-        supabase
+        serviceClient
             .from('orders')
             .select(`*, order_items(product_name, quantity)`)
-            .eq('customer_info->>email', user.email)
+            .eq('customer_info->>email', user.email ?? '')
             .order('created_at', { ascending: false }),
     ])
 
     // Redirect staff roles to their own portals — prevents accidental /mypage access
-    if (profile?.role === 'admin') redirect('/admin')
+    if (profile?.role === 'admin' || profile?.role === 'super_admin') redirect('/admin')
     if (profile?.role === 'factory') redirect('/factory')
 
     const statusLabels = ORDER_STATUS_LABELS

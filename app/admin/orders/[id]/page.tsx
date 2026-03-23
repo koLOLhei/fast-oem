@@ -6,6 +6,7 @@ import { ConfirmBulkAssignForm } from './confirm-bulk-assign-button'
 import { CancelOrderForm } from './cancel-order-form'
 import { toSignedUrls } from '@/lib/supabase/storage'
 import { ITEM_STATUS_LABELS, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
+import { SubmitButton } from '@/components/submit-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -267,7 +268,7 @@ export default async function OrderDetailPage({
                                             単価: {formatPrice(item.unit_price)}
                                         </p>
                                         <p className="font-medium">
-                                            商品小計: {formatPrice(item.total_price || item.unit_price * item.quantity)}
+                                            商品小計: {formatPrice(item.total_price ?? (item.unit_price * item.quantity))}
                                         </p>
                                         {item.mold_fee && item.mold_fee > 0 && (
                                             <p className="text-orange-700 font-medium">
@@ -352,8 +353,7 @@ export default async function OrderDetailPage({
 
 function AssignButton({ itemId, orderId }: { itemId: string; orderId: string }) {
     return (
-        <button
-            type="submit"
+        <SubmitButton
             formAction={async (fd: FormData) => {
                 'use server'
                 const fId = fd.get('factoryId') as string
@@ -366,17 +366,17 @@ function AssignButton({ itemId, orderId }: { itemId: string; orderId: string }) 
                 redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('工場を割り当てました')}`)
             }}
             className="w-full bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg hover:bg-primary/90 transition"
+            pendingText="保存中..."
         >
             割り当てを保存
-        </button>
+        </SubmitButton>
     )
 }
 
 
 function SaveNoteButton() {
     return (
-        <button
-            type="submit"
+        <SubmitButton
             formAction={async (fd: FormData) => {
                 'use server'
                 const orderId = fd.get('orderId') as string
@@ -389,16 +389,16 @@ function SaveNoteButton() {
                 redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('内部メモを保存しました')}`)
             }}
             className="mt-2 bg-secondary text-secondary-foreground text-sm px-4 py-2 rounded-lg hover:bg-secondary/80 transition"
+            pendingText="保存中..."
         >
             メモを保存
-        </button>
+        </SubmitButton>
     )
 }
 
 function SaveFactoryNoteButton() {
     return (
-        <button
-            type="submit"
+        <SubmitButton
             formAction={async (fd: FormData) => {
                 'use server'
                 const orderId = fd.get('orderId') as string
@@ -411,8 +411,9 @@ function SaveFactoryNoteButton() {
                 redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('工場向けメモを保存しました')}`)
             }}
             className="mt-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            pendingText="保存中..."
         >
             工場向けメモを保存
-        </button>
+        </SubmitButton>
     )
 }

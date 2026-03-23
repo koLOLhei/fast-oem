@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/status-labels'
 import { StaffTable } from './StaffTable'
 import { InviteForm } from './InviteForm'
+import { SubmitButton } from '@/components/submit-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -126,8 +127,7 @@ export default async function UsersPage() {
 
 function CancelInviteButton() {
     return (
-        <button
-            type="submit"
+        <SubmitButton
             formAction={async (fd: FormData) => {
                 'use server'
                 const { redirect } = await import('next/navigation')
@@ -141,8 +141,9 @@ function CancelInviteButton() {
                 redirect('/admin/users')
             }}
             className="text-xs px-2 py-1 border border-red-300 text-red-600 rounded hover:bg-red-50 transition"
+            pendingText="処理中..."
         >
             キャンセル
-        </button>
+        </SubmitButton>
     )
 }

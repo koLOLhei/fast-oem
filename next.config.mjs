@@ -54,7 +54,12 @@ const securityHeaders = [
 
 const nextConfig = {
   images: {
-    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'utwvalzykfxdeuwnebne.supabase.co',
+      },
+    ],
   },
   // Ensure the Japanese font used by PDF generation (receipts/invoices) is always
   // included in the build output. Without this, the font would be missing in

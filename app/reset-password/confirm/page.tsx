@@ -1,6 +1,6 @@
 import { updatePassword } from '@/app/actions/auth'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { SubmitButton } from '@/components/submit-button'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -34,9 +34,9 @@ export default async function ResetPasswordConfirmPage(
                     minLength={8}
                     required
                 />
-                <Button formAction={updatePassword} className="bg-primary px-4 py-2 rounded-md">
+                <SubmitButton formAction={updatePassword} className="bg-primary px-4 py-2 rounded-md">
                     パスワードを更新する
-                </Button>
+                </SubmitButton>
                 {searchParams?.message && (
                     <p className="mt-4 p-4 bg-red-50 text-red-800 border border-red-200 text-center rounded-md text-sm">
                         {searchParams.message}

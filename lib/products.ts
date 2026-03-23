@@ -13,6 +13,7 @@ export interface PriceModifier {
 export interface OptionValue {
   id: string
   label: string
+  description?: string    // explanatory text shown to the customer
   icon?: string
   imageUrl?: string
   priceModifier?: PriceModifier

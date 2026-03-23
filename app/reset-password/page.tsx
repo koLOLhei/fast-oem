@@ -1,6 +1,6 @@
 import { requestPasswordReset } from '@/app/actions/auth'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { SubmitButton } from '@/components/submit-button'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -46,9 +46,9 @@ export default async function ResetPasswordPage(
                         placeholder="you@example.com"
                         required
                     />
-                    <Button formAction={requestPasswordReset} className="bg-primary px-4 py-2 rounded-md">
+                    <SubmitButton formAction={requestPasswordReset} className="bg-primary px-4 py-2 rounded-md">
                         リセットメールを送信
-                    </Button>
+                    </SubmitButton>
                     {searchParams?.message && (
                         <p className="mt-4 p-4 bg-red-50 text-red-800 border border-red-200 text-center rounded-md text-sm">
                             {searchParams.message}

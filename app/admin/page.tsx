@@ -95,13 +95,13 @@ export default async function AdminPage({
     const revenueStats = allOrderStats.filter((o) => REVENUE_STATUSES.includes(o.status))
     const pendingStats = allOrderStats.filter((o) => o.status === 'pending')
 
-    const totalRevenue = revenueStats.reduce((s, o) => s + (o.total_price || 0), 0)
+    const totalRevenue = revenueStats.reduce((s, o) => s + (o.total_price ?? 0), 0)
     const thisMonthRevenue = revenueStats
         .filter((o) => new Date(o.created_at) >= thisMonthStart)
-        .reduce((s, o) => s + (o.total_price || 0), 0)
+        .reduce((s, o) => s + (o.total_price ?? 0), 0)
     const lastMonthRevenue = revenueStats
         .filter((o) => new Date(o.created_at) >= lastMonthStart && new Date(o.created_at) < thisMonthStart)
-        .reduce((s, o) => s + (o.total_price || 0), 0)
+        .reduce((s, o) => s + (o.total_price ?? 0), 0)
     const revenueGrowth = lastMonthRevenue > 0
         ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
         : null

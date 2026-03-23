@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
+import { Fragment } from 'react'
 
 export default async function MyOrderDetailPage({
     params,
@@ -27,8 +28,8 @@ export default async function MyOrderDetailPage({
 
     // Calculate totals
     const items = order.order_items as any[]
-    const itemsTotal = items.reduce((sum, item) => sum + (item.total_price || item.unit_price * item.quantity), 0)
-    const moldTotal = items.reduce((sum, item) => sum + (item.mold_fee || 0), 0)
+    const itemsTotal = items.reduce((sum, item) => sum + (item.total_price ?? (item.unit_price * item.quantity)), 0)
+    const moldTotal = items.reduce((sum, item) => sum + (item.mold_fee ?? 0), 0)
 
     const priceExTax = Math.round(order.total_price / (1 + TAX_RATE))
     const taxAmount = order.total_price - priceExTax
@@ -85,8 +86,8 @@ export default async function MyOrderDetailPage({
                         </thead>
                         <tbody>
                             {(order.order_items as any[]).map((item) => (
-                                <>
-                                    <tr key={item.id} className="border-b">
+                                <Fragment key={item.id}>
+                                    <tr className="border-b">
                                         <td className="p-4">
                                             <p className="font-medium">{item.product_name}</p>
                                             {item.options?.length > 0 && (
@@ -99,10 +100,10 @@ export default async function MyOrderDetailPage({
                                             </p>
                                         </td>
                                         <td className="p-4 text-right">{item.quantity}個</td>
-                                        <td className="p-4 text-right">{formatPrice(item.total_price || item.unit_price * item.quantity)}</td>
+                                        <td className="p-4 text-right">{formatPrice(item.total_price ?? (item.unit_price * item.quantity))}</td>
                                     </tr>
                                     {item.mold_fee && item.mold_fee > 0 && (
-                                        <tr key={`${item.id}-mold`} className="border-b last:border-0 bg-orange-50/30">
+                                        <tr className="border-b last:border-0 bg-orange-50/30">
                                             <td className="p-4 pl-8">
                                                 <p className="text-sm text-orange-700">
                                                     型代（初回のみ）
@@ -113,7 +114,7 @@ export default async function MyOrderDetailPage({
                                             <td className="p-4 text-right text-orange-700 font-medium">{formatPrice(item.mold_fee)}</td>
                                         </tr>
                                     )}
-                                </>
+                                </Fragment>
                             ))}
                         </tbody>
                     </table>

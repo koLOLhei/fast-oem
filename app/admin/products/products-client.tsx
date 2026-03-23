@@ -48,7 +48,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
             }
         }
         setSelected(p)
-        setDraft(JSON.parse(JSON.stringify(p)))
+        setDraft(structuredClone(p))
         setTab('basic')
         setSaveMsg('')
         setShowCreate(false)
@@ -718,6 +718,8 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                 ...o, values: o.values.map((v) => {
                     if (v.id !== valId) return v
                     if (field === 'label') return { ...v, label: value }
+                    if (field === 'description') return { ...v, description: value || undefined }
+                    if (field === 'imageUrl') return { ...v, imageUrl: value || undefined }
                     if (field === 'modType') {
                         if (!value) return { ...v, priceModifier: undefined }
                         return { ...v, priceModifier: { type: value, value: v.priceModifier?.value ?? 0 } }
@@ -771,6 +773,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                         <div className="p-4 space-y-2">
                             {opt.values.map((val) => (
                                 <div key={val.id} className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                                    {/* Row 1: ID, Label, Price modifier */}
                                     <div className="grid grid-cols-12 gap-2 items-center">
                                         <div className="col-span-2">
                                             <label className="text-[10px] text-muted-foreground block mb-0.5">ID</label>
@@ -791,7 +794,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                                             />
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="text-[10px] text-muted-foreground block mb-0.5">価格修正</label>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">単価加算</label>
                                             <select
                                                 className={`${smallInput} text-xs`}
                                                 value={val.priceModifier?.type ?? ''}
@@ -826,7 +829,28 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                                             </button>
                                         </div>
                                     </div>
-                                    {/* Mold fee per option value */}
+                                    {/* Row 2: Image URL, Description */}
+                                    <div className="grid grid-cols-12 gap-2">
+                                        <div className="col-span-5">
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">画像URL</label>
+                                            <input
+                                                className={`${smallInput} text-xs`}
+                                                value={val.imageUrl ?? ''}
+                                                onChange={(e) => updateValue(opt.id, val.id, 'imageUrl', e.target.value)}
+                                                placeholder="https://... または /images/..."
+                                            />
+                                        </div>
+                                        <div className="col-span-7">
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">説明文（ユーザーに表示）</label>
+                                            <input
+                                                className={smallInput}
+                                                value={val.description ?? ''}
+                                                onChange={(e) => updateValue(opt.id, val.id, 'description', e.target.value)}
+                                                placeholder="例：高品質な仕上がり。耐久性に優れています。"
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Row 3: Mold fee */}
                                     <div className="flex items-center gap-3 pl-1">
                                         <label className="flex items-center gap-2 cursor-pointer text-xs">
                                             <input

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -49,9 +49,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const isAddedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Restore draft from localStorage on mount
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>
     try {
       const saved = localStorage.getItem(`draft-design-${product.id}`)
       if (saved) {
@@ -66,9 +68,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           setExpressDelivery(data.expressDelivery)
         }
         setDraftRestored(true)
-        setTimeout(() => setDraftRestored(false), 3000)
+        timer = setTimeout(() => setDraftRestored(false), 3000)
       }
     } catch {}
+    return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
 
@@ -158,7 +161,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     })
 
     setIsAdded(true)
-    setTimeout(() => setIsAdded(false), 2000)
+    clearTimeout(isAddedTimerRef.current)
+    isAddedTimerRef.current = setTimeout(() => setIsAdded(false), 2000)
     return true
   }
 
@@ -263,13 +267,22 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                       <button
                         key={value.id}
                         onClick={() => handleOptionChange(option.id, value.id)}
-                        className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all ${selectedOptions[option.id] === value.id
+                        className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left text-sm transition-all ${selectedOptions[option.id] === value.id
                           ? 'bg-primary/10 text-primary font-medium border border-primary/30'
                           : 'hover:bg-muted text-foreground border border-transparent'
                           }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${selectedOptions[option.id] === value.id
+                        {value.imageUrl && (
+                          <Image
+                            src={value.imageUrl}
+                            alt={value.label}
+                            width={36}
+                            height={36}
+                            className="rounded-md object-cover shrink-0 mt-0.5"
+                          />
+                        )}
+                        <div className={`flex items-center gap-3 flex-1 min-w-0 ${!value.imageUrl ? '' : ''}`}>
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${selectedOptions[option.id] === value.id
                             ? 'border-primary bg-primary'
                             : 'border-border'
                             }`}>
@@ -277,11 +290,18 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                               <Check className="w-3 h-3 text-primary-foreground" />
                             )}
                           </div>
-                          {value.label}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">{value.label}</span>
+                              {priceLabel && (
+                                <span className="text-xs font-semibold text-green-600 shrink-0">{priceLabel}</span>
+                              )}
+                            </div>
+                            {value.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{value.description}</p>
+                            )}
+                          </div>
                         </div>
-                        {priceLabel && (
-                          <span className="text-xs font-semibold text-green-600">{priceLabel}</span>
-                        )}
                       </button>
                     )
                   })}
@@ -326,7 +346,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                       <button
                         key={value.id}
                         onClick={() => handleOptionChange(option.id, value.id)}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all relative ${selectedOptions[option.id] === value.id
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all relative ${selectedOptions[option.id] === value.id
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-muted-foreground/30 bg-card'
                           }`}
@@ -352,6 +372,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                         <span className="text-xs text-center font-medium leading-tight">
                           {value.label}
                         </span>
+                        {value.description && (
+                          <span className="text-[10px] text-muted-foreground text-center leading-tight line-clamp-2">
+                            {value.description}
+                          </span>
+                        )}
                       </button>
                     )
                   })}
@@ -373,13 +398,27 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                         <button
                           key={value.id}
                           onClick={() => handleOptionChange(option.id, value.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-all ${selectedOptions[option.id] === value.id
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-all text-left ${selectedOptions[option.id] === value.id
                             ? 'bg-primary/10 text-primary font-semibold'
                             : 'hover:bg-muted text-foreground'
                             } ${index !== option.values.length - 1 ? 'border-b border-border' : ''}`}
                         >
-                          <span>{value.label}</span>
-                          <div className="flex items-center gap-2">
+                          {value.imageUrl && (
+                            <Image
+                              src={value.imageUrl}
+                              alt={value.label}
+                              width={32}
+                              height={32}
+                              className="rounded object-cover shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span>{value.label}</span>
+                            {value.description && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5 font-normal line-clamp-1">{value.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             {priceLabel && (
                               <span className="text-xs font-semibold text-green-600">{priceLabel}</span>
                             )}
@@ -738,7 +777,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   size="lg"
                   className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
                   onClick={handleBuyNow}
-                  disabled={!designImage}
+                  disabled={!designImage || isAdded}
                 >
                   今すぐ購入
                 </Button>

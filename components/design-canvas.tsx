@@ -27,9 +27,16 @@ function buildShapePath(
       break
     }
     case 'heart':
-      ctx.moveTo(cx, y + h * 0.85)
-      ctx.bezierCurveTo(x + w * 0.05, y + h * 0.55, x, y + h * 0.2, cx, y + h * 0.12)
-      ctx.bezierCurveTo(x + w, y + h * 0.2, x + w * 0.95, y + h * 0.55, cx, y + h * 0.85)
+      // Start at the center dip between the two bumps
+      ctx.moveTo(cx, y + h * 0.3)
+      // Left bump: curve up-left then back down to left side
+      ctx.bezierCurveTo(cx, y + h * 0.1, x, y, x, y + h * 0.3)
+      // Left side down to bottom tip
+      ctx.bezierCurveTo(x, y + h * 0.55, cx, y + h * 0.75, cx, y + h)
+      // Right side up from bottom tip
+      ctx.bezierCurveTo(cx, y + h * 0.75, x + w, y + h * 0.55, x + w, y + h * 0.3)
+      // Right bump: curve up-right then back to center dip
+      ctx.bezierCurveTo(x + w, y, cx, y + h * 0.1, cx, y + h * 0.3)
       ctx.closePath()
       break
     case 'star': {
@@ -208,6 +215,10 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
         if (c) onCanvasChange(c.toDataURL('image/png'))
       }, 100)
     }
+
+    return () => {
+      if (canvasChangeTimer.current) clearTimeout(canvasChangeTimer.current)
+    }
   }, [transform, shape, loaded, onCanvasChange])
 
   useEffect(() => {
@@ -240,10 +251,18 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
 
   const onPointerUp = useCallback(() => { dragging.current = false }, [])
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? -0.05 : 0.05
-    setTransform((prev) => ({ ...prev, scale: Math.max(0.2, Math.min(5, prev.scale + delta)) }))
+  // Attach wheel listener natively with { passive: false } so preventDefault() works.
+  // React's onWheel is passive by default and cannot prevent page scroll.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY > 0 ? -0.05 : 0.05
+      setTransform((prev) => ({ ...prev, scale: Math.max(0.2, Math.min(5, prev.scale + delta)) }))
+    }
+    canvas.addEventListener('wheel', handler, { passive: false })
+    return () => canvas.removeEventListener('wheel', handler)
   }, [])
 
   // Export functions
@@ -282,7 +301,6 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
-          onWheel={onWheel}
         />
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted/60">

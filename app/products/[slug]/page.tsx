@@ -83,6 +83,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         '@type': 'Product',
         name: product.name,
         description: product.description,
+        url: `${BASE_URL}/products/${slug}`,
         image: product.imageUrl ? [product.imageUrl] : [],
         brand: { '@type': 'Brand', name: 'FAST OEM' },
         aggregateRating: {

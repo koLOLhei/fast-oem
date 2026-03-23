@@ -21,7 +21,7 @@ function getShapeClipPath(shapeId: string): string {
     case 'rounded':
       return 'inset(0 round 16px)'
     case 'heart':
-      return 'path("M 50 90 C 20 60, 0 30, 50 10 C 100 30, 80 60, 50 90 Z")'
+      return 'path("M 50 30 C 50 10, 0 0, 0 30 C 0 55, 50 75, 50 100 C 50 75, 100 55, 100 30 C 100 0, 50 10, 50 30 Z")'
     case 'star':
       return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)'
     case 'oval':
