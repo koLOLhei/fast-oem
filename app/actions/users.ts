@@ -4,13 +4,24 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
+export type ActionResult = { error?: string }
+
 /**
  * Invite a new staff member (admin, super_admin, or factory).
  * Stores the invitation record, then sends an invite email via Supabase Auth.
  * When the user accepts the invite and registers, the trigger auto-sets their role.
  */
-export async function inviteStaffUser(formData: FormData) {
-    const { adminId, isSuperAdmin } = await requireAdmin()
+export async function inviteStaffUser(formData: FormData): Promise<ActionResult> {
+    let adminId: string
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        adminId = ctx.adminId
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
+
     const service = createServiceClient()
 
     const email = (formData.get('email') as string).trim().toLowerCase()
@@ -18,10 +29,10 @@ export async function inviteStaffUser(formData: FormData) {
     const role = formData.get('role') as 'super_admin' | 'admin' | 'factory'
     const factoryId = (formData.get('factory_id') as string) || null
 
-    if (!email || !role) throw new Error('メールアドレスとロールは必須です')
-    if (role === 'factory' && !factoryId) throw new Error('工場ユーザーには工場の選択が必要です')
+    if (!email || !role) return { error: 'メールアドレスとロールは必須です' }
+    if (role === 'factory' && !factoryId) return { error: '工場ユーザーには工場の選択が必要です' }
     if (role === 'super_admin' && !isSuperAdmin) {
-        throw new Error('スーパー管理者ロールを招待できるのはスーパー管理者のみです')
+        return { error: 'スーパー管理者ロールを招待できるのはスーパー管理者のみです' }
     }
 
     // Block re-invite if the email already has an accepted invitation
@@ -30,7 +41,7 @@ export async function inviteStaffUser(formData: FormData) {
         .select('used_at')
         .eq('email', email)
         .maybeSingle()
-    if (existing?.used_at != null) throw new Error('このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。')
+    if (existing?.used_at != null) return { error: 'このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。' }
 
     // Upsert invitation record (overwrite only if not yet accepted)
     const { error: inviteRecordError } = await service
@@ -39,7 +50,7 @@ export async function inviteStaffUser(formData: FormData) {
             { email, role, factory_id: factoryId, invited_by: adminId, used_at: null },
             { onConflict: 'email' }
         )
-    if (inviteRecordError) throw new Error('招待記録の保存に失敗しました: ' + inviteRecordError.message)
+    if (inviteRecordError) return { error: '招待記録の保存に失敗しました: ' + inviteRecordError.message }
 
     // Send invite email via Supabase Auth admin API.
     // Pass role/factory_id in user_metadata as belt-and-suspenders alongside the invitation record.
@@ -49,23 +60,33 @@ export async function inviteStaffUser(formData: FormData) {
     if (authError) {
         // Rollback invitation record on auth failure
         await service.from('staff_invitations').delete().eq('email', email)
-        throw new Error('招待メールの送信に失敗しました: ' + authError.message)
+        return { error: '招待メールの送信に失敗しました: ' + authError.message }
     }
 
     revalidatePath('/admin/users')
+    return {}
 }
 
 /**
  * Update an existing user's role and factory assignment.
  */
-export async function updateUserRole(userId: string, role: string, factoryId: string | null) {
-    const { adminId, isSuperAdmin } = await requireAdmin()
-    if (userId === adminId) throw new Error('自分自身のロールを変更することはできません')
+export async function updateUserRole(userId: string, role: string, factoryId: string | null): Promise<ActionResult> {
+    let adminId: string
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        adminId = ctx.adminId
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
+
+    if (userId === adminId) return { error: '自分自身のロールを変更することはできません' }
     if (!isSuperAdmin) {
         const { data: target } = await createServiceClient()
             .from('profiles').select('role').eq('id', userId).single()
-        if (target?.role === 'super_admin') throw new Error('スーパー管理者のロールを変更する権限がありません')
-        if (role === 'super_admin') throw new Error('スーパー管理者ロールを付与する権限がありません')
+        if (target?.role === 'super_admin') return { error: 'スーパー管理者のロールを変更する権限がありません' }
+        if (role === 'super_admin') return { error: 'スーパー管理者ロールを付与する権限がありません' }
     }
     const service = createServiceClient()
 
@@ -77,22 +98,32 @@ export async function updateUserRole(userId: string, role: string, factoryId: st
         .update(update)
         .eq('id', userId)
 
-    if (error) throw new Error(error.message)
+    if (error) return { error: error.message }
     revalidatePath('/admin/users')
     revalidatePath('/admin/factories')
+    return {}
 }
 
 /**
  * Toggle a user's active status.
  * Inactive users are blocked at the middleware level.
  */
-export async function setUserActive(userId: string, isActive: boolean) {
-    const { adminId, isSuperAdmin } = await requireAdmin()
-    if (!isActive && userId === adminId) throw new Error('自分自身を無効化することはできません')
+export async function setUserActive(userId: string, isActive: boolean): Promise<ActionResult> {
+    let adminId: string
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        adminId = ctx.adminId
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
+
+    if (!isActive && userId === adminId) return { error: '自分自身を無効化することはできません' }
     if (!isSuperAdmin) {
         const { data: target } = await createServiceClient()
             .from('profiles').select('role').eq('id', userId).single()
-        if (target?.role === 'super_admin') throw new Error('スーパー管理者を無効化する権限がありません')
+        if (target?.role === 'super_admin') return { error: 'スーパー管理者を無効化する権限がありません' }
     }
     const service = createServiceClient()
 
@@ -101,8 +132,9 @@ export async function setUserActive(userId: string, isActive: boolean) {
         .update({ is_active: isActive })
         .eq('id', userId)
 
-    if (error) throw new Error(error.message)
+    if (error) return { error: error.message }
     revalidatePath('/admin/users')
+    return {}
 }
 
 /**
@@ -111,14 +143,22 @@ export async function setUserActive(userId: string, isActive: boolean) {
 export async function updateUser(
     userId: string,
     data: { name: string; role: string; factory_id: string | null; is_active: boolean }
-) {
-    const { adminId, isSuperAdmin } = await requireAdmin()
+): Promise<ActionResult> {
+    let adminId: string
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        adminId = ctx.adminId
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
 
     // Cannot change own role
     if (userId === adminId) {
         const ownRole = isSuperAdmin ? 'super_admin' : 'admin'
-        if (data.role !== ownRole) throw new Error('自分自身のロールを変更することはできません')
-        if (!data.is_active) throw new Error('自分自身を無効化することはできません')
+        if (data.role !== ownRole) return { error: '自分自身のロールを変更することはできません' }
+        if (!data.is_active) return { error: '自分自身を無効化することはできません' }
     }
 
     const service = createServiceClient()
@@ -128,10 +168,10 @@ export async function updateUser(
         const { data: target } = await service
             .from('profiles').select('role').eq('id', userId).single()
         if (target?.role === 'super_admin') {
-            throw new Error('スーパー管理者のユーザー情報を変更する権限がありません')
+            return { error: 'スーパー管理者のユーザー情報を変更する権限がありません' }
         }
         if (data.role === 'super_admin') {
-            throw new Error('スーパー管理者ロールを付与する権限がありません')
+            return { error: 'スーパー管理者ロールを付与する権限がありません' }
         }
     }
 
@@ -145,16 +185,26 @@ export async function updateUser(
         })
         .eq('id', userId)
 
-    if (error) throw new Error(error.message)
+    if (error) return { error: error.message }
     revalidatePath('/admin/users')
+    return {}
 }
 
 /**
  * Delete a user from auth (ON DELETE CASCADE removes the profiles row too).
  */
-export async function deleteUser(userId: string) {
-    const { adminId, isSuperAdmin } = await requireAdmin()
-    if (userId === adminId) throw new Error('自分自身を削除することはできません')
+export async function deleteUser(userId: string): Promise<ActionResult> {
+    let adminId: string
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        adminId = ctx.adminId
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
+
+    if (userId === adminId) return { error: '自分自身を削除することはできません' }
 
     const service = createServiceClient()
 
@@ -163,20 +213,28 @@ export async function deleteUser(userId: string) {
         const { data: target } = await service
             .from('profiles').select('role').eq('id', userId).single()
         if (target?.role === 'super_admin') {
-            throw new Error('スーパー管理者を削除する権限がありません')
+            return { error: 'スーパー管理者を削除する権限がありません' }
         }
     }
 
     const { error } = await service.auth.admin.deleteUser(userId)
-    if (error) throw new Error(error.message)
+    if (error) return { error: error.message }
     revalidatePath('/admin/users')
+    return {}
 }
 
 /**
  * Cancel a pending (unused) invitation.
  */
-export async function cancelInvitation(invitationId: string) {
-    const { isSuperAdmin } = await requireAdmin()
+export async function cancelInvitation(invitationId: string): Promise<ActionResult> {
+    let isSuperAdmin: boolean
+    try {
+        const ctx = await requireAdmin()
+        isSuperAdmin = ctx.isSuperAdmin
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
+
     const service = createServiceClient()
 
     // Admin cannot cancel super_admin invitations
@@ -184,7 +242,7 @@ export async function cancelInvitation(invitationId: string) {
         const { data: inv } = await service
             .from('staff_invitations').select('role').eq('id', invitationId).single()
         if (inv?.role === 'super_admin') {
-            throw new Error('スーパー管理者の招待をキャンセルする権限がありません')
+            return { error: 'スーパー管理者の招待をキャンセルする権限がありません' }
         }
     }
 
@@ -194,6 +252,7 @@ export async function cancelInvitation(invitationId: string) {
         .eq('id', invitationId)
         .is('used_at', null)
 
-    if (error) throw new Error(error.message)
+    if (error) return { error: error.message }
     revalidatePath('/admin/users')
+    return {}
 }

@@ -4,9 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
+export type ActionResult = { error?: string }
+
 // 工場作成
-export async function createFactory(formData: FormData) {
-    await requireAdmin()
+export async function createFactory(formData: FormData): Promise<ActionResult> {
+    try {
+        await requireAdmin()
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
 
     const name = (formData.get('name') as string)?.trim()
     const country = (formData.get('country') as string)?.trim()
@@ -17,12 +23,12 @@ export async function createFactory(formData: FormData) {
     const maxCapacity = formData.get('max_capacity') as string | null
 
     if (!name) {
-        throw new Error('工場名は必須です')
+        return { error: '工場名は必須です' }
     }
 
     const parsedMaxCapacity = maxCapacity ? parseInt(maxCapacity, 10) : null
     if (parsedMaxCapacity !== null && (isNaN(parsedMaxCapacity) || parsedMaxCapacity < 1)) {
-        throw new Error('最大生産能力は1以上の整数で入力してください')
+        return { error: '最大生産能力は1以上の整数で入力してください' }
     }
 
     const supabase = createServiceClient()
@@ -41,15 +47,20 @@ export async function createFactory(formData: FormData) {
 
     if (error) {
         console.error('[createFactory] DB error:', error)
-        throw new Error('工場の登録に失敗しました')
+        return { error: '工場の登録に失敗しました' }
     }
 
     revalidatePath('/admin/factories')
+    return {}
 }
 
 // 工場更新
-export async function updateFactory(factoryId: string, formData: FormData) {
-    await requireAdmin()
+export async function updateFactory(factoryId: string, formData: FormData): Promise<ActionResult> {
+    try {
+        await requireAdmin()
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
 
     const maxCapacityRaw = formData.get('max_capacity') as string | null
 
@@ -70,15 +81,20 @@ export async function updateFactory(factoryId: string, formData: FormData) {
 
     if (error) {
         console.error('[updateFactory] DB error:', error)
-        throw new Error('工場の更新に失敗しました')
+        return { error: '工場の更新に失敗しました' }
     }
 
     revalidatePath('/admin/factories')
+    return {}
 }
 
 // 工場削除
-export async function deleteFactory(factoryId: string) {
-    await requireAdmin()
+export async function deleteFactory(factoryId: string): Promise<ActionResult> {
+    try {
+        await requireAdmin()
+    } catch {
+        return { error: '認証エラーが発生しました。再度ログインしてください。' }
+    }
 
     const supabase = createServiceClient()
 
@@ -95,11 +111,11 @@ export async function deleteFactory(factoryId: string) {
     ])
 
     if ((itemCount ?? 0) > 0) {
-        throw new Error('この工場には注文アイテムが存在するため削除できません。先に工場の割り当てを解除してください。')
+        return { error: 'この工場には注文アイテムが存在するため削除できません。先に工場の割り当てを解除してください。' }
     }
 
     if ((userCount ?? 0) > 0) {
-        throw new Error('この工場には担当ユーザーが存在するため削除できません。先にユーザーの工場割り当てを解除してください。')
+        return { error: 'この工場には担当ユーザーが存在するため削除できません。先にユーザーの工場割り当てを解除してください。' }
     }
 
     const { error } = await supabase
@@ -109,8 +125,9 @@ export async function deleteFactory(factoryId: string) {
 
     if (error) {
         console.error('[deleteFactory] DB error:', error)
-        throw new Error('工場の削除に失敗しました')
+        return { error: '工場の削除に失敗しました' }
     }
 
     revalidatePath('/admin/factories')
+    return {}
 }

@@ -132,11 +132,10 @@ function CancelInviteButton() {
                 'use server'
                 const { redirect } = await import('next/navigation')
                 const invitationId = fd.get('invitationId') as string
-                try {
-                    const { cancelInvitation } = await import('@/app/actions/users')
-                    await cancelInvitation(invitationId)
-                } catch (e: any) {
-                    redirect(`/admin/users?error=${encodeURIComponent(e?.message ?? '招待のキャンセルに失敗しました')}`)
+                const { cancelInvitation } = await import('@/app/actions/users')
+                const result = await cancelInvitation(invitationId)
+                if (result?.error) {
+                    redirect(`/admin/users?error=${encodeURIComponent(result.error)}`)
                 }
                 redirect('/admin/users')
             }}

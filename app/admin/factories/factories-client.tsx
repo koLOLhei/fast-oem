@@ -65,20 +65,20 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
         }
         setEditError('')
         startTransition(async () => {
-            try {
-                const fd = new FormData()
-                fd.set('name', editName)
-                fd.set('country', editCountry)
-                fd.set('contact_email', editContactEmail)
-                fd.set('contact_name', editContactName)
-                fd.set('phone', editContactPhone)
-                fd.set('address', editAddress)
-                fd.set('max_capacity', editMaxCapacity)
-                fd.set('is_active', String(editIsActive))
-                await updateFactory(editingFactory!.id, fd)
+            const fd = new FormData()
+            fd.set('name', editName)
+            fd.set('country', editCountry)
+            fd.set('contact_email', editContactEmail)
+            fd.set('contact_name', editContactName)
+            fd.set('phone', editContactPhone)
+            fd.set('address', editAddress)
+            fd.set('max_capacity', editMaxCapacity)
+            fd.set('is_active', String(editIsActive))
+            const result = await updateFactory(editingFactory!.id, fd)
+            if (result?.error) {
+                setEditError(result.error)
+            } else {
                 closeEdit()
-            } catch (err) {
-                setEditError((err as Error).message)
             }
         })
     }
@@ -86,10 +86,9 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
     function handleDelete(factory: Factory) {
         if (!confirm(`本当に削除しますか？\n\n「${factory.name}」を削除します。\nこの操作は取り消せません。`)) return
         startTransition(async () => {
-            try {
-                await deleteFactory(factory.id)
-            } catch (err) {
-                alert('削除に失敗しました: ' + (err as Error).message)
+            const result = await deleteFactory(factory.id)
+            if (result?.error) {
+                alert('削除に失敗しました: ' + result.error)
             }
         })
     }
@@ -97,10 +96,9 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
     function handleCreate(fd: FormData) {
         setCreateError('')
         startTransition(async () => {
-            try {
-                await createFactory(fd)
-            } catch (err) {
-                setCreateError((err as Error).message)
+            const result = await createFactory(fd)
+            if (result?.error) {
+                setCreateError(result.error)
             }
         })
     }

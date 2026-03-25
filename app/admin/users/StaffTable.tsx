@@ -76,16 +76,16 @@ export function StaffTable({
         }
         setEditError('')
         startTransition(async () => {
-            try {
-                await updateUser(editingUser!.id, {
-                    name: editName,
-                    role: editRole,
-                    factory_id: editFactoryId || null,
-                    is_active: editIsActive,
-                })
+            const result = await updateUser(editingUser!.id, {
+                name: editName,
+                role: editRole,
+                factory_id: editFactoryId || null,
+                is_active: editIsActive,
+            })
+            if (result?.error) {
+                setEditError(result.error)
+            } else {
                 closeEdit()
-            } catch (err) {
-                setEditError((err as Error).message)
             }
         })
     }
@@ -93,10 +93,9 @@ export function StaffTable({
     function handleDelete(userId: string, userName: string | null) {
         if (!confirm(`本当に削除しますか？\n\n${userName || 'このユーザー'} を削除します。\nこの操作は取り消せません。`)) return
         startTransition(async () => {
-            try {
-                await deleteUser(userId)
-            } catch (err) {
-                alert('削除に失敗しました: ' + (err as Error).message)
+            const result = await deleteUser(userId)
+            if (result?.error) {
+                alert('削除に失敗しました: ' + result.error)
             }
         })
     }

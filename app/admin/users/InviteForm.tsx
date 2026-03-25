@@ -41,12 +41,16 @@ export function InviteForm({
         setPending(true)
 
         try {
-            await inviteStaffUser(fd)
-            setSuccess(true)
-            setSelectedRole('')
-            formRef.current?.reset()
-        } catch (err) {
-            setServerError((err as Error).message)
+            const result = await inviteStaffUser(fd)
+            if (result?.error) {
+                setServerError(result.error)
+            } else {
+                setSuccess(true)
+                setSelectedRole('')
+                formRef.current?.reset()
+            }
+        } catch {
+            setServerError('予期しないエラーが発生しました。再度お試しください。')
         } finally {
             setPending(false)
         }
