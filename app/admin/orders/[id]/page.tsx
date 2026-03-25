@@ -56,12 +56,14 @@ export default async function OrderDetailPage({
     const allPaths = rawItems.flatMap((item) => [
         item.converted_design_url as string | null,
         item.delivery_pdf_url as string | null,
+        item.design_url as string | null,
     ])
     const signedUrls = await toSignedUrls(allPaths, 43200)
     const orderItems: any[] = rawItems.map((item, i) => ({
         ...item,
-        converted_design_url: signedUrls[i * 2],
-        delivery_pdf_url: signedUrls[i * 2 + 1],
+        converted_design_url: signedUrls[i * 3],
+        delivery_pdf_url: signedUrls[i * 3 + 1],
+        design_url: signedUrls[i * 3 + 2],
     }))
 
     const unassignedCount = orderItems.filter((i) => i.status === 'unassigned').length

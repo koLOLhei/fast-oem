@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Upload, X, ImageIcon, CheckCircle, AlertTriangle, Loader2, FileDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
@@ -8,7 +8,7 @@ import DesignCanvas, { type DesignCanvasRef } from '@/components/design-canvas'
 
 interface ImageUploaderProps {
   onImageSelect: (
-    imageData: string | null,
+    storagePath: string | null,
     fileName: string | null,
     deliveryPdfUrl?: string | null,
   ) => void
@@ -32,6 +32,25 @@ export function ImageUploader({
   const [confirmed, setConfirmed] = useState(false)
   const canvasRef = useRef<DesignCanvasRef>(null)
 
+  // Local blob URL for DesignCanvas preview — never leaves the browser.
+  // The parent stores only the Supabase storage path.
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
+
+  // Revoke old blob URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+    }
+  }, [localPreviewUrl])
+
+  // Clear local preview when the parent clears the image
+  useEffect(() => {
+    if (!currentImage && localPreviewUrl) {
+      URL.revokeObjectURL(localPreviewUrl)
+      setLocalPreviewUrl(null)
+    }
+  }, [currentImage, localPreviewUrl])
+
   const handleFile = useCallback(
     async (file: File) => {
       setError(null)
@@ -51,25 +70,35 @@ export function ImageUploader({
       }
 
       try {
+        // Create local blob URL for instant preview (same-origin, no CORS issues)
+        if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+        const blobUrl = URL.createObjectURL(file)
+        setLocalPreviewUrl(blobUrl)
+
+        // Upload to Supabase Storage (private bucket)
         const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+        const storageName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+        const storagePath = `uploads/${storageName}`
         const { error: uploadError } = await supabase.storage
           .from('designs')
-          .upload(`uploads/${fileName}`, file, { upsert: false })
+          .upload(storagePath, file, { upsert: false })
         if (uploadError) throw uploadError
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('designs')
-          .getPublicUrl(`uploads/${fileName}`)
-
-        onImageSelect(publicUrl, file.name, null)
+        // Pass storage path (NOT public URL) to parent — server-side
+        // code uses toSignedUrl() to generate short-lived download URLs.
+        onImageSelect(storagePath, file.name, null)
       } catch (err: any) {
         setError('画像のアップロードに失敗しました。もう一度お試しください。')
+        // Clean up on failure
+        if (localPreviewUrl) {
+          URL.revokeObjectURL(localPreviewUrl)
+          setLocalPreviewUrl(null)
+        }
       } finally {
         setIsUploading(false)
       }
     },
-    [onImageSelect],
+    [onImageSelect, localPreviewUrl],
   )
 
   const handleConfirmLayout = useCallback(async () => {
@@ -79,37 +108,46 @@ export function ImageUploader({
     try {
       const ts = Date.now()
 
+      // Export high-res PNG composite from canvas
       const pngBlob = await canvasRef.current.exportPNG()
       const pngPath = `delivery/${ts}_composite.png`
       await supabase.storage.from('designs').upload(pngPath, pngBlob, { contentType: 'image/png' })
-      const { data: { publicUrl: compositeUrl } } = supabase.storage.from('designs').getPublicUrl(pngPath)
 
+      // Update local preview to the composite image
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+      const compositeBlobUrl = URL.createObjectURL(pngBlob)
+      setLocalPreviewUrl(compositeBlobUrl)
+
+      // Export PDF
       const pdfBlob = await canvasRef.current.exportPDF()
       const pdfPath = `delivery/${ts}_delivery.pdf`
       await supabase.storage.from('designs').upload(pdfPath, pdfBlob, { contentType: 'application/pdf' })
 
-      // Store the storage PATH (not the public URL) for the delivery PDF.
-      // Server components generate a short-lived signed URL at render time,
-      // keeping production files inaccessible without authentication.
-      onImageSelect(compositeUrl, currentFileName, pdfPath)
+      // Pass composite storage path + delivery PDF path to parent
+      onImageSelect(pngPath, currentFileName, pdfPath)
       setConfirmed(true)
     } catch (err: any) {
       setError('納品データの生成に失敗しました。もう一度お試しください。')
     } finally {
       setIsExporting(false)
     }
-  }, [currentImage, currentFileName, onImageSelect])
+  }, [currentImage, currentFileName, onImageSelect, localPreviewUrl])
 
   const handleRemove = useCallback(() => {
+    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+    setLocalPreviewUrl(null)
     onImageSelect(null, null, null)
     setError(null)
     setConfirmed(false)
-  }, [onImageSelect])
+  }, [onImageSelect, localPreviewUrl])
 
-  if (currentImage) {
+  // The image URL to feed into DesignCanvas — always a browser-loadable URL
+  const canvasImageUrl = localPreviewUrl
+
+  if (currentImage && canvasImageUrl) {
     return (
       <div className="space-y-4">
-        <DesignCanvas ref={canvasRef} imageUrl={currentImage} shape={selectedShape} onCanvasChange={onPreviewChange} />
+        <DesignCanvas ref={canvasRef} imageUrl={canvasImageUrl} shape={selectedShape} onCanvasChange={onPreviewChange} />
 
         {confirmed ? (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">

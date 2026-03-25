@@ -79,7 +79,7 @@ export function CartClient() {
                     <div className="flex flex-col sm:flex-row">
                       {/* Design Preview */}
                       <div className="w-full sm:w-36 h-36 bg-gradient-to-br from-secondary to-muted flex-shrink-0">
-                        {item.designImage && !item.designImage.startsWith('data:') ? (
+                        {item.designImage && (item.designImage.startsWith('http') || item.designImage.startsWith('blob:') || item.designImage.startsWith('data:')) ? (
                           <img
                             src={item.designImage}
                             alt="デザイン"

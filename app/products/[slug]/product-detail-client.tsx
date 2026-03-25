@@ -541,7 +541,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <h3 className="font-semibold text-foreground text-lg mb-4">プレビュー</h3>
               <ProductPreview
                 product={product}
-                designImage={previewImage ?? designImage}
+                designImage={previewImage}
                 selectedOptions={selectedOptions}
                 isCanvasComposite={!!previewImage}
               />

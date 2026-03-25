@@ -210,13 +210,17 @@ export function PaymentClient() {
                   {cart.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-12 h-12 bg-secondary rounded overflow-hidden flex-shrink-0">
-                        {item.designImage && (
+                        {item.designImage && (item.designImage.startsWith('http') || item.designImage.startsWith('blob:') || item.designImage.startsWith('data:')) ? (
                           <img
                             src={item.designImage}
                             alt="デザイン"
                             className="w-full h-full object-contain"
                           />
-                        )}
+                        ) : item.designFileName ? (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs p-1 text-center">
+                            <span className="truncate">{item.designFileName}</span>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">

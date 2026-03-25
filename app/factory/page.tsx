@@ -72,13 +72,15 @@ export default async function FactoryPage() {
     const allPaths = itemList.flatMap((item) => [
         (item as any).converted_design_url as string | null,
         (item as any).delivery_pdf_url as string | null,
+        (item as any).design_url as string | null,
     ])
     const signedUrls = await toSignedUrls(allPaths, 43200)
 
     const signedItems = itemList.map((item, i) => ({
         ...(item as any),
-        converted_design_url: signedUrls[i * 2],
-        delivery_pdf_url: signedUrls[i * 2 + 1],
+        converted_design_url: signedUrls[i * 3],
+        delivery_pdf_url: signedUrls[i * 3 + 1],
+        design_url: signedUrls[i * 3 + 2],
     }))
 
     return (
