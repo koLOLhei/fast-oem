@@ -35,21 +35,35 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
         return { error: 'スーパー管理者ロールを招待できるのはスーパー管理者のみです' }
     }
 
-    // Block re-invite if the email already has an accepted invitation
+    // Check for existing invitation
     const { data: existing } = await service
         .from('staff_invitations')
-        .select('used_at')
+        .select('id, used_at')
         .eq('email', email)
         .maybeSingle()
-    if (existing?.used_at != null) return { error: 'このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。' }
 
-    // Upsert invitation record (overwrite only if not yet accepted)
+    if (existing?.used_at != null) {
+        return { error: 'このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。' }
+    }
+
+    // Also check if a profile with this email already exists (user already registered)
+    const { data: existingProfile } = await service
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+    if (existingProfile) {
+        return { error: 'このメールアドレスは既に登録済みです。ロール変更は「ユーザー管理」から行ってください。' }
+    }
+
+    // Delete old pending invitation if exists, then insert fresh
+    if (existing) {
+        await service.from('staff_invitations').delete().eq('id', existing.id)
+    }
+
     const { error: inviteRecordError } = await service
         .from('staff_invitations')
-        .upsert(
-            { email, role, factory_id: factoryId, invited_by: adminId, used_at: null },
-            { onConflict: 'email' }
-        )
+        .insert({ email, role, factory_id: factoryId, invited_by: adminId })
     if (inviteRecordError) return { error: '招待記録の保存に失敗しました: ' + inviteRecordError.message }
 
     // Send invite email via Supabase Auth admin API.
