@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -49,6 +49,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  // Stable callback ref to avoid DesignCanvas useEffect re-triggering on every render
+  const handlePreviewChange = useCallback((dataUrl: string) => {
+    setPreviewImage(dataUrl)
+  }, [])
   const isAddedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // Restore draft from localStorage on mount
@@ -530,7 +534,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 currentImage={designImage}
                 currentFileName={designFileName}
                 selectedShape={selectedOptions['shape'] || 'die-cut'}
-                onPreviewChange={(dataUrl) => setPreviewImage(dataUrl)}
+                onPreviewChange={handlePreviewChange}
               />
             </CardContent>
           </Card>
@@ -544,6 +548,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 designImage={previewImage}
                 selectedOptions={selectedOptions}
                 isCanvasComposite={!!previewImage}
+                hasDesign={!!designImage}
               />
             </CardContent>
           </Card>

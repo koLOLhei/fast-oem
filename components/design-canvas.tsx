@@ -192,11 +192,16 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
   // Load image
   useEffect(() => {
     setLoaded(false)
-    const img = new Image()
+    const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       imageRef.current = img
       setLoaded(true)
+    }
+    img.onerror = () => {
+      console.error('[DesignCanvas] Failed to load image:', imageUrl)
+      imageRef.current = null
+      setLoaded(true) // still mark loaded so canvas renders (without image)
     }
     img.src = imageUrl
   }, [imageUrl])

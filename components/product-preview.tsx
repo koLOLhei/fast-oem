@@ -9,6 +9,7 @@ interface ProductPreviewProps {
   designImage: string | null
   selectedOptions: Record<string, string>
   isCanvasComposite?: boolean
+  hasDesign?: boolean
 }
 
 // SVGクリップパスを形状IDに基づいて生成
@@ -79,8 +80,14 @@ export function ProductPreview({
   designImage,
   selectedOptions,
   isCanvasComposite = false,
+  hasDesign = false,
 }: ProductPreviewProps) {
   const selectedShape = selectedOptions['shape'] || 'die-cut'
+
+  // designImage is a displayable URL (data: or blob: or http:)
+  // hasDesign indicates an image has been uploaded (even if preview isn't ready yet)
+  const showDesign = !!designImage
+  const showPending = !designImage && hasDesign
 
   return (
     <div className="space-y-4">
@@ -90,7 +97,7 @@ export function ProductPreview({
       </div>
 
       <div className="aspect-square relative bg-gradient-to-br from-secondary to-muted rounded-2xl overflow-hidden shadow-inner">
-        {designImage ? (
+        {showDesign ? (
           <div className="relative w-full h-full flex items-center justify-center p-8">
             {/* User design with shape mask */}
             <div className="relative w-3/4 h-3/4 flex items-center justify-center">
@@ -130,6 +137,18 @@ export function ProductPreview({
             <div className="absolute bottom-4 left-4 px-3 py-1.5 bg-background/90 text-foreground text-xs font-medium rounded-full shadow-lg border">
               形状: {getShapeName(selectedShape)}
             </div>
+          </div>
+        ) : showPending ? (
+          <div className="w-full h-full flex flex-col items-center justify-center p-8">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              プレビューを生成中...
+            </p>
+            <p className="text-xs text-primary mt-2 font-medium">
+              選択中の形状: {getShapeName(selectedShape)}
+            </p>
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-8 relative">
