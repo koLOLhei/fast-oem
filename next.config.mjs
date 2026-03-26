@@ -20,8 +20,8 @@ const CSP = [
   `font-src 'self' https://fonts.gstatic.com data:`,
   // Images: self + Supabase public storage + data URIs (design preview)
   `img-src 'self' ${supabaseHost} data: blob:`,
-  // Frames: Stripe checkout iframe only
-  "frame-src https://js.stripe.com https://hooks.stripe.com",
+  // Frames: self (admin preview iframe) + Stripe checkout iframe
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
   // Fetch/XHR: Supabase, Stripe, Sentry, Upstash
   `connect-src 'self' ${supabaseHost} wss://utwvalzykfxdeuwnebne.supabase.co https://api.stripe.com https://*.sentry.io https://grand-muskox-79579.upstash.io`,
   // Workers: none (blob: for potential future use)
