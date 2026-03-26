@@ -621,9 +621,9 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
                   {cart.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-16 h-16 bg-secondary rounded overflow-hidden flex-shrink-0">
-                        {item.designImage && (item.designImage.startsWith('http') || item.designImage.startsWith('blob:') || item.designImage.startsWith('data:')) ? (
+                        {item.designPreviewDataUrl ? (
                           <img
-                            src={item.designImage}
+                            src={item.designPreviewDataUrl}
                             alt="デザイン"
                             className="w-full h-full object-contain"
                           />

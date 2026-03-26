@@ -254,6 +254,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       totalPrice: totalPriceItems,
       options,
       designImage: is3d ? designImages[0]?.storagePath ?? null : designImage,
+      designPreviewDataUrl: previewImage,
       designFileName: is3d ? designImages[0]?.fileName ?? null : designFileName,
       moldFee: moldFee > 0 ? moldFee : undefined,
       moldOrderId: moldReuseValid && moldOrderId ? moldOrderId : undefined,

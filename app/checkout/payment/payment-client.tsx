@@ -210,9 +210,9 @@ export function PaymentClient() {
                   {cart.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-12 h-12 bg-secondary rounded overflow-hidden flex-shrink-0">
-                        {item.designImage && (item.designImage.startsWith('http') || item.designImage.startsWith('blob:') || item.designImage.startsWith('data:')) ? (
+                        {item.designPreviewDataUrl ? (
                           <img
-                            src={item.designImage}
+                            src={item.designPreviewDataUrl}
                             alt="デザイン"
                             className="w-full h-full object-contain"
                           />

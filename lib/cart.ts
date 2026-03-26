@@ -21,6 +21,7 @@ export interface CartItem {
   totalPrice: number
   options: CartItemOption[]
   designImage: string | null
+  designPreviewDataUrl: string | null  // canvas data URL for display in cart/checkout
   designFileName: string | null
   moldFee?: number
   moldOrderId?: string

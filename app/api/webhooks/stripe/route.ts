@@ -1,16 +1,12 @@
 /**
- * Next.js Stripe Webhook Handler (fallback / local dev)
+ * Next.js Stripe Webhook Handler
  *
- * In production, the Supabase Edge Function handles checkout.session.completed
- * (including image processing and email sending).
- *
- * This route is a lightweight fallback that handles:
- *   - checkout.session.completed: pending → paid (idempotent, Edge Function takes priority)
- *   - charge.refunded: records refund in DB if Edge Function missed it
+ * Handles:
+ *   - checkout.session.completed: pending → paid, sends confirmation emails
+ *   - charge.refunded: records refund in DB
  *   - charge.dispute.created: logs dispute alert
  *
- * All handlers are idempotent — if the Edge Function already processed the event,
- * these UPDATEs match 0 rows and are harmless.
+ * Email sending is idempotent — uses confirmation_email_sent_at to prevent duplicates.
  */
 
 import { headers } from 'next/headers'
@@ -19,6 +15,7 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendSlackMessage } from '@/lib/slack'
+import { sendCustomerConfirmation, sendFactoryNotification } from '@/app/actions/order'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(req: Request) {
@@ -70,6 +67,88 @@ export async function POST(req: Request) {
           `❌ *Webhookエラー: checkout.session.completed*\nセッションID: ${session.id}\nエラー: ${error.message}`
         ).catch(() => {})
         return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+      }
+
+      // ── Send confirmation emails (best-effort, non-blocking) ──
+      try {
+        // Fetch full order with items for email
+        const { data: order } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('stripe_session_id', session.id)
+          .single()
+
+        if (order && !order.confirmation_email_sent_at) {
+          const customerInfo = order.customer_info as any
+          const shippingAddr = order.shipping_address as any
+          const customerName = customerInfo?.name
+            || `${customerInfo?.lastName || ''} ${customerInfo?.firstName || ''}`.trim()
+            || 'お客様'
+          const customerEmail = customerInfo?.email || session.customer_email || ''
+
+          const emailData = {
+            orderId: order.id,
+            orderNumber: order.order_number,
+            orderDate: order.created_at,
+            accessToken: order.access_token,
+            customerEmail,
+            customerName,
+            items: ((order.order_items as any[]) ?? []).map((item: any) => ({
+              productId: item.product_id,
+              productName: item.product_name,
+              quantity: item.quantity,
+              unitPrice: item.unit_price,
+              totalPrice: item.total_price,
+              moldFee: item.mold_fee,
+              moldOrderId: item.mold_order_id,
+              options: item.options ?? [],
+              designFileName: item.design_file_name,
+            })),
+            shippingAddress: {
+              lastName: shippingAddr?.lastName ?? '',
+              firstName: shippingAddr?.firstName ?? '',
+              postalCode: shippingAddr?.postalCode ?? '',
+              prefecture: shippingAddr?.prefecture ?? '',
+              city: shippingAddr?.city ?? '',
+              address1: shippingAddr?.address1 ?? '',
+              address2: shippingAddr?.address2 ?? '',
+              phone: shippingAddr?.phone ?? '',
+              email: customerEmail,
+            },
+            totalPrice: order.total_price,
+          }
+
+          // Send both emails in parallel, mark as sent
+          const [custResult, factResult] = await Promise.allSettled([
+            sendCustomerConfirmation(emailData),
+            sendFactoryNotification(emailData),
+          ])
+
+          // Mark email as sent to prevent duplicates
+          await supabase
+            .from('orders')
+            .update({ confirmation_email_sent_at: new Date().toISOString() })
+            .eq('id', order.id)
+
+          if (custResult.status === 'rejected') {
+            console.error('[webhook] Customer email failed:', custResult.reason)
+          } else {
+            console.log('[webhook] Customer confirmation email sent for', order.order_number)
+          }
+          if (factResult.status === 'rejected') {
+            console.error('[webhook] Factory email failed:', factResult.reason)
+          } else {
+            console.log('[webhook] Factory notification email sent for', order.order_number)
+          }
+
+          // Slack notification
+          await sendSlackMessage(
+            `🎉 *新規注文* ${order.order_number}\n顧客: ${customerName}\n合計: ¥${order.total_price?.toLocaleString()}\n${((order.order_items as any[]) ?? []).map((i: any) => `• ${i.product_name} ×${i.quantity}`).join('\n')}`
+          ).catch(() => {})
+        }
+      } catch (emailErr) {
+        // Email failure must NOT affect webhook response
+        console.error('[webhook] Email sending failed (non-fatal):', emailErr)
       }
 
       revalidatePath('/admin')
