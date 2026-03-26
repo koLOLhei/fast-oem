@@ -9,6 +9,7 @@ interface MultiViewUploaderProps {
   onImagesChange: (images: DesignImageEntry[], allRequiredDone: boolean) => void
   selectedShape?: string
   onPreviewChange?: (dataUrl: string) => void
+  onViewPreviewChange?: (viewId: string, dataUrl: string) => void
 }
 
 interface ViewState {
@@ -23,6 +24,7 @@ export function MultiViewUploader({
   onImagesChange,
   selectedShape,
   onPreviewChange,
+  onViewPreviewChange,
 }: MultiViewUploaderProps) {
   const [activeViewId, setActiveViewId] = useState(imageViews[0]?.id ?? '')
   const [viewStates, setViewStates] = useState<Record<string, ViewState>>(() => {
@@ -86,6 +88,14 @@ export function MultiViewUploader({
     return !!(s?.storagePath && s?.deliveryPdfUrl)
   }
 
+  const handleViewPreviewChange = useCallback(
+    (dataUrl: string) => {
+      onPreviewChange?.(dataUrl)
+      onViewPreviewChange?.(activeViewId, dataUrl)
+    },
+    [activeViewId, onPreviewChange, onViewPreviewChange],
+  )
+
   const activeView = imageViews.find((v) => v.id === activeViewId)
 
   return (
@@ -127,7 +137,7 @@ export function MultiViewUploader({
           currentImage={viewStates[activeViewId]?.storagePath ?? null}
           currentFileName={viewStates[activeViewId]?.fileName ?? null}
           selectedShape={selectedShape}
-          onPreviewChange={onPreviewChange}
+          onPreviewChange={handleViewPreviewChange}
         />
       )}
     </div>

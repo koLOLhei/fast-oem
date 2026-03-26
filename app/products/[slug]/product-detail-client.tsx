@@ -55,9 +55,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [designImages, setDesignImages] = useState<DesignImageEntry[]>([])
   const [allRequiredDone, setAllRequiredDone] = useState(false)
+  const [viewPreviews, setViewPreviews] = useState<Record<string, string>>({})
   // Stable callback ref to avoid DesignCanvas useEffect re-triggering on every render
   const handlePreviewChange = useCallback((dataUrl: string) => {
     setPreviewImage(dataUrl)
+  }, [])
+  const handleViewPreviewChange = useCallback((viewId: string, dataUrl: string) => {
+    setViewPreviews((prev) => ({ ...prev, [viewId]: dataUrl }))
   }, [])
   const isAddedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -177,6 +181,19 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
     const options = Object.entries(selectedOptions).map(([id, valueId]) => {
       const option = product.options.find((o) => o.id === id)
+      // checkbox/multiSelect: comma-separated IDs → comma-separated labels
+      if (option && (option.type === 'checkbox' || option.multiSelect)) {
+        const ids = valueId.split(',').filter(Boolean)
+        const labels = ids.map((vid) => {
+          const val = option.values.find((v) => v.id === vid)
+          return val?.label || vid
+        })
+        return {
+          id,
+          name: option.name || id,
+          value: labels.join(','),
+        }
+      }
       const value = option?.values.find((v) => v.id === valueId)
       return {
         id,
@@ -200,6 +217,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       expressDeliveryFee: expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? product.expressDeliveryFee : undefined,
       deliveryPdfUrl: is3d ? designImages[0]?.deliveryPdfUrl ?? null : deliveryPdfUrl,
       ...(is3d ? { designImages } : {}),
+      shippingModifier: shippingExtra > 0 ? shippingExtra : undefined,
     })
 
     setIsAdded(true)
@@ -461,7 +479,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                           </span>
                         )}
                         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-muted to-secondary flex items-center justify-center overflow-hidden">
-                          {value.imageUrl ? (
+                          {value.previewColor ? (
+                            <div className="w-10 h-10 rounded-lg border border-border shadow-inner" style={{ backgroundColor: value.previewColor }} />
+                          ) : value.imageUrl ? (
                             <Image
                               src={value.imageUrl}
                               alt={value.label}
@@ -635,6 +655,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   onImagesChange={handleMultiViewImagesChange}
                   selectedShape={selectedOptions['shape'] || 'die-cut'}
                   onPreviewChange={handlePreviewChange}
+                  onViewPreviewChange={handleViewPreviewChange}
                 />
               ) : (
                 <ImageUploader
@@ -668,6 +689,15 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 selectedOptions={selectedOptions}
                 isCanvasComposite={!!previewImage}
                 hasDesign={!!designImage}
+                designImages={
+                  is3d && product.imageViews
+                    ? product.imageViews.map((v) => ({
+                        viewId: v.id,
+                        viewLabel: v.label,
+                        previewDataUrl: viewPreviews[v.id],
+                      }))
+                    : undefined
+                }
               />
             </CardContent>
           </Card>

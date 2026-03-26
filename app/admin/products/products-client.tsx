@@ -936,6 +936,20 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                         const numVal = parseInt(value) || 0
                         return { ...v, shippingModifier: numVal ? { type: 'add' as const, value: numVal } : undefined }
                     }
+                    if (field === 'previewColor') {
+                        return { ...v, previewColor: value || undefined }
+                    }
+                    if (field === 'previewTexture') {
+                        return { ...v, previewTexture: value || undefined }
+                    }
+                    if (field === 'previewOverlayUrl') {
+                        if (!value) return { ...v, previewOverlay: undefined }
+                        return { ...v, previewOverlay: { ...v.previewOverlay, imageUrl: value, position: v.previewOverlay?.position ?? 'top' } as any }
+                    }
+                    if (field === 'previewOverlayPosition') {
+                        if (!v.previewOverlay) return v
+                        return { ...v, previewOverlay: { ...v.previewOverlay, position: value } }
+                    }
                     return v
                 })
             }
@@ -1069,20 +1083,30 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                                             >
                                                 <option value="">なし</option>
                                                 <option value="add">加算 (+¥)</option>
-                                                <option value="multiply">乗算 (×)</option>
+                                                <option value="multiply">加算%</option>
                                             </select>
                                         </div>
                                         <div className="col-span-2">
                                             {val.priceModifier && (
                                                 <>
-                                                    <label className="text-[10px] text-muted-foreground block mb-0.5">値</label>
+                                                    <label className="text-[10px] text-muted-foreground block mb-0.5">
+                                                        {val.priceModifier.type === 'multiply' ? '加算%' : '値'}
+                                                    </label>
                                                     <input
                                                         type="number"
-                                                        step={val.priceModifier.type === 'multiply' ? '0.01' : '1'}
+                                                        step={val.priceModifier.type === 'multiply' ? '1' : '1'}
                                                         className={smallInput}
-                                                        value={val.priceModifier.value}
-                                                        onChange={(e) => updateValue(opt.id, val.id, 'modValue', e.target.value)}
-                                                        placeholder={val.priceModifier.type === 'multiply' ? '1.2' : '50'}
+                                                        value={val.priceModifier.type === 'multiply' ? Math.round((val.priceModifier.value - 1) * 100) : val.priceModifier.value}
+                                                        onChange={(e) => {
+                                                            if (val.priceModifier?.type === 'multiply') {
+                                                                const pct = parseFloat(e.target.value) || 0
+                                                                const multiplier = pct / 100 + 1
+                                                                updateValue(opt.id, val.id, 'modValue', String(multiplier))
+                                                            } else {
+                                                                updateValue(opt.id, val.id, 'modValue', e.target.value)
+                                                            }
+                                                        }}
+                                                        placeholder={val.priceModifier.type === 'multiply' ? '20' : '50'}
                                                     />
                                                 </>
                                             )}
@@ -1153,6 +1177,63 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                                             placeholder="0"
                                         />
                                         <span className="text-[10px] text-muted-foreground">円（0または空欄=影響なし）</span>
+                                    </div>
+                                    {/* Row 5: Preview customization */}
+                                    <div className="rounded-lg bg-violet-50/50 border border-violet-200 p-2 space-y-1.5">
+                                        <h5 className="text-[10px] font-semibold text-violet-700">プレビュー表示設定</h5>
+                                        <div className="grid grid-cols-12 gap-2">
+                                            <div className="col-span-4">
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">オーバーレイ画像URL</label>
+                                                <input
+                                                    className={`${smallInput} text-xs`}
+                                                    value={val.previewOverlay?.imageUrl ?? ''}
+                                                    onChange={(e) => updateValue(opt.id, val.id, 'previewOverlayUrl', e.target.value)}
+                                                    placeholder="/images/parts/chain.png"
+                                                />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">位置</label>
+                                                <select
+                                                    className={`${smallInput} text-xs`}
+                                                    value={val.previewOverlay?.position ?? 'top'}
+                                                    onChange={(e) => updateValue(opt.id, val.id, 'previewOverlayPosition', e.target.value)}
+                                                    disabled={!val.previewOverlay}
+                                                >
+                                                    <option value="top">上</option>
+                                                    <option value="bottom">下</option>
+                                                    <option value="left">左</option>
+                                                    <option value="right">右</option>
+                                                    <option value="center">中央</option>
+                                                    <option value="background">背景</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">プレビュー色</label>
+                                                <div className="flex items-center gap-1">
+                                                    <input
+                                                        type="color"
+                                                        className="w-6 h-6 rounded cursor-pointer border border-border"
+                                                        value={val.previewColor || '#999999'}
+                                                        onChange={(e) => updateValue(opt.id, val.id, 'previewColor', e.target.value)}
+                                                    />
+                                                    <input
+                                                        className={`${smallInput} text-xs flex-1`}
+                                                        value={val.previewColor ?? ''}
+                                                        onChange={(e) => updateValue(opt.id, val.id, 'previewColor', e.target.value)}
+                                                        placeholder="#C0C0C0"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="col-span-3">
+                                                <label className="text-[10px] text-muted-foreground block mb-0.5">テクスチャURL</label>
+                                                <input
+                                                    className={`${smallInput} text-xs`}
+                                                    value={val.previewTexture ?? ''}
+                                                    onChange={(e) => updateValue(opt.id, val.id, 'previewTexture', e.target.value)}
+                                                    placeholder="生地パターン画像"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ))}

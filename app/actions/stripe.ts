@@ -250,6 +250,22 @@ async function validateAndRepricItems(
       }))
     }
 
+    // Shipping modifier: recalculate from master options
+    const masterProductForShipping = {
+      options: master.options ?? [],
+    } as Product
+    const serverShippingModifier = calculateShippingModifier(masterProductForShipping, selectedOptionsMap)
+    const clientShippingModifier = item.shippingModifier ?? 0
+    if (clientShippingModifier !== serverShippingModifier) {
+      console.warn(JSON.stringify({
+        evt: 'security.shipping_modifier_mismatch',
+        productId: item.productId,
+        clientShippingModifier,
+        serverShippingModifier,
+        customerEmail,
+      }))
+    }
+
     return {
       ...item,
       unitPrice: serverUnitPrice,
@@ -257,18 +273,19 @@ async function validateAndRepricItems(
       moldFee: expectedMoldFee,
       moldOrderId: validatedMoldOrderId,
       expressDeliveryFee: serverExpressFee,
+      shippingModifier: serverShippingModifier,
     }
   })
 
   const serverTotal =
     validatedItems.reduce(
-      (sum, i) => sum + i.totalPrice + (i.moldFee ?? 0) + (i.expressDeliveryFee ?? 0),
+      (sum, i) => sum + i.totalPrice + (i.moldFee ?? 0) + (i.expressDeliveryFee ?? 0) + (i.shippingModifier ?? 0),
       0,
     ) + shippingFee
 
   // Log total mismatch (tampered totalPrice)
   const clientTotal = items.reduce(
-    (sum, i) => sum + i.totalPrice + (i.moldFee ?? 0) + (i.expressDeliveryFee ?? 0),
+    (sum, i) => sum + i.totalPrice + (i.moldFee ?? 0) + (i.expressDeliveryFee ?? 0) + (i.shippingModifier ?? 0),
     0,
   ) + shippingFee
 
@@ -505,6 +522,20 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
             description: '特急納期（約10日以内）オプション',
           },
           unit_amount: item.expressDeliveryFee,
+        },
+        quantity: 1,
+      })
+    }
+
+    if (item.shippingModifier && item.shippingModifier > 0) {
+      lineItem.push({
+        price_data: {
+          currency: 'jpy',
+          product_data: {
+            name: `送料加算 - ${item.productName}`,
+            description: 'オプションによる送料加算',
+          },
+          unit_amount: item.shippingModifier,
         },
         quantity: 1,
       })

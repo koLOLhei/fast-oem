@@ -27,6 +27,16 @@ export interface ImageView {
   required: boolean
 }
 
+/** Controls how an option value visually affects the product preview */
+export interface PreviewOverlay {
+  imageUrl: string            // overlay image URL (transparent PNG recommended)
+  position: 'top' | 'bottom' | 'left' | 'right' | 'center' | 'background'
+  zIndex?: number             // stacking order (default: 10)
+  scale?: number              // relative scale (default: 1)
+  offsetY?: number            // vertical offset in % (e.g. -10 = 10% above center)
+  offsetX?: number            // horizontal offset in %
+}
+
 export interface OptionValue {
   id: string
   label: string
@@ -37,6 +47,10 @@ export interface OptionValue {
   requiresMold?: boolean   // true = this option value requires a mold (overrides product-level)
   moldFee?: number         // mold fee in JPY for this specific option value
   shippingModifier?: ShippingModifier  // impact on shipping cost
+  // Preview customization
+  previewOverlay?: PreviewOverlay      // overlay image on product preview
+  previewColor?: string                // CSS color to tint/show (e.g. chain color)
+  previewTexture?: string              // texture/pattern image URL (for 3D material preview)
 }
 
 export interface ProductOption {
@@ -159,13 +173,84 @@ export const PRODUCTS: Product[] = [
         ],
       },
       {
-        id: 'finish',
-        name: '仕上げ',
-        type: 'dropdown',
+        id: 'print_side',
+        name: '印刷面',
+        type: 'list',
         values: [
-          { id: 'glossy', label: '光沢（UVカット）' },
-          { id: 'matte', label: 'マット', priceModifier: { type: 'add', value: 20 } },
-          { id: 'soft', label: 'ソフトタッチ', priceModifier: { type: 'add', value: 40 } },
+          { id: 'double', label: '両面印刷（デフォルト）' },
+          { id: 'single', label: '片面印刷', priceModifier: { type: 'add', value: -5 } },
+        ],
+      },
+      {
+        id: 'coating',
+        name: 'コーティング・加工',
+        type: 'checkbox',
+        multiSelect: true,
+        values: [
+          { id: 'epoxy', label: '樹脂コーティング（エポキシ）', priceModifier: { type: 'add', value: 30 }, description: '立体感のある仕上がり' },
+          { id: 'uv', label: 'UV印刷', priceModifier: { type: 'add', value: 15 }, description: '高精細なカラー印刷' },
+          { id: 'gloss', label: 'グロスコーティング', priceModifier: { type: 'add', value: 10 } },
+          { id: 'matte', label: 'マットコーティング', priceModifier: { type: 'add', value: 15 } },
+          { id: 'hologram', label: 'ホログラム加工', priceModifier: { type: 'add', value: 40 }, description: 'キラキラ光る特殊加工' },
+        ],
+      },
+      {
+        id: 'hook',
+        name: 'フック・パーツ',
+        type: 'list',
+        values: [
+          { id: 'ball-chain', label: 'ボールチェーン（デフォルト）',
+            previewOverlay: { imageUrl: '/images/parts/ball-chain.png', position: 'top', offsetY: -15, scale: 0.3 } },
+          { id: 'lobster', label: 'ナスカン', priceModifier: { type: 'add', value: 10 },
+            previewOverlay: { imageUrl: '/images/parts/lobster-clasp.png', position: 'top', offsetY: -15, scale: 0.3 } },
+          { id: 'strap', label: 'ストラップ', priceModifier: { type: 'add', value: 15 },
+            previewOverlay: { imageUrl: '/images/parts/strap.png', position: 'top', offsetY: -12, scale: 0.25 } },
+          { id: 'key-ring', label: 'キーリング', priceModifier: { type: 'add', value: 5 },
+            previewOverlay: { imageUrl: '/images/parts/key-ring.png', position: 'top', offsetY: -15, scale: 0.3 } },
+          { id: 'header-card', label: 'ヘッダーカード付き', priceModifier: { type: 'add', value: 20 }, shippingModifier: { type: 'add', value: 100 } },
+        ],
+      },
+      {
+        id: 'chain_color',
+        name: 'チェーン色',
+        type: 'grid',
+        values: [
+          { id: 'silver', label: 'シルバー', previewColor: '#C0C0C0' },
+          { id: 'gold', label: 'ゴールド', previewColor: '#DAA520', priceModifier: { type: 'add', value: 5 } },
+          { id: 'black', label: 'ブラック', previewColor: '#333333', priceModifier: { type: 'add', value: 5 } },
+          { id: 'rose-gold', label: 'ローズゴールド', previewColor: '#B76E79', priceModifier: { type: 'add', value: 8 } },
+        ],
+      },
+      {
+        id: 'complexity',
+        name: '形状の複雑度',
+        type: 'list',
+        values: [
+          { id: 'A', label: 'A（単純）', description: '円形・四角形など基本形状' },
+          { id: 'B', label: 'B（やや複雑）', description: '角丸・楕円など', priceModifier: { type: 'add', value: 3 } },
+          { id: 'C', label: 'C（普通）', description: 'シンプルなカスタム形状', priceModifier: { type: 'add', value: 5 } },
+          { id: 'D', label: 'D（複雑）', description: '細かいディテールあり', priceModifier: { type: 'add', value: 10 } },
+          { id: 'E', label: 'E（非常に複雑）', description: '精密なカットが必要', priceModifier: { type: 'add', value: 20 } },
+        ],
+      },
+      {
+        id: 'margin',
+        name: '外枠余白',
+        type: 'number',
+        numberMin: 1,
+        numberMax: 10,
+        numberUnit: 'mm',
+        pricePerUnit: 2,
+        values: [],
+      },
+      {
+        id: 'packaging',
+        name: 'パッケージ',
+        type: 'list',
+        values: [
+          { id: 'opp', label: 'OPP袋（標準）' },
+          { id: 'individual-box', label: '個別箱', priceModifier: { type: 'add', value: 30 }, shippingModifier: { type: 'add', value: 200 } },
+          { id: 'gift-box', label: 'ギフトボックス', priceModifier: { type: 'add', value: 80 }, shippingModifier: { type: 'add', value: 500 } },
         ],
       },
     ],
@@ -243,6 +328,40 @@ export const PRODUCTS: Product[] = [
           { id: 'magnet', label: 'マグネット', priceModifier: { type: 'add', value: 15 } },
           { id: 'mirror', label: 'ミラー付き', priceModifier: { type: 'add', value: 20 } },
           { id: 'bottle-opener', label: '栓抜き', priceModifier: { type: 'add', value: 30 } },
+        ],
+      },
+      {
+        id: 'coating',
+        name: 'コーティング・加工',
+        type: 'checkbox',
+        multiSelect: true,
+        values: [
+          { id: 'gloss', label: 'グロスコーティング', priceModifier: { type: 'add', value: 10 } },
+          { id: 'matte', label: 'マットコーティング', priceModifier: { type: 'add', value: 15 } },
+          { id: 'uv', label: 'UVコーティング', priceModifier: { type: 'add', value: 20 } },
+          { id: 'laminate', label: 'ラミネート加工', priceModifier: { type: 'add', value: 25 } },
+        ],
+      },
+      {
+        id: 'packaging',
+        name: 'パッケージ',
+        type: 'list',
+        values: [
+          { id: 'opp', label: 'OPP袋（標準）' },
+          { id: 'individual-bag', label: '個別袋', priceModifier: { type: 'add', value: 10 } },
+          { id: 'header-card', label: 'ヘッダーカード付き', priceModifier: { type: 'add', value: 20 }, shippingModifier: { type: 'add', value: 100 } },
+        ],
+      },
+      {
+        id: 'complexity',
+        name: '形状の複雑度',
+        type: 'list',
+        values: [
+          { id: 'A', label: 'A（単純）', description: '円形・四角形など基本形状' },
+          { id: 'B', label: 'B（やや複雑）', description: '角丸・楕円など', priceModifier: { type: 'add', value: 3 } },
+          { id: 'C', label: 'C（普通）', description: 'シンプルなカスタム形状', priceModifier: { type: 'add', value: 5 } },
+          { id: 'D', label: 'D（複雑）', description: '細かいディテールあり', priceModifier: { type: 'add', value: 10 } },
+          { id: 'E', label: 'E（非常に複雑）', description: '精密なカットが必要', priceModifier: { type: 'add', value: 20 } },
         ],
       },
     ],
@@ -343,6 +462,40 @@ export const PRODUCTS: Product[] = [
           { id: 'safety-pin', label: '安全ピン' },
         ],
       },
+      {
+        id: 'color_count',
+        name: '色数',
+        type: 'list',
+        values: [
+          { id: '1-color', label: '1色' },
+          { id: '2-color', label: '2色' },
+          { id: '3-color', label: '3色（標準）' },
+          { id: '4-color', label: '4色', priceModifier: { type: 'add', value: 15 } },
+          { id: '5-color', label: '5色', priceModifier: { type: 'add', value: 30 } },
+          { id: '6-color-plus', label: '6色以上', priceModifier: { type: 'add', value: 50 } },
+        ],
+      },
+      {
+        id: 'coating',
+        name: 'コーティング',
+        type: 'checkbox',
+        multiSelect: true,
+        values: [
+          { id: 'epoxy', label: 'エポキシコート', priceModifier: { type: 'add', value: 30 } },
+          { id: 'gloss', label: 'グロスコーティング', priceModifier: { type: 'add', value: 10 } },
+          { id: 'matte', label: 'マットコーティング', priceModifier: { type: 'add', value: 15 } },
+        ],
+      },
+      {
+        id: 'packaging',
+        name: 'パッケージ',
+        type: 'list',
+        values: [
+          { id: 'opp', label: 'OPP袋（標準）' },
+          { id: 'individual-box', label: '個別箱', priceModifier: { type: 'add', value: 30 }, shippingModifier: { type: 'add', value: 200 } },
+          { id: 'gift-box', label: 'ギフトボックス', priceModifier: { type: 'add', value: 80 }, shippingModifier: { type: 'add', value: 500 } },
+        ],
+      },
     ],
     minQuantity: 50,
     maxQuantity: 100000,
@@ -440,6 +593,46 @@ export const PRODUCTS: Product[] = [
           { id: 'strap', label: 'ストラップ', priceModifier: { type: 'add', value: 15 } },
         ],
       },
+      {
+        id: 'color_count',
+        name: '色数',
+        type: 'list',
+        values: [
+          { id: '1-color', label: '1色' },
+          { id: '2-color', label: '2色' },
+          { id: '3-color', label: '3色（標準）' },
+          { id: '4-color', label: '4色', priceModifier: { type: 'add', value: 10 } },
+          { id: '5-color', label: '5色', priceModifier: { type: 'add', value: 20 } },
+          { id: '6-color-plus', label: '6色以上', priceModifier: { type: 'add', value: 35 } },
+        ],
+      },
+      {
+        id: 'complexity',
+        name: '形状の複雑度',
+        type: 'list',
+        values: [
+          { id: 'A', label: 'A（単純）', description: '円形・四角形など基本形状' },
+          { id: 'B', label: 'B（やや複雑）', description: '角丸・楕円など', priceModifier: { type: 'add', value: 3 } },
+          { id: 'C', label: 'C（普通）', description: 'シンプルなカスタム形状', priceModifier: { type: 'add', value: 5 } },
+          { id: 'D', label: 'D（複雑）', description: '細かいディテールあり', priceModifier: { type: 'add', value: 10 } },
+          { id: 'E', label: 'E（非常に複雑）', description: '精密なカットが必要', priceModifier: { type: 'add', value: 20 } },
+        ],
+      },
+      {
+        id: 'packaging',
+        name: 'パッケージ',
+        type: 'list',
+        values: [
+          { id: 'opp', label: 'OPP袋（標準）' },
+          { id: 'individual-box', label: '個別箱', priceModifier: { type: 'add', value: 30 }, shippingModifier: { type: 'add', value: 200 } },
+          { id: 'gift-box', label: 'ギフトボックス', priceModifier: { type: 'add', value: 80 }, shippingModifier: { type: 'add', value: 500 } },
+        ],
+      },
+    ],
+    is3d: true,
+    imageViews: [
+      { id: 'front', label: '正面', required: true },
+      { id: 'back', label: '背面', required: true },
     ],
     minQuantity: 50,
     maxQuantity: 100000,
@@ -520,6 +713,35 @@ export const PRODUCTS: Product[] = [
           { id: 'standard', label: '標準タイプ' },
           { id: 'loop', label: 'ループハンドル', priceModifier: { type: 'add', value: 1 } },
           { id: 'soft', label: 'ソフトハンドル', priceModifier: { type: 'add', value: 2 } },
+        ],
+      },
+      {
+        id: 'color_count',
+        name: '色数',
+        type: 'list',
+        values: [
+          { id: '1-color', label: '1色' },
+          { id: '2-color', label: '2色', priceModifier: { type: 'add', value: 2 } },
+          { id: '3-color', label: '3色', priceModifier: { type: 'add', value: 4 } },
+          { id: '4-color-plus', label: '4色以上', priceModifier: { type: 'add', value: 7 } },
+        ],
+      },
+      {
+        id: 'print_side',
+        name: '印刷面',
+        type: 'list',
+        values: [
+          { id: 'single', label: '片面印刷（標準）' },
+          { id: 'double', label: '両面印刷', priceModifier: { type: 'add', value: 5 } },
+        ],
+      },
+      {
+        id: 'thickness_bag',
+        name: '厚さ',
+        type: 'list',
+        values: [
+          { id: 'standard', label: '標準' },
+          { id: 'thick', label: '厚手', priceModifier: { type: 'add', value: 3 } },
         ],
       },
     ],
