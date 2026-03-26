@@ -102,6 +102,12 @@ export function Footer({ products }: { products: ProductNav[] }) {
                 ご利用方法
               </Link>
               <Link
+                href="/guide"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                グッズ製作ガイド
+              </Link>
+              <Link
                 href="/faq"
                 className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >

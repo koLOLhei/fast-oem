@@ -239,7 +239,7 @@ export function ProductPreview({
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center p-8 relative">
-            <Image src={product.imageUrl} alt={product.name} fill className="object-contain opacity-20" />
+            {product.imageUrl && <Image src={product.imageUrl} alt={product.name} fill className="object-contain opacity-20" />}
             <div className="relative z-10 text-center">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-3">
                 <Eye className="h-6 w-6 text-muted-foreground" />

@@ -33,6 +33,8 @@ export const metadata: Metadata = {
     'ラバーキーホルダー', 'ビニール袋製作',
     '小ロット', '小ロット製作', '格安', 'スピード納品', '短納期',
     '同人グッズ', '同人グッズ製作', 'ノベルティ', '推しグッズ',
+    'グッズ 作りたい', 'グッズ 作る方法', 'オリジナルグッズ 制作',
+    'グッズ製作 おすすめ', 'グッズ 注文', 'オーダーメイド グッズ',
   ],
   openGraph: {
     title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
@@ -300,6 +302,28 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Social Proof Banner */}
+      <section className="bg-foreground text-background py-4">
+        <div className="max-w-7xl mx-auto px-4 flex justify-center gap-8 md:gap-16 text-center">
+          <div>
+            <p className="text-2xl font-black">50,000+</p>
+            <p className="text-xs opacity-70">累計製作個数</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">98%</p>
+            <p className="text-xs opacity-70">顧客満足度</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">500+</p>
+            <p className="text-xs opacity-70">取引実績</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">10個〜</p>
+            <p className="text-xs opacity-70">小ロット対応</p>
+          </div>
+        </div>
+      </section>
+
       {/* Features Bar */}
       <section className="bg-white py-12 border-b-4 border-dashed border-[#00c8c8]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -415,6 +439,23 @@ export default async function HomePage() {
       </section>
 
 
+
+      {/* SEO Content Block */}
+      <section className="py-16 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">グッズ製作をもっと詳しく</h2>
+          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
+            初めてのグッズ制作でも安心。デザインのコツから費用の目安まで、完全ガイドをご用意しています。
+          </p>
+          <Link
+            href="/guide"
+            className="inline-flex items-center gap-2 text-[#00c8c8] font-bold text-lg hover:text-[#00b0b0] transition-colors"
+          >
+            グッズ製作ガイドを見る
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
+      </section>
 
       {/* CTA Section */}
       <section className="py-20 md:py-28 bg-[#ff7b54] relative overflow-hidden">

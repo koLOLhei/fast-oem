@@ -40,6 +40,10 @@ const categories = [
   { id: 'packaging', name: 'パッケージ', icon: Package },
 ]
 
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
+
 export default function ProductsPage({
   searchParams,
 }: {
@@ -127,6 +131,16 @@ async function ProductsContent({
             </p>
           </div>
         )}
+
+        {/* SEO Content */}
+        <div className="mt-16 bg-muted/30 rounded-2xl p-8 max-w-3xl mx-auto">
+          <h2 className="text-xl font-bold mb-4">オリジナルグッズ製作について</h2>
+          <div className="text-sm text-muted-foreground space-y-3 leading-relaxed">
+            <p>FAST OEM では、アクリルキーホルダー、缶バッジ、ピンバッジ、ラバーキーホルダーなどのオリジナルグッズをOEM製作しています。高品質な仕上がりと短納期で、個人クリエイターから企業まで幅広くご利用いただいております。</p>
+            <p>同人イベントやコミケでの頒布物、企業のノベルティ、推し活グッズなど、様々な用途にご利用いただけます。デザインデータをアップロードするだけで、簡単にオリジナルグッズを製作できます。</p>
+            <p>小ロット10個から大量ロットまで対応。<Link href="/guide">グッズ製作ガイド</Link>で詳しい作り方をご確認いただけます。</p>
+          </div>
+        </div>
 
         {/* Bottom CTA */}
         <div className="mt-20 text-center">

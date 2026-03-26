@@ -74,6 +74,15 @@ const nextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // Prevent CDN/edge caching for product pages so new products appear immediately
+      {
+        source: '/products/:slug*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
+          { key: 'CDN-Cache-Control', value: 'no-store' },
+          { key: 'Vercel-CDN-Cache-Control', value: 'no-store' },
+        ],
+      },
     ]
   },
 }

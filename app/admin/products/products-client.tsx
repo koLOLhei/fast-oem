@@ -2,7 +2,6 @@
 
 import React, { useCallback, useMemo, useRef, useState, useTransition } from 'react'
 import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView, type ComplexityRule, calculateUnitPrice, calculateMoldFee, calculateShippingModifier, formatPrice } from '@/lib/products'
-import { ProductPreview } from '@/components/product-preview'
 import { updateProduct, toggleProductActive, createProduct, applyGlobalPriceAdjustment, uploadProductImage } from '@/app/actions/products'
 
 interface Factory {
@@ -174,6 +173,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     moldFee: 0,
                     leadTimeDays: 14,
                     expressDeliveryFee: 0,
+                    isActive: true,
                 }
                 await createProduct(newProduct)
                 const created = { ...newProduct, isActive: true } as any
@@ -354,16 +354,33 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                     {tab === 'options' && <OptionsTab draft={draft} setDraft={setDraft} />}
                                 </div>
                                 {showPreview && (
-                                    <div className="w-80 shrink-0">
+                                    <div className="w-[420px] shrink-0">
                                         <div className="sticky top-0 space-y-4">
-                                            <div className="rounded-xl border bg-card p-4 shadow-lg">
-                                                <h3 className="text-sm font-bold mb-3 text-violet-700">ユーザー画面プレビュー</h3>
-                                                <ProductPreview
-                                                    product={draft}
-                                                    designImage={null}
-                                                    selectedOptions={previewOptions}
-                                                    hasDesign={false}
-                                                />
+                                            {/* Live iframe of actual user page */}
+                                            <div className="rounded-xl border bg-card shadow-lg overflow-hidden">
+                                                <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b">
+                                                    <h3 className="text-xs font-bold text-violet-700">ユーザーページ プレビュー</h3>
+                                                    <a
+                                                        href={`/products/${draft.slug}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] text-violet-600 hover:underline"
+                                                    >
+                                                        別タブで開く ↗
+                                                    </a>
+                                                </div>
+                                                <div className="relative bg-white" style={{ height: '500px' }}>
+                                                    <iframe
+                                                        key={draft.slug}
+                                                        src={`/products/${draft.slug}`}
+                                                        className="w-full h-full border-0"
+                                                        style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: '182%', height: '182%' }}
+                                                        title="商品ページプレビュー"
+                                                    />
+                                                </div>
+                                                <div className="px-3 py-2 bg-muted/30 border-t">
+                                                    <p className="text-[10px] text-muted-foreground">※ 保存後にプレビューが更新されます。リロードするには「プレビュー」ボタンを2回クリックしてください。</p>
+                                                </div>
                                             </div>
                                             {/* Option simulator */}
                                             <div className="rounded-xl border bg-card p-4 shadow-lg space-y-3">

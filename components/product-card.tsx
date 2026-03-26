@@ -29,10 +29,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [imgError, setImgError] = useState(false)
 
   return (
-    <Link href={`/products/${product.slug}`} className="block group">
+    <Link href={`/products/${product.slug}`} className="block group" itemScope itemType="https://schema.org/Product">
       <Card className={`overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-3 border-4 ${color.border} bg-white h-full rounded-3xl`}>
         <div className="aspect-[4/3] relative overflow-hidden">
-          {!imgError ? (
+          {!imgError && product.imageUrl ? (
             <Image
               src={product.imageUrl}
               alt={product.name}
@@ -40,6 +40,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               onError={() => setImgError(true)}
+              itemProp="image"
             />
           ) : (
             <div className={`w-full h-full ${color.light} flex items-center justify-center`}>
@@ -52,18 +53,20 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </div>
         </div>
         <CardContent className="p-6">
-          <h3 className="font-black text-xl text-foreground group-hover:text-[#00c8c8] transition-colors">
+          <h3 className="font-black text-xl text-foreground group-hover:text-[#00c8c8] transition-colors" itemProp="name">
             {product.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed" itemProp="description">
             {product.shortDescription}
           </p>
 
           {/* Price Display */}
           {lowestPrice != null && (
-            <div className={`mt-4 pt-4 border-t-2 border-dashed ${color.border}/30`}>
+            <div className={`mt-4 pt-4 border-t-2 border-dashed ${color.border}/30`} itemProp="offers" itemScope itemType="https://schema.org/Offer">
+              <meta itemProp="priceCurrency" content="JPY" />
+              <meta itemProp="availability" content="https://schema.org/InStock" />
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#ff7b54]">
+                <span className="text-3xl font-black text-[#ff7b54]" itemProp="price" content={String(lowestPrice)}>
                   {formatPrice(lowestPrice)}
                 </span>
                 <span className="text-sm text-muted-foreground font-medium">〜/個</span>
@@ -85,6 +88,8 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               </span>
             ))}
           </div>
+
+          <meta itemProp="brand" content="FAST OEM" />
 
           {/* CTA */}
           <Button

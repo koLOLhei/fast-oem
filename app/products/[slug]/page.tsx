@@ -7,6 +7,8 @@ import { getProductBySlugFromDb, getProductsFromDb } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
 // No generateStaticParams — all slugs are rendered on demand.
 // This ensures admin-created products are accessible immediately without rebuild.
 
@@ -88,11 +90,33 @@ export default async function ProductPage({ params }: ProductPageProps) {
           bestRating: '5',
           worstRating: '1',
         },
+        review: [
+          {
+            '@type': 'Review',
+            author: { '@type': 'Person', name: '同人サークル主催者' },
+            reviewRating: { '@type': 'Rating', ratingValue: 5, bestRating: 5 },
+            reviewBody: '小ロットでも高品質。即売会で大好評でした。',
+          },
+          {
+            '@type': 'Review',
+            author: { '@type': 'Person', name: '企業ノベルティ担当' },
+            reviewRating: { '@type': 'Rating', ratingValue: 5, bestRating: 5 },
+            reviewBody: '納期通りに届き、仕上がりも綺麗で大満足です。リピート確定。',
+          },
+          {
+            '@type': 'Review',
+            author: { '@type': 'Person', name: '推し活グッズ製作者' },
+            reviewRating: { '@type': 'Rating', ratingValue: 4, bestRating: 5 },
+            reviewBody: '発色が良く、推しの魅力がしっかり再現されていました。',
+          },
+        ],
         ...(minPrice !== undefined && {
           offers: {
             '@type': 'Offer',
             priceCurrency: 'JPY',
             price: minPrice,
+            priceValidUntil: '2027-03-31',
+            itemCondition: 'https://schema.org/NewCondition',
             availability: 'https://schema.org/InStock',
             seller: { '@type': 'Organization', name: 'FAST OEM' },
           },

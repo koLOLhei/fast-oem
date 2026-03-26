@@ -7,8 +7,20 @@
  * The Supabase round-trip is fast enough (~50ms) and avoids all cache
  * invalidation bugs that caused new products to 404.
  */
-import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@supabase/supabase-js'
 import { type Product, PRODUCTS } from './products'
+
+/**
+ * Create a Supabase client for product reads.
+ * Uses service key if available (bypasses RLS), falls back to anon key.
+ * Public product pages don't need service key — anon key works with RLS
+ * policies that allow SELECT on active products.
+ */
+function createProductsClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    return createClient(url, key)
+}
 
 function rowToProduct(row: any): Product {
     return {
@@ -50,12 +62,18 @@ function filterActive(products: Product[]): Product[] {
  */
 export async function getProductsFromDb(): Promise<Product[]> {
     try {
-        const { data, error } = await createServiceClient()
+        const { data, error } = await createProductsClient()
             .from('products')
             .select('*')
             .eq('is_active', true)
             .order('created_at')
-        if (error || !data || data.length === 0) return filterActive(PRODUCTS)
+        if (error) {
+            console.error('[getProductsFromDb] Supabase error:', { code: error.code, message: error.message })
+        }
+        if (error || !data || data.length === 0) {
+            console.warn('[getProductsFromDb] Falling back to static PRODUCTS. DB returned:', { error: !!error, count: data?.length ?? 0 })
+            return filterActive(PRODUCTS)
+        }
         return data.map(rowToProduct)
     } catch (err) {
         console.error('[getProductsFromDb] DB error, falling back to static data:', err)
@@ -68,19 +86,23 @@ export async function getProductsFromDb(): Promise<Product[]> {
  */
 export async function getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
     try {
-        const { data, error } = await createServiceClient()
+        const { data, error } = await createProductsClient()
             .from('products')
             .select('*')
             .eq('slug', slug)
             .eq('is_active', true)
             .maybeSingle()
-        if (error || !data) {
+        if (error) {
+            console.error('[getProductBySlugFromDb] Supabase error:', { slug, code: error.code, message: error.message, details: error.details })
+        }
+        if (!data) {
+            console.warn('[getProductBySlugFromDb] No product found for slug:', slug, error ? '(query error)' : '(not in DB or inactive)')
             const fallback = PRODUCTS.find((p) => p.slug === slug)
             return fallback && fallback.isActive !== false ? fallback : undefined
         }
         return rowToProduct(data)
     } catch (err) {
-        console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
+        console.error('[getProductBySlugFromDb] Exception:', err)
         const fallback = PRODUCTS.find((p) => p.slug === slug)
         return fallback && fallback.isActive !== false ? fallback : undefined
     }
@@ -90,6 +112,7 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
 export async function getAllProductsForAdmin() {
     // Use service client to bypass RLS: the public policy only allows is_active=TRUE,
     // so the regular client would hide inactive products from the admin.
+    const { createServiceClient } = await import('@/lib/supabase/service')
     const { data, error } = await createServiceClient()
         .from('products')
         .select('*')
