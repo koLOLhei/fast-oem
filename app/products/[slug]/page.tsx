@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
-import { PRODUCTS } from '@/lib/products'
 import { getProductBySlugFromDb, getProductsFromDb } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
@@ -16,7 +15,8 @@ interface ProductPageProps {
 }
 
 export async function generateStaticParams() {
-  return PRODUCTS.map((product) => ({
+  const products = await getProductsFromDb()
+  return products.map((product) => ({
     slug: product.slug,
   }))
 }

@@ -842,7 +842,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         </Card>
 
         {/* Price Summary & Actions */}
-        <Card className="sticky bottom-4 shadow-2xl border-2">
+        <Card className="lg:sticky lg:bottom-4 shadow-2xl border-2">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               {/* Price Summary */}

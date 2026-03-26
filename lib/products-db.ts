@@ -39,6 +39,11 @@ function rowToProduct(row: any): Product {
     }
 }
 
+/** Filter out inactive products (isActive explicitly set to false) */
+function filterActive(products: Product[]): Product[] {
+    return products.filter((p) => p.isActive !== false)
+}
+
 export const getProductsFromDb = unstable_cache(
     async (): Promise<Product[]> => {
         try {
@@ -47,11 +52,11 @@ export const getProductsFromDb = unstable_cache(
                 .select('*')
                 .eq('is_active', true)
                 .order('created_at')
-            if (error || !data || data.length === 0) return PRODUCTS
+            if (error || !data || data.length === 0) return filterActive(PRODUCTS)
             return data.map(rowToProduct)
         } catch (err) {
             console.error('[getProductsFromDb] DB error, falling back to static data:', err)
-            return PRODUCTS
+            return filterActive(PRODUCTS)
         }
     },
     ['products-list'],
@@ -67,11 +72,15 @@ export const getProductBySlugFromDb = unstable_cache(
                 .eq('slug', slug)
                 .eq('is_active', true)
                 .maybeSingle()
-            if (error || !data) return PRODUCTS.find((p) => p.slug === slug)
+            if (error || !data) {
+                const fallback = PRODUCTS.find((p) => p.slug === slug)
+                return fallback && fallback.isActive !== false ? fallback : undefined
+            }
             return rowToProduct(data)
         } catch (err) {
             console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
-            return PRODUCTS.find((p) => p.slug === slug)
+            const fallback = PRODUCTS.find((p) => p.slug === slug)
+            return fallback && fallback.isActive !== false ? fallback : undefined
         }
     },
     ['product-by-slug'],

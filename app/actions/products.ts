@@ -1,7 +1,7 @@
 'use server'
 
 import { createServiceClient } from '@/lib/supabase/service'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { type Product } from '@/lib/products'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
@@ -81,6 +81,7 @@ export async function updateProduct(id: string, updates: Partial<Product> & { is
     if (oldImagePath) {
         await supabase.storage.from('product-images').remove([oldImagePath]).catch(() => null)
     }
+    revalidateTag('products', 'max')
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/products/[slug]', 'page')
@@ -102,6 +103,7 @@ export async function createProduct(product: Omit<Product, 'id'> & { id: string 
         }
         throw new Error(error.message)
     }
+    revalidateTag('products', 'max')
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/')
@@ -115,6 +117,7 @@ export async function toggleProductActive(id: string, isActive: boolean) {
         .update({ is_active: isActive })
         .eq('id', id)
     if (error) throw new Error(error.message)
+    revalidateTag('products', 'max')
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/')
@@ -149,6 +152,7 @@ export async function applyGlobalPriceAdjustment(percent: number) {
         )
         throw new Error(`価格更新中に${failedIndices.length}/${list.length}件でエラーが発生しました。変更はすべて元に戻しました。`)
     }
+    revalidateTag('products', 'max')
     revalidatePath('/admin/products')
     revalidatePath('/products')
     revalidatePath('/')
