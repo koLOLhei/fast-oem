@@ -36,6 +36,7 @@ function rowToProduct(row: any): Product {
         is3d: row.is_3d ?? false,
         imageViews: row.image_views ?? [],
         fixedUnitPrice: row.fixed_unit_price ?? false,
+        complexityRules: row.complexity_rules ?? [],
     }
 }
 

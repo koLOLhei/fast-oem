@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useRef, useState, useTransition } from 'react'
-import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView, calculateUnitPrice, calculateMoldFee, calculateShippingModifier, formatPrice } from '@/lib/products'
+import React, { useCallback, useMemo, useRef, useState, useTransition } from 'react'
+import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView, type ComplexityRule, calculateUnitPrice, calculateMoldFee, calculateShippingModifier, formatPrice } from '@/lib/products'
 import { ProductPreview } from '@/components/product-preview'
 import { updateProduct, toggleProductActive, createProduct, applyGlobalPriceAdjustment, uploadProductImage } from '@/app/actions/products'
 
@@ -64,6 +64,16 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
     const [previewOptions, setPreviewOptions] = useState<Record<string, string>>({})
     const [previewQuantity, setPreviewQuantity] = useState(100)
 
+    // Memoized price calculation for preview panel
+    const previewCalc = useMemo(() => {
+        if (!draft) return null
+        const unit = calculateUnitPrice(draft, previewQuantity, previewOptions)
+        const mold = calculateMoldFee(draft, previewOptions, previewQuantity)
+        const shipping = calculateShippingModifier(draft, previewOptions)
+        const total = unit * previewQuantity + (mold.requiresMold ? mold.moldFee : 0) + shipping
+        return { unit, mold, shipping, total }
+    }, [draft, previewQuantity, previewOptions])
+
     const selectProduct = (p: Product) => {
         if (draft && selected && draft.id === selected.id) {
             if (JSON.stringify(draft) !== JSON.stringify(selected)) {
@@ -113,6 +123,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     is3d: draft.is3d ?? false,
                     imageViews: draft.imageViews ?? [],
                     fixedUnitPrice: draft.fixedUnitPrice ?? false,
+                    complexityRules: draft.complexityRules ?? [],
                 })
                 setProducts((prev) => prev.map((p) => (p.id === draft.id ? draft : p)))
                 setSelected(draft)
@@ -407,40 +418,34 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                             {/* Price calculation result */}
                                             <div className="rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 p-4 shadow-lg space-y-2">
                                                 <h4 className="text-xs font-bold text-green-800 uppercase">算出結果</h4>
-                                                {(() => {
-                                                    const unit = calculateUnitPrice(draft, previewQuantity, previewOptions)
-                                                    const mold = calculateMoldFee(draft, previewOptions, previewQuantity)
-                                                    const shipping = calculateShippingModifier(draft, previewOptions)
-                                                    const total = unit * previewQuantity + (mold.requiresMold ? mold.moldFee : 0) + shipping
-                                                    return (
-                                                        <>
+                                                {previewCalc && (
+                                                    <>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-muted-foreground">単価</span>
+                                                            <span className="font-bold">{formatPrice(previewCalc.unit)}/個</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-muted-foreground">小計 ({previewQuantity}個)</span>
+                                                            <span className="font-bold">{formatPrice(previewCalc.unit * previewQuantity)}</span>
+                                                        </div>
+                                                        {previewCalc.mold.requiresMold && (
                                                             <div className="flex justify-between text-xs">
-                                                                <span className="text-muted-foreground">単価</span>
-                                                                <span className="font-bold">{formatPrice(unit)}/個</span>
+                                                                <span className="text-orange-600">金型費</span>
+                                                                <span className="font-bold text-orange-600">{formatPrice(previewCalc.mold.moldFee)}</span>
                                                             </div>
+                                                        )}
+                                                        {previewCalc.shipping > 0 && (
                                                             <div className="flex justify-between text-xs">
-                                                                <span className="text-muted-foreground">小計 ({previewQuantity}個)</span>
-                                                                <span className="font-bold">{formatPrice(unit * previewQuantity)}</span>
+                                                                <span className="text-blue-600">送料加算</span>
+                                                                <span className="font-bold text-blue-600">+{formatPrice(previewCalc.shipping)}</span>
                                                             </div>
-                                                            {mold.requiresMold && (
-                                                                <div className="flex justify-between text-xs">
-                                                                    <span className="text-orange-600">金型費</span>
-                                                                    <span className="font-bold text-orange-600">{formatPrice(mold.moldFee)}</span>
-                                                                </div>
-                                                            )}
-                                                            {shipping > 0 && (
-                                                                <div className="flex justify-between text-xs">
-                                                                    <span className="text-blue-600">送料加算</span>
-                                                                    <span className="font-bold text-blue-600">+{formatPrice(shipping)}</span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex justify-between text-sm pt-1 border-t border-green-200">
-                                                                <span className="font-bold text-green-800">合計</span>
-                                                                <span className="font-black text-green-800 text-base">{formatPrice(total)}</span>
-                                                            </div>
-                                                        </>
-                                                    )
-                                                })()}
+                                                        )}
+                                                        <div className="flex justify-between text-sm pt-1 border-t border-green-200">
+                                                            <span className="font-bold text-green-800">合計</span>
+                                                            <span className="font-black text-green-800 text-base">{formatPrice(previewCalc.total)}</span>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -461,7 +466,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
 /* ------------------------------------------------------------------ */
 /* New Product Create Form                                             */
 /* ------------------------------------------------------------------ */
-function CreateForm({
+const CreateForm = React.memo(function CreateForm({
     newName, setNewName, newCategory, setNewCategory,
     createError, creating, onSubmit, onCancel,
 }: {
@@ -515,12 +520,12 @@ function CreateForm({
             </div>
         </div>
     )
-}
+})
 
 /* ------------------------------------------------------------------ */
 /* Basic Info Tab                                                       */
 /* ------------------------------------------------------------------ */
-function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>>; factories: Factory[] }) {
+const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>>; factories: Factory[] }) {
     const set = (key: keyof Product, value: any) =>
         setDraft((prev) => prev ? { ...prev, [key]: value } : prev)
 
@@ -927,14 +932,122 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
                     </div>
                 )}
             </div>
+
+            {/* Complexity Restriction Rules */}
+            <div className="rounded-xl border bg-card p-4 space-y-3">
+                <h3 className="font-semibold text-sm">⚠️ 複雑度制限ルール</h3>
+                <p className="text-xs text-muted-foreground">
+                    デザインの複雑さと形状・サイズの組み合わせにより注文をブロックするルールを設定します。
+                    型抜きや3D商品で、小さいサイズに複雑なデザインを適用できない場合に使用します。
+                </p>
+                {(draft.complexityRules ?? []).map((rule, idx) => (
+                    <div key={rule.id} className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold">ルール {idx + 1}</span>
+                            <button
+                                onClick={() => {
+                                    const rules = (draft.complexityRules ?? []).filter((_, i) => i !== idx)
+                                    set('complexityRules', rules)
+                                }}
+                                className="text-red-500 hover:text-red-700 text-xs px-2 py-1 border border-red-200 rounded hover:bg-red-50"
+                            >
+                                削除
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">ブロックする複雑度（カンマ区切り）</label>
+                                <input
+                                    type="text"
+                                    className={smallInput}
+                                    placeholder="D,E"
+                                    value={rule.blockedGrades.join(',')}
+                                    onChange={(e) => {
+                                        const rules = [...(draft.complexityRules ?? [])]
+                                        rules[idx] = { ...rules[idx], blockedGrades: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }
+                                        set('complexityRules', rules)
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">対象形状（空=全て、カンマ区切り）</label>
+                                <input
+                                    type="text"
+                                    className={smallInput}
+                                    placeholder="die-cut"
+                                    value={(rule.shapes ?? []).join(',')}
+                                    onChange={(e) => {
+                                        const rules = [...(draft.complexityRules ?? [])]
+                                        rules[idx] = { ...rules[idx], shapes: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) }
+                                        set('complexityRules', rules)
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">最大サイズID（このサイズ以下でブロック、空=全サイズ）</label>
+                                <input
+                                    type="text"
+                                    className={smallInput}
+                                    placeholder="40mm"
+                                    value={rule.maxSizeId ?? ''}
+                                    onChange={(e) => {
+                                        const rules = [...(draft.complexityRules ?? [])]
+                                        rules[idx] = { ...rules[idx], maxSizeId: e.target.value || undefined }
+                                        set('complexityRules', rules)
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-muted-foreground block mb-0.5">3D商品のみ適用</label>
+                                <label className="flex items-center gap-1.5 cursor-pointer mt-1">
+                                    <input
+                                        type="checkbox"
+                                        className="w-3.5 h-3.5 accent-primary"
+                                        checked={rule.applies3d ?? false}
+                                        onChange={(e) => {
+                                            const rules = [...(draft.complexityRules ?? [])]
+                                            rules[idx] = { ...rules[idx], applies3d: e.target.checked }
+                                            set('complexityRules', rules)
+                                        }}
+                                    />
+                                    <span className="text-xs">3D商品のみ</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[10px] text-muted-foreground block mb-0.5">ブロック時のメッセージ</label>
+                            <input
+                                type="text"
+                                className={smallInput}
+                                placeholder="このサイズでは複雑度D以上のデザインは対応できません"
+                                value={rule.message}
+                                onChange={(e) => {
+                                    const rules = [...(draft.complexityRules ?? [])]
+                                    rules[idx] = { ...rules[idx], message: e.target.value }
+                                    set('complexityRules', rules)
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+                <button
+                    onClick={() => {
+                        const rules = [...(draft.complexityRules ?? []), { id: crypto.randomUUID().slice(0, 8), blockedGrades: [], shapes: [], message: '' }]
+                        set('complexityRules', rules)
+                    }}
+                    className="text-xs px-3 py-1.5 border border-dashed border-border rounded-lg hover:bg-muted/50 text-muted-foreground"
+                >
+                    ＋ ルールを追加
+                </button>
+            </div>
         </div>
     )
-}
+})
 
 /* ------------------------------------------------------------------ */
 /* Price Tiers Tab                                                      */
 /* ------------------------------------------------------------------ */
-function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>> }) {
+const PriceTiersTab = React.memo(function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>> }) {
     const setTiers = (tiers: PriceTier[]) =>
         setDraft((prev) => prev ? { ...prev, priceTiers: tiers } : prev)
 
@@ -1014,92 +1127,120 @@ function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Di
             </button>
         </div>
     )
-}
+})
 
 /* ------------------------------------------------------------------ */
 /* Options Tab                                                          */
 /* ------------------------------------------------------------------ */
-function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>> }) {
-    const setOptions = (opts: ProductOption[]) =>
-        setDraft((prev) => prev ? { ...prev, options: opts } : prev)
+const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispatch<React.SetStateAction<Product | null>> }) {
+    const setOptions = useCallback((opts: ProductOption[]) =>
+        setDraft((prev) => prev ? { ...prev, options: opts } : prev), [setDraft])
 
     const [expandedOpt, setExpandedOpt] = useState<string | null>(null)
 
-    const addOption = () => {
+    const addOption = useCallback(() => {
         const newId = `option-${crypto.randomUUID()}`
-        setOptions([...draft.options, { id: newId, name: '新しいオプション', type: 'list', values: [] }])
+        setDraft((prev) => {
+            if (!prev) return prev
+            return { ...prev, options: [...prev.options, { id: newId, name: '新しいオプション', type: 'list' as const, values: [] }] }
+        })
         setExpandedOpt(newId)
-    }
+    }, [setDraft])
 
-    const removeOption = (optId: string) => {
-        setOptions(draft.options.filter((o) => o.id !== optId))
-        if (expandedOpt === optId) setExpandedOpt(null)
-    }
+    const removeOption = useCallback((optId: string) => {
+        setDraft((prev) => {
+            if (!prev) return prev
+            return { ...prev, options: prev.options.filter((o) => o.id !== optId) }
+        })
+        setExpandedOpt((prev) => prev === optId ? null : prev)
+    }, [setDraft])
 
-    const updateOption = (optId: string, field: keyof ProductOption, value: any) => {
-        setOptions(draft.options.map((o) => o.id === optId ? { ...o, [field]: value } : o))
-    }
+    const updateOption = useCallback((optId: string, field: keyof ProductOption, value: any) => {
+        setDraft((prev) => {
+            if (!prev) return prev
+            return { ...prev, options: prev.options.map((o) => o.id === optId ? { ...o, [field]: value } : o) }
+        })
+    }, [setDraft])
 
-    const addValue = (optId: string) => {
-        setOptions(draft.options.map((o) => {
-            if (o.id !== optId) return o
-            const newVal: OptionValue = { id: `val-${crypto.randomUUID()}`, label: '新しい値' }
-            return { ...o, values: [...o.values, newVal] }
-        }))
-    }
-
-    const removeValue = (optId: string, valId: string) => {
-        setOptions(draft.options.map((o) => {
-            if (o.id !== optId) return o
-            return { ...o, values: o.values.filter((v) => v.id !== valId) }
-        }))
-    }
-
-    const updateValue = (optId: string, valId: string, field: string, value: any) => {
-        setOptions(draft.options.map((o) => {
-            if (o.id !== optId) return o
+    const addValue = useCallback((optId: string) => {
+        setDraft((prev) => {
+            if (!prev) return prev
             return {
-                ...o, values: o.values.map((v) => {
-                    if (v.id !== valId) return v
-                    if (field === 'label') return { ...v, label: value }
-                    if (field === 'description') return { ...v, description: value || undefined }
-                    if (field === 'imageUrl') return { ...v, imageUrl: value || undefined }
-                    if (field === 'modType') {
-                        if (!value) return { ...v, priceModifier: undefined }
-                        return { ...v, priceModifier: { type: value, value: v.priceModifier?.value ?? 0 } }
-                    }
-                    if (field === 'modValue') {
-                        return { ...v, priceModifier: { type: v.priceModifier?.type ?? 'add', value: parseFloat(value) || 0 } }
-                    }
-                    if (field === 'requiresMold') {
-                        return { ...v, requiresMold: value, moldFee: value ? (v.moldFee ?? 0) : undefined }
-                    }
-                    if (field === 'moldFee') {
-                        return { ...v, moldFee: parseInt(value) || 0 }
-                    }
-                    if (field === 'shippingModValue') {
-                        const numVal = parseInt(value) || 0
-                        return { ...v, shippingModifier: numVal ? { type: 'add' as const, value: numVal } : undefined }
-                    }
-                    if (field === 'previewColor') {
-                        return { ...v, previewColor: value || undefined }
-                    }
-                    if (field === 'previewTexture') {
-                        return { ...v, previewTexture: value || undefined }
-                    }
-                    if (field === 'previewOverlayUrl') {
-                        if (!value) return { ...v, previewOverlay: undefined }
-                        return { ...v, previewOverlay: { ...v.previewOverlay, imageUrl: value, position: v.previewOverlay?.position ?? 'top' } as any }
-                    }
-                    if (field === 'previewOverlayPosition') {
-                        if (!v.previewOverlay) return v
-                        return { ...v, previewOverlay: { ...v.previewOverlay, position: value } }
-                    }
-                    return v
+                ...prev, options: prev.options.map((o) => {
+                    if (o.id !== optId) return o
+                    const newVal: OptionValue = { id: `val-${crypto.randomUUID()}`, label: '新しい値' }
+                    return { ...o, values: [...o.values, newVal] }
                 })
             }
-        }))
-    }
+        })
+    }, [setDraft])
+
+    const removeValue = useCallback((optId: string, valId: string) => {
+        setDraft((prev) => {
+            if (!prev) return prev
+            return {
+                ...prev, options: prev.options.map((o) => {
+                    if (o.id !== optId) return o
+                    return { ...o, values: o.values.filter((v) => v.id !== valId) }
+                })
+            }
+        })
+    }, [setDraft])
+
+    const updateValue = useCallback((optId: string, valId: string, field: string, value: any) => {
+        setDraft((prev) => {
+            if (!prev) return prev
+            return {
+                ...prev, options: prev.options.map((o) => {
+                    if (o.id !== optId) return o
+                    return {
+                        ...o, values: o.values.map((v) => {
+                            if (v.id !== valId) return v
+                            if (field === 'label') return { ...v, label: value }
+                            if (field === 'description') return { ...v, description: value || undefined }
+                            if (field === 'imageUrl') return { ...v, imageUrl: value || undefined }
+                            if (field === 'modType') {
+                                if (!value) return { ...v, priceModifier: undefined }
+                                return { ...v, priceModifier: { type: value, value: v.priceModifier?.value ?? 0 } }
+                            }
+                            if (field === 'modValue') {
+                                return { ...v, priceModifier: { type: v.priceModifier?.type ?? 'add', value: parseFloat(value) || 0 } }
+                            }
+                            if (field === 'requiresMold') {
+                                return { ...v, requiresMold: value, moldFee: value ? (v.moldFee ?? 0) : undefined }
+                            }
+                            if (field === 'moldFee') {
+                                return { ...v, moldFee: parseInt(value) || 0 }
+                            }
+                            if (field === 'shippingModValue') {
+                                const numVal = parseInt(value) || 0
+                                return { ...v, shippingModifier: numVal ? { type: 'add' as const, value: numVal } : undefined }
+                            }
+                            if (field === 'previewColor') {
+                                return { ...v, previewColor: value || undefined }
+                            }
+                            if (field === 'previewTexture') {
+                                return { ...v, previewTexture: value || undefined }
+                            }
+                            if (field === 'previewOverlayUrl') {
+                                if (!value) return { ...v, previewOverlay: undefined }
+                                return { ...v, previewOverlay: { ...v.previewOverlay, imageUrl: value, position: v.previewOverlay?.position ?? 'top' } as any }
+                            }
+                            if (field === 'previewOverlayPosition') {
+                                if (!v.previewOverlay) return v
+                                return { ...v, previewOverlay: { ...v.previewOverlay, position: value } }
+                            }
+                            return v
+                        })
+                    }
+                })
+            }
+        })
+    }, [setDraft])
+
+    const toggleExpanded = useCallback((optId: string) => {
+        setExpandedOpt((prev) => prev === optId ? null : optId)
+    }, [])
 
     return (
         <div className="max-w-2xl space-y-3">
@@ -1139,7 +1280,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                             <span className={opt.required !== false ? 'text-red-600 font-medium' : 'text-muted-foreground'}>必須</span>
                         </label>
                         <button
-                            onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
+                            onClick={() => toggleExpanded(opt.id)}
                             className="text-xs px-2 py-1 border border-border rounded hover:bg-muted"
                         >
                             {expandedOpt === opt.id ? '閉じる' : `${opt.values.length}件 ▼`}
@@ -1447,7 +1588,7 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
             </button>
         </div>
     )
-}
+})
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */

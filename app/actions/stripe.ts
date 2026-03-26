@@ -5,7 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import { sendSlackMessage } from '@/lib/slack'
-import { type Product, calculateMoldFee, calculateShippingModifier } from '@/lib/products'
+import { type Product, calculateMoldFee, calculateShippingModifier, checkComplexityRestriction } from '@/lib/products'
 import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
 
 interface CheckoutSessionData {
@@ -117,7 +117,7 @@ async function validateAndRepricItems(
   const productIds = [...new Set(items.map((i) => i.productId))]
   const { data: masterRows, error: masterError } = await supabase
     .from('products')
-    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity')
+    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity, fixed_unit_price, complexity_rules, is_3d')
     .in('id', productIds)
 
   if (masterError) {
@@ -182,6 +182,22 @@ async function validateAndRepricItems(
     const selectedOptionsMap: Record<string, string> = Object.fromEntries(
       (item.options ?? []).map((o) => [o.id, o.value]),
     )
+    // Build a Product-like object from DB master data for shared calculation functions
+    const masterProduct = {
+      options: master.options ?? [],
+      requiresMold: master.requires_mold,
+      moldFee: master.mold_fee,
+      moldFeeRules: master.mold_fee_rules ?? [],
+      complexityRules: master.complexity_rules ?? [],
+      is3d: master.is_3d ?? false,
+    } as Product
+
+    // Complexity restriction check (server-side enforcement)
+    const complexityBlock = checkComplexityRestriction(masterProduct, selectedOptionsMap)
+    if (complexityBlock) {
+      throw new Error(`注文できない組み合わせが含まれています: ${item.productName} — ${complexityBlock}`)
+    }
+
     const serverUnitPrice = computeUnitPrice(
       master.price_tiers ?? [],
       master.options ?? [],
@@ -219,13 +235,6 @@ async function validateAndRepricItems(
     const validatedMoldOrderId = moldExemptionValid ? item.moldOrderId : undefined
 
     // Calculate expected mold fee using canonical calculateMoldFee()
-    // Construct a Product-like object from master data for the shared function
-    const masterProduct = {
-      requiresMold: master.requires_mold,
-      moldFee: master.mold_fee,
-      moldFeeRules: master.mold_fee_rules,
-      options: master.options ?? [],
-    } as Product
     const { moldFee: calculatedMoldFee } = calculateMoldFee(masterProduct, selectedOptionsMap, item.quantity)
     const expectedMoldFee = validatedMoldOrderId ? 0 : calculatedMoldFee
     const clientMoldFee = item.moldFee ?? 0

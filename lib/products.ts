@@ -94,6 +94,69 @@ export interface Product {
   is3d?: boolean                // 3D product requiring multi-view design uploads
   imageViews?: ImageView[]      // required views for 3D products
   fixedUnitPrice?: boolean      // true = unit price from priceTiers only, option modifiers ignored
+  complexityRules?: ComplexityRule[]  // restrict ordering by complexity + size/shape
+}
+
+/**
+ * A rule that blocks ordering when complexity + other conditions are met.
+ * Example: "complexity D or E with die-cut shape and size ≤ 40mm → block"
+ */
+export interface ComplexityRule {
+  id: string
+  /** Complexity grades that trigger this rule (e.g. ['D', 'E']) */
+  blockedGrades: string[]
+  /** Shape values that trigger this rule (e.g. ['die-cut']). Empty = all shapes */
+  shapes?: string[]
+  /** Max size value id below which ordering is blocked (e.g. '40mm'). Empty = any size */
+  maxSizeId?: string
+  /** Whether this blocks 3D products */
+  applies3d?: boolean
+  /** Message shown to the user when blocked */
+  message: string
+}
+
+/**
+ * Check if the current option selection violates any complexity rules.
+ * Returns the first matching rule's message, or null if OK.
+ */
+export function checkComplexityRestriction(
+  product: Product,
+  selectedOptions: Record<string, string>,
+): string | null {
+  const rules = product.complexityRules
+  if (!rules || rules.length === 0) return null
+
+  const complexity = selectedOptions['complexity']
+  if (!complexity) return null
+
+  const shape = selectedOptions['shape']
+  const size = selectedOptions['size']
+
+  for (const rule of rules) {
+    if (!rule.blockedGrades.includes(complexity)) continue
+
+    // Check shape condition
+    if (rule.shapes && rule.shapes.length > 0) {
+      if (!shape || !rule.shapes.includes(shape)) continue
+    }
+
+    // Check size condition — compare by finding the size option's index
+    if (rule.maxSizeId && size) {
+      const sizeOpt = product.options.find((o) => o.id === 'size')
+      if (sizeOpt) {
+        const sizeIdx = sizeOpt.values.findIndex((v) => v.id === size)
+        const maxIdx = sizeOpt.values.findIndex((v) => v.id === rule.maxSizeId)
+        if (sizeIdx < 0 || maxIdx < 0 || sizeIdx > maxIdx) continue
+      }
+    }
+
+    // Check 3D condition
+    if (rule.applies3d && !product.is3d) continue
+
+    return rule.message
+  }
+
+  return null
 }
 
 export const PRODUCTS: Product[] = [
@@ -269,6 +332,21 @@ export const PRODUCTS: Product[] = [
     features: ['高透明度アクリル', 'UVプリント', '片面・両面印刷対応', 'ボールチェーン付属'],
     quantityPresets: [50, 100, 200, 500, 1000, 2000, 5000, 10000],
     expressDeliveryFee: 3000,
+    complexityRules: [
+      {
+        id: 'die-cut-small-complex',
+        blockedGrades: ['D', 'E'],
+        shapes: ['die-cut'],
+        maxSizeId: '40mm',
+        message: '型抜き×40mm以下のサイズでは、複雑度D・Eのデザインは製造できません。サイズを大きくするか、形状を変更してください。',
+      },
+      {
+        id: 'die-cut-very-complex',
+        blockedGrades: ['E'],
+        shapes: ['die-cut'],
+        message: '型抜きでは複雑度Eのデザインは製造できません。別の形状を選択してください。',
+      },
+    ],
   },
   {
     id: 'can-badge',
