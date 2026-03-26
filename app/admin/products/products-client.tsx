@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useRef, useState, useTransition } from 'react'
-import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView } from '@/lib/products'
+import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView, calculateUnitPrice, calculateMoldFee, calculateShippingModifier, formatPrice } from '@/lib/products'
+import { ProductPreview } from '@/components/product-preview'
 import { updateProduct, toggleProductActive, createProduct, applyGlobalPriceAdjustment, uploadProductImage } from '@/app/actions/products'
 
 interface Factory {
@@ -58,6 +59,11 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
     // Editable draft of the selected product
     const [draft, setDraft] = useState<Product | null>(null)
 
+    // Live preview panel
+    const [showPreview, setShowPreview] = useState(false)
+    const [previewOptions, setPreviewOptions] = useState<Record<string, string>>({})
+    const [previewQuantity, setPreviewQuantity] = useState(100)
+
     const selectProduct = (p: Product) => {
         if (draft && selected && draft.id === selected.id) {
             if (JSON.stringify(draft) !== JSON.stringify(selected)) {
@@ -69,6 +75,15 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
         setTab('basic')
         setSaveMsg('')
         setShowCreate(false)
+        // Initialize preview options with first value of each option
+        const initial: Record<string, string> = {}
+        p.options.forEach((opt) => {
+            if (opt.type !== 'checkbox' && opt.type !== 'number' && opt.values.length > 0) {
+                initial[opt.id] = opt.values[0].id
+            }
+        })
+        setPreviewOptions(initial)
+        setPreviewQuantity(p.minQuantity || 100)
     }
 
     const handleSave = () => {
@@ -298,6 +313,12 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                     >
                                         {saving ? '保存中...' : '変更を保存'}
                                     </button>
+                                    <button
+                                        onClick={() => setShowPreview(!showPreview)}
+                                        className={`px-4 py-2 text-sm border rounded-lg transition font-medium ${showPreview ? 'bg-violet-100 border-violet-300 text-violet-700' : 'border-border hover:bg-muted'}`}
+                                    >
+                                        {showPreview ? '👁 プレビュー閉じる' : '👁 プレビュー'}
+                                    </button>
                                 </div>
                             </div>
 
@@ -314,9 +335,116 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                 ))}
                             </div>
 
-                            {tab === 'basic' && <BasicTab draft={draft} setDraft={setDraft} factories={factories} />}
-                            {tab === 'price' && <PriceTiersTab draft={draft} setDraft={setDraft} />}
-                            {tab === 'options' && <OptionsTab draft={draft} setDraft={setDraft} />}
+                            <div className={showPreview ? 'flex gap-6' : ''}>
+                                <div className={showPreview ? 'flex-1 min-w-0' : ''}>
+                                    {tab === 'basic' && <BasicTab draft={draft} setDraft={setDraft} factories={factories} />}
+                                    {tab === 'price' && <PriceTiersTab draft={draft} setDraft={setDraft} />}
+                                    {tab === 'options' && <OptionsTab draft={draft} setDraft={setDraft} />}
+                                </div>
+                                {showPreview && (
+                                    <div className="w-80 shrink-0">
+                                        <div className="sticky top-0 space-y-4">
+                                            <div className="rounded-xl border bg-card p-4 shadow-lg">
+                                                <h3 className="text-sm font-bold mb-3 text-violet-700">ユーザー画面プレビュー</h3>
+                                                <ProductPreview
+                                                    product={draft}
+                                                    designImage={null}
+                                                    selectedOptions={previewOptions}
+                                                    hasDesign={false}
+                                                />
+                                            </div>
+                                            {/* Option simulator */}
+                                            <div className="rounded-xl border bg-card p-4 shadow-lg space-y-3">
+                                                <h4 className="text-xs font-bold text-muted-foreground uppercase">オプション切替シミュレーター</h4>
+                                                {draft.options.filter(o => o.type !== 'number').map((opt) => (
+                                                    <div key={opt.id}>
+                                                        <label className="text-[11px] font-medium text-muted-foreground block mb-1">{opt.name}</label>
+                                                        {opt.type === 'checkbox' ? (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {opt.values.map((v) => {
+                                                                    const current = (previewOptions[opt.id] || '').split(',').filter(Boolean)
+                                                                    const checked = current.includes(v.id)
+                                                                    return (
+                                                                        <label key={v.id} className={`text-[10px] px-2 py-1 rounded border cursor-pointer ${checked ? 'bg-primary/10 border-primary text-primary' : 'border-border'}`}>
+                                                                            <input type="checkbox" className="sr-only" checked={checked} onChange={() => {
+                                                                                const next = checked ? current.filter(x => x !== v.id) : [...current, v.id]
+                                                                                setPreviewOptions(prev => ({ ...prev, [opt.id]: next.join(',') }))
+                                                                            }} />
+                                                                            {v.label}
+                                                                        </label>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            <select
+                                                                className="w-full text-xs border border-border rounded px-2 py-1.5 bg-background"
+                                                                value={previewOptions[opt.id] ?? ''}
+                                                                onChange={(e) => setPreviewOptions(prev => ({ ...prev, [opt.id]: e.target.value }))}
+                                                            >
+                                                                {opt.values.map((v) => (
+                                                                    <option key={v.id} value={v.id}>{v.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {/* Quantity slider */}
+                                                <div>
+                                                    <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                                                        数量: {previewQuantity.toLocaleString()}個
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min={draft.minQuantity || 1}
+                                                        max={Math.min(draft.maxQuantity || 10000, 10000)}
+                                                        value={previewQuantity}
+                                                        onChange={(e) => setPreviewQuantity(parseInt(e.target.value))}
+                                                        className="w-full accent-primary"
+                                                    />
+                                                </div>
+                                            </div>
+                                            {/* Price calculation result */}
+                                            <div className="rounded-xl border bg-gradient-to-br from-green-50 to-emerald-50 p-4 shadow-lg space-y-2">
+                                                <h4 className="text-xs font-bold text-green-800 uppercase">算出結果</h4>
+                                                {(() => {
+                                                    const unit = calculateUnitPrice(draft, previewQuantity, previewOptions)
+                                                    const mold = calculateMoldFee(draft, previewOptions, previewQuantity)
+                                                    const shipping = calculateShippingModifier(draft, previewOptions)
+                                                    const total = unit * previewQuantity + (mold.requiresMold ? mold.moldFee : 0)
+                                                    return (
+                                                        <>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-muted-foreground">単価</span>
+                                                                <span className="font-bold">{formatPrice(unit)}/個</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-muted-foreground">小計 ({previewQuantity}個)</span>
+                                                                <span className="font-bold">{formatPrice(unit * previewQuantity)}</span>
+                                                            </div>
+                                                            {mold.requiresMold && (
+                                                                <div className="flex justify-between text-xs">
+                                                                    <span className="text-orange-600">金型費</span>
+                                                                    <span className="font-bold text-orange-600">{formatPrice(mold.moldFee)}</span>
+                                                                </div>
+                                                            )}
+                                                            {shipping > 0 && (
+                                                                <div className="flex justify-between text-xs">
+                                                                    <span className="text-blue-600">送料加算</span>
+                                                                    <span className="font-bold text-blue-600">+{formatPrice(shipping)}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between text-sm pt-1 border-t border-green-200">
+                                                                <span className="font-bold text-green-800">合計</span>
+                                                                <span className="font-black text-green-800 text-base">{formatPrice(total)}</span>
+                                                            </div>
+                                                        </>
+                                                    )
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </>
                     ) : (
                         <div className="flex-1 flex items-center justify-center text-muted-foreground h-full">
