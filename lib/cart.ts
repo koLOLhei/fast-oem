@@ -4,6 +4,14 @@ export interface CartItemOption {
   value: string
 }
 
+export interface DesignImageEntry {
+  viewId: string
+  viewLabel: string
+  storagePath: string
+  fileName: string
+  deliveryPdfUrl?: string
+}
+
 export interface CartItem {
   id: string
   productId: string
@@ -19,6 +27,8 @@ export interface CartItem {
   expressDelivery?: boolean
   expressDeliveryFee?: number
   deliveryPdfUrl?: string | null
+  designImages?: DesignImageEntry[]  // multi-view for 3D products
+  shippingModifier?: number          // extra shipping from options
 }
 
 export interface Cart {

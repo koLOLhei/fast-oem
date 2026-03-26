@@ -16,6 +16,7 @@ interface ImageUploaderProps {
   currentFileName: string | null
   selectedShape?: string
   onPreviewChange?: (dataUrl: string) => void
+  onComplexityDetected?: (grade: string) => void
 }
 
 export function ImageUploader({
@@ -24,6 +25,7 @@ export function ImageUploader({
   currentFileName,
   selectedShape = 'die-cut',
   onPreviewChange,
+  onComplexityDetected,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -36,20 +38,15 @@ export function ImageUploader({
   // The parent stores only the Supabase storage path.
   const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
 
-  // Revoke old blob URLs to prevent memory leaks
+  // Revoke blob URL on unmount only.
+  // During the component lifetime, handleFile / handleRemove manage revocation.
+  const localPreviewUrlRef = useRef(localPreviewUrl)
+  localPreviewUrlRef.current = localPreviewUrl
   useEffect(() => {
     return () => {
-      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+      if (localPreviewUrlRef.current) URL.revokeObjectURL(localPreviewUrlRef.current)
     }
-  }, [localPreviewUrl])
-
-  // Clear local preview when the parent clears the image
-  useEffect(() => {
-    if (!currentImage && localPreviewUrl) {
-      URL.revokeObjectURL(localPreviewUrl)
-      setLocalPreviewUrl(null)
-    }
-  }, [currentImage, localPreviewUrl])
+  }, [])
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -69,12 +66,13 @@ export function ImageUploader({
         return
       }
 
-      try {
-        // Create local blob URL for instant preview (same-origin, no CORS issues)
-        if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
-        const blobUrl = URL.createObjectURL(file)
-        setLocalPreviewUrl(blobUrl)
+      // Create local blob URL for instant preview (same-origin, no CORS issues)
+      const oldUrl = localPreviewUrlRef.current
+      if (oldUrl) URL.revokeObjectURL(oldUrl)
+      const blobUrl = URL.createObjectURL(file)
+      setLocalPreviewUrl(blobUrl)
 
+      try {
         // Upload to Supabase Storage (private bucket)
         const fileExt = file.name.split('.').pop()
         const storageName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
@@ -87,18 +85,25 @@ export function ImageUploader({
         // Pass storage path (NOT public URL) to parent — server-side
         // code uses toSignedUrl() to generate short-lived download URLs.
         onImageSelect(storagePath, file.name, null)
+
+        // Run complexity analysis in background (non-blocking)
+        if (onComplexityDetected) {
+          import('@/lib/complexity-analyzer').then(({ analyzeComplexity }) => {
+            analyzeComplexity(blobUrl)
+              .then((grade) => onComplexityDetected(grade))
+              .catch(() => { /* analysis is best-effort */ })
+          })
+        }
       } catch (err: any) {
         setError('画像のアップロードに失敗しました。もう一度お試しください。')
-        // Clean up on failure
-        if (localPreviewUrl) {
-          URL.revokeObjectURL(localPreviewUrl)
-          setLocalPreviewUrl(null)
-        }
+        // Clean up blob URL on failure
+        URL.revokeObjectURL(blobUrl)
+        setLocalPreviewUrl(null)
       } finally {
         setIsUploading(false)
       }
     },
-    [onImageSelect, localPreviewUrl],
+    [onImageSelect],
   )
 
   const handleConfirmLayout = useCallback(async () => {
@@ -114,7 +119,8 @@ export function ImageUploader({
       await supabase.storage.from('designs').upload(pngPath, pngBlob, { contentType: 'image/png' })
 
       // Update local preview to the composite image
-      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+      const oldUrl = localPreviewUrlRef.current
+      if (oldUrl) URL.revokeObjectURL(oldUrl)
       const compositeBlobUrl = URL.createObjectURL(pngBlob)
       setLocalPreviewUrl(compositeBlobUrl)
 
@@ -131,15 +137,16 @@ export function ImageUploader({
     } finally {
       setIsExporting(false)
     }
-  }, [currentImage, currentFileName, onImageSelect, localPreviewUrl])
+  }, [currentImage, currentFileName, onImageSelect])
 
   const handleRemove = useCallback(() => {
-    if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl)
+    const oldUrl = localPreviewUrlRef.current
+    if (oldUrl) URL.revokeObjectURL(oldUrl)
     setLocalPreviewUrl(null)
     onImageSelect(null, null, null)
     setError(null)
     setConfirmed(false)
-  }, [onImageSelect, localPreviewUrl])
+  }, [onImageSelect])
 
   // The image URL to feed into DesignCanvas — always a browser-loadable URL
   const canvasImageUrl = localPreviewUrl

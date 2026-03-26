@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react'
@@ -41,6 +41,19 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
   const [shippingZoneLabel, setShippingZoneLabel] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [agreedToCancel, setAgreedToCancel] = useState(false)
+
+  // Debounce timer ref for postal code lookup
+  const postalCodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const debouncedLookupPostalCode = useCallback((digits: string) => {
+    if (postalCodeTimerRef.current) {
+      clearTimeout(postalCodeTimerRef.current)
+    }
+    postalCodeTimerRef.current = setTimeout(() => {
+      lookupPostalCode(digits)
+      postalCodeTimerRef.current = null
+    }, 300)
+  }, [])
 
   const [formData, setFormData] = useState<ShippingAddress>({
     companyName: '',
@@ -89,7 +102,11 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
     if (field === 'postalCode') {
       const digits = value.replace(/-/g, '')
       if (digits.length === 7 && /^\d{7}$/.test(digits)) {
-        lookupPostalCode(digits)
+        debouncedLookupPostalCode(digits)
+      } else if (postalCodeTimerRef.current) {
+        // Cancel pending lookup if user changed input away from 7 digits
+        clearTimeout(postalCodeTimerRef.current)
+        postalCodeTimerRef.current = null
       }
     }
   }

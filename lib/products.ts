@@ -10,6 +10,23 @@ export interface PriceModifier {
   value: number // 'add': extra yen per unit, 'multiply': multiplier (e.g. 1.2 = +20%)
 }
 
+export interface ShippingModifier {
+  type: 'add' | 'multiply'
+  value: number
+}
+
+export interface MoldFeeRule {
+  conditionType: 'size' | 'quantity' | 'fixed'
+  conditionValue?: string  // size: option value id e.g. '20mm'; quantity: 'min-max' e.g. '1-100'
+  moldFee: number
+}
+
+export interface ImageView {
+  id: string        // e.g. 'front', 'side', 'back'
+  label: string     // e.g. '正面', '横', '後面'
+  required: boolean
+}
+
 export interface OptionValue {
   id: string
   label: string
@@ -19,13 +36,20 @@ export interface OptionValue {
   priceModifier?: PriceModifier
   requiresMold?: boolean   // true = this option value requires a mold (overrides product-level)
   moldFee?: number         // mold fee in JPY for this specific option value
+  shippingModifier?: ShippingModifier  // impact on shipping cost
 }
 
 export interface ProductOption {
   id: string
   name: string
   values: OptionValue[]
-  type: 'list' | 'grid' | 'dropdown'
+  type: 'list' | 'grid' | 'dropdown' | 'checkbox' | 'number'
+  multiSelect?: boolean     // for checkbox type
+  numberMin?: number        // for number type
+  numberMax?: number
+  numberUnit?: string       // e.g. 'mm'
+  pricePerUnit?: number     // for number type: input value × this = added to unit price
+  required?: boolean        // false allows "none" selection
 }
 
 export interface Product {
@@ -44,11 +68,14 @@ export interface Product {
   quantityPresets: number[]
   requiresMold?: boolean
   moldFee?: number              // one-time mold creation fee in JPY
+  moldFeeRules?: MoldFeeRule[]  // conditional mold fee (size/quantity based)
   leadTimeDays?: number         // standard lead time in business days (14–30)
   expressDeliveryFee?: number   // flat fee for 10-day express delivery (0 = unavailable)
   notificationEmail?: string    // factory order email; falls back to FACTORY_DEFAULT_EMAIL if empty
   defaultFactoryId?: string     // auto-assign order_items to this factory on checkout
   isActive?: boolean            // false = hidden from storefront
+  is3d?: boolean                // 3D product requiring multi-view design uploads
+  imageViews?: ImageView[]      // required views for 3D products
 }
 
 export const PRODUCTS: Product[] = [
@@ -535,9 +562,34 @@ export function calculateUnitPrice(
 
   // Apply option modifiers
   let price = base
-  for (const [optionId, valueId] of Object.entries(selectedOptions)) {
+  for (const [optionId, selectedValue] of Object.entries(selectedOptions)) {
     const option = product.options.find((o) => o.id === optionId)
-    const value = option?.values.find((v) => v.id === valueId)
+    if (!option) continue
+
+    // number type: input value × pricePerUnit
+    if (option.type === 'number' && option.pricePerUnit) {
+      const num = parseFloat(selectedValue)
+      if (!isNaN(num)) {
+        price += Math.round(num * option.pricePerUnit)
+      }
+      continue
+    }
+
+    // checkbox type: comma-separated values, accumulate all modifiers
+    if (option.type === 'checkbox' || option.multiSelect) {
+      const ids = selectedValue.split(',').filter(Boolean)
+      for (const id of ids) {
+        const val = option.values.find((v) => v.id === id)
+        const mod = val?.priceModifier
+        if (!mod) continue
+        if (mod.type === 'add') price += mod.value
+        else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+      }
+      continue
+    }
+
+    // Standard single-select
+    const value = option.values.find((v) => v.id === selectedValue)
     const mod = value?.priceModifier
     if (!mod) continue
     if (mod.type === 'add') {
@@ -576,6 +628,7 @@ export function getDiscountPercent(product: Product, quantity: number): number |
 export function calculateMoldFee(
   product: Product,
   selectedOptions?: Record<string, string>,
+  quantity?: number,
 ): { requiresMold: boolean; moldFee: number } {
   if (!selectedOptions) {
     return {
@@ -584,26 +637,63 @@ export function calculateMoldFee(
     }
   }
 
-  // Check if ANY option value in the product has mold settings configured
+  // 1. Check moldFeeRules (size-based or quantity-based conditional fees)
+  const rules = product.moldFeeRules
+  if (rules && rules.length > 0) {
+    const sizeValue = selectedOptions['size']
+    const qty = quantity ?? 0
+    for (const rule of rules) {
+      if (rule.conditionType === 'fixed') {
+        return { requiresMold: true, moldFee: rule.moldFee }
+      }
+      if (rule.conditionType === 'size' && sizeValue === rule.conditionValue) {
+        return { requiresMold: true, moldFee: rule.moldFee }
+      }
+      if (rule.conditionType === 'quantity' && rule.conditionValue) {
+        const [minStr, maxStr] = rule.conditionValue.split('-')
+        const min = parseInt(minStr, 10)
+        const max = parseInt(maxStr, 10)
+        if (qty >= min && qty <= max) {
+          return { requiresMold: true, moldFee: rule.moldFee }
+        }
+      }
+    }
+    // No rule matched — fall through to option-level / product-level
+  }
+
+  // 2. Check if ANY option value has mold settings configured
   const hasOptionLevelMold = product.options.some((opt) =>
     opt.values.some((v) => v.requiresMold !== undefined)
   )
 
   if (!hasOptionLevelMold) {
-    // No option-level mold config → use product-level fallback
     return {
       requiresMold: product.requiresMold ?? false,
       moldFee: product.moldFee ?? 0,
     }
   }
 
-  // Option-level: accumulate mold fees from all selected values that require molds
+  // 3. Option-level: accumulate mold fees from all selected values
   let totalMoldFee = 0
   let anyRequiresMold = false
 
-  for (const [optionId, valueId] of Object.entries(selectedOptions)) {
+  for (const [optionId, selectedValue] of Object.entries(selectedOptions)) {
     const option = product.options.find((o) => o.id === optionId)
-    const value = option?.values.find((v) => v.id === valueId)
+    if (!option) continue
+
+    // checkbox: check all selected values
+    if (option.type === 'checkbox' || option.multiSelect) {
+      for (const id of selectedValue.split(',').filter(Boolean)) {
+        const val = option.values.find((v) => v.id === id)
+        if (val?.requiresMold) {
+          anyRequiresMold = true
+          totalMoldFee += val.moldFee ?? 0
+        }
+      }
+      continue
+    }
+
+    const value = option.values.find((v) => v.id === selectedValue)
     if (value?.requiresMold) {
       anyRequiresMold = true
       totalMoldFee += value.moldFee ?? 0
@@ -611,6 +701,36 @@ export function calculateMoldFee(
   }
 
   return { requiresMold: anyRequiresMold, moldFee: totalMoldFee }
+}
+
+/**
+ * Calculate shipping cost modifier from selected options.
+ * Returns additional shipping cost in JPY (can be 0).
+ */
+export function calculateShippingModifier(
+  product: Product,
+  selectedOptions?: Record<string, string>,
+): number {
+  if (!selectedOptions) return 0
+  let extra = 0
+  for (const [optionId, selectedValue] of Object.entries(selectedOptions)) {
+    const option = product.options.find((o) => o.id === optionId)
+    if (!option) continue
+
+    const getModifier = (val: OptionValue | undefined) => {
+      if (!val?.shippingModifier) return
+      if (val.shippingModifier.type === 'add') extra += val.shippingModifier.value
+    }
+
+    if (option.type === 'checkbox' || option.multiSelect) {
+      for (const id of selectedValue.split(',').filter(Boolean)) {
+        getModifier(option.values.find((v) => v.id === id))
+      }
+    } else {
+      getModifier(option.values.find((v) => v.id === selectedValue))
+    }
+  }
+  return extra
 }
 
 export function formatPrice(priceInYen: number): string {

@@ -92,7 +92,7 @@ export default async function RootLayout({
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
-            <Header products={productNav} />
+            <Header />
             <main className="flex-1">{children}</main>
             <Footer products={productNav} />
           </div>

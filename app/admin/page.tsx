@@ -91,17 +91,29 @@ export default async function AdminPage({
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
     const allOrderStats = orderStats ?? []
-    const REVENUE_STATUSES = ['paid', 'processing', 'partially_shipped', 'shipped', 'completed']
-    const revenueStats = allOrderStats.filter((o) => REVENUE_STATUSES.includes(o.status))
-    const pendingStats = allOrderStats.filter((o) => o.status === 'pending')
+    const REVENUE_STATUSES_SET = new Set(['paid', 'processing', 'partially_shipped', 'shipped', 'completed'])
 
-    const totalRevenue = revenueStats.reduce((s, o) => s + (o.total_price ?? 0), 0)
-    const thisMonthRevenue = revenueStats
-        .filter((o) => new Date(o.created_at) >= thisMonthStart)
-        .reduce((s, o) => s + (o.total_price ?? 0), 0)
-    const lastMonthRevenue = revenueStats
-        .filter((o) => new Date(o.created_at) >= lastMonthStart && new Date(o.created_at) < thisMonthStart)
-        .reduce((s, o) => s + (o.total_price ?? 0), 0)
+    // Single-pass KPI aggregation: compute totalRevenue, thisMonth, lastMonth, and pendingStats together
+    let totalRevenue = 0
+    let thisMonthRevenue = 0
+    let lastMonthRevenue = 0
+    const pendingStats: typeof allOrderStats = []
+
+    for (const o of allOrderStats) {
+        if (REVENUE_STATUSES_SET.has(o.status)) {
+            const price = o.total_price ?? 0
+            totalRevenue += price
+            const created = new Date(o.created_at)
+            if (created >= thisMonthStart) {
+                thisMonthRevenue += price
+            } else if (created >= lastMonthStart) {
+                lastMonthRevenue += price
+            }
+        } else if (o.status === 'pending') {
+            pendingStats.push(o)
+        }
+    }
+
     const revenueGrowth = lastMonthRevenue > 0
         ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
         : null
@@ -109,12 +121,12 @@ export default async function AdminPage({
     // Pipeline item counts from pipelineItems
     const allItems = pipelineItems ?? []
 
-    const itemCounts = {
-        unassigned: allItems.filter((i) => i.status === 'unassigned').length,
-        assigned: allItems.filter((i) => i.status === 'assigned').length,
-        manufacturing: allItems.filter((i) => i.status === 'manufacturing').length,
-        ready_to_ship: allItems.filter((i) => i.status === 'ready_to_ship').length,
-        shipped: allItems.filter((i) => i.status === 'shipped').length,
+    // Single-pass pipeline item counting (replaces 5 separate filter passes)
+    const itemCounts = { unassigned: 0, assigned: 0, manufacturing: 0, ready_to_ship: 0, shipped: 0 }
+    for (const i of allItems) {
+        if (i.status in itemCounts) {
+            itemCounts[i.status as keyof typeof itemCounts]++
+        }
     }
     const totalItems = allItems.length
     const activeItems = totalItems - itemCounts.shipped
@@ -134,16 +146,26 @@ export default async function AdminPage({
     const criticalItems = delayedItems.filter((i) => i.status === 'unassigned')
     const warningItems = delayedItems.filter((i) => i.status !== 'unassigned')
 
-    // Factory workload
-    const factoryStats = (factories ?? []).map((f) => {
-        const fItems = allItems.filter((i) => i.factory_id === f.id)
-        return {
-            ...f,
-            active: fItems.filter((i) => i.status !== 'shipped').length,
-            manufacturing: fItems.filter((i) => i.status === 'manufacturing').length,
-            assigned: fItems.filter((i) => i.status === 'assigned').length,
-            shipped: fItems.filter((i) => i.status === 'shipped').length,
+    // Factory workload: single-pass O(items) aggregation using a Map
+    const factoryWorkloadMap = new Map<string, { active: number; manufacturing: number; assigned: number; shipped: number }>()
+    for (const i of allItems) {
+        if (!i.factory_id) continue
+        let entry = factoryWorkloadMap.get(i.factory_id)
+        if (!entry) {
+            entry = { active: 0, manufacturing: 0, assigned: 0, shipped: 0 }
+            factoryWorkloadMap.set(i.factory_id, entry)
         }
+        if (i.status === 'shipped') {
+            entry.shipped++
+        } else {
+            entry.active++
+            if (i.status === 'manufacturing') entry.manufacturing++
+            else if (i.status === 'assigned') entry.assigned++
+        }
+    }
+    const factoryStats = (factories ?? []).map((f) => {
+        const w = factoryWorkloadMap.get(f.id) ?? { active: 0, manufacturing: 0, assigned: 0, shipped: 0 }
+        return { ...f, ...w }
     }).sort((a, b) => b.active - a.active)
     const maxFactoryActive = Math.max(1, ...factoryStats.map((f) => f.active))
 

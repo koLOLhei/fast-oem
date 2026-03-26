@@ -5,7 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import { sendSlackMessage } from '@/lib/slack'
-import { type Product } from '@/lib/products'
+import { type Product, calculateMoldFee, calculateShippingModifier } from '@/lib/products'
 import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
 
 interface CheckoutSessionData {
@@ -61,8 +61,34 @@ function computeUnitPrice(
   let price = base
   for (const [optionId, valueIdOrLabel] of Object.entries(selectedOptions)) {
     const option = options.find((o) => o.id === optionId)
+    if (!option) continue
+
+    // number type: input value × pricePerUnit
+    if (option.type === 'number' && option.pricePerUnit) {
+      const num = parseFloat(valueIdOrLabel)
+      if (!isNaN(num)) {
+        price += Math.round(num * option.pricePerUnit)
+      }
+      continue
+    }
+
+    // checkbox type: comma-separated values, accumulate all modifiers
+    if (option.type === 'checkbox' || option.multiSelect) {
+      const ids = valueIdOrLabel.split(',').filter(Boolean)
+      for (const id of ids) {
+        // Cart stores option value LABELS (not IDs), so match by label first, then ID
+        const val = option.values.find((v) => v.label === id || v.id === id)
+        const mod = val?.priceModifier
+        if (!mod) continue
+        if (mod.type === 'add') price += mod.value
+        else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+      }
+      continue
+    }
+
+    // Standard single-select
     // Cart stores option value LABELS (not IDs), so match by label first, then ID
-    const value = option?.values.find((v) => v.label === valueIdOrLabel || v.id === valueIdOrLabel)
+    const value = option.values.find((v) => v.label === valueIdOrLabel || v.id === valueIdOrLabel)
     const mod = value?.priceModifier
     if (!mod) continue
     if (mod.type === 'add') price += mod.value
@@ -88,7 +114,7 @@ async function validateAndRepricItems(
   const productIds = [...new Set(items.map((i) => i.productId))]
   const { data: masterRows, error: masterError } = await supabase
     .from('products')
-    .select('id, price_tiers, options, requires_mold, mold_fee, express_delivery_fee, min_quantity, max_quantity')
+    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity')
     .in('id', productIds)
 
   if (masterError) {
@@ -188,28 +214,16 @@ async function validateAndRepricItems(
     }
     const validatedMoldOrderId = moldExemptionValid ? item.moldOrderId : undefined
 
-    // Calculate expected mold fee: option-value-level takes priority over product-level
-    const masterOptions = master.options ?? []
-    const hasOptionLevelMold = masterOptions.some((opt: any) =>
-      (opt.values ?? []).some((v: any) => v.requiresMold !== undefined)
-    )
-    let expectedMoldFee: number
-    if (hasOptionLevelMold && !validatedMoldOrderId) {
-      // Sum mold fees from selected option values that require molds
-      let optionMoldFee = 0
-      for (const [optionId, valueLabel] of Object.entries(selectedOptionsMap)) {
-        const opt = masterOptions.find((o: any) => o.id === optionId)
-        // Cart stores value label, not ID — match by label or ID
-        const val = (opt?.values ?? []).find((v: any) => v.label === valueLabel || v.id === valueLabel)
-        if (val?.requiresMold) optionMoldFee += val.moldFee ?? 0
-      }
-      expectedMoldFee = optionMoldFee
-    } else {
-      // Fallback to product-level
-      expectedMoldFee = (master.requires_mold && !validatedMoldOrderId)
-        ? (master.mold_fee ?? 0)
-        : 0
-    }
+    // Calculate expected mold fee using canonical calculateMoldFee()
+    // Construct a Product-like object from master data for the shared function
+    const masterProduct = {
+      requiresMold: master.requires_mold,
+      moldFee: master.mold_fee,
+      moldFeeRules: master.mold_fee_rules,
+      options: master.options ?? [],
+    } as Product
+    const { moldFee: calculatedMoldFee } = calculateMoldFee(masterProduct, selectedOptionsMap, item.quantity)
+    const expectedMoldFee = validatedMoldOrderId ? 0 : calculatedMoldFee
     const clientMoldFee = item.moldFee ?? 0
     if (clientMoldFee !== expectedMoldFee) {
       console.warn(JSON.stringify({
@@ -371,16 +385,32 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   const distinctProductIds = [...new Set(items.map((i) => i.productId))]
   const { data: productRows } = await supabase
     .from('products')
-    .select('id, default_factory_id')
+    .select('id, default_factory_id, options')
     .in('id', distinctProductIds)
   const defaultFactoryMap: Record<string, string | null> = {}
+  const productMasterMap: Record<string, any> = {}
   for (const row of productRows ?? []) {
     defaultFactoryMap[row.id] = row.default_factory_id ?? null
+    productMasterMap[row.id] = row
   }
 
   // ── Step 3: Insert order items ───────────────────────────────────────────────
+
   const orderItemsToInsert = items.map((item) => {
     const defaultFactoryId = defaultFactoryMap[item.productId] ?? null
+
+    // Calculate shipping modifier from selected options
+    const selectedOptionsMap: Record<string, string> = Object.fromEntries(
+      (item.options ?? []).map((o) => [o.id, o.value]),
+    )
+    const masterForShipping = productMasterMap[item.productId]
+    const shippingModifier = masterForShipping
+      ? calculateShippingModifier(
+          { options: masterForShipping.options ?? [] } as Product,
+          selectedOptionsMap,
+        )
+      : 0
+
     return {
       order_id: order.id,
       product_id: item.productId,
@@ -398,6 +428,8 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
       express_delivery_fee: item.expressDeliveryFee || 0,
       factory_id: defaultFactoryId,
       status: defaultFactoryId ? 'assigned' : 'unassigned',
+      shipping_modifier: shippingModifier,
+      design_images: item.designImages ?? [],
     }
   })
 

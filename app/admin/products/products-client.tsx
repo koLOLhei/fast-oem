@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
-import { type Product, type PriceTier, type ProductOption, type OptionValue } from '@/lib/products'
+import { useMemo, useRef, useState, useTransition } from 'react'
+import { type Product, type PriceTier, type ProductOption, type OptionValue, type MoldFeeRule, type ImageView } from '@/lib/products'
 import { updateProduct, toggleProductActive, createProduct, applyGlobalPriceAdjustment, uploadProductImage } from '@/app/actions/products'
 
 interface Factory {
@@ -15,6 +15,23 @@ interface ProductsClientProps {
 }
 
 type Tab = 'basic' | 'price' | 'options'
+
+const TABS: Tab[] = ['basic', 'price', 'options']
+const TAB_LABELS: Record<Tab, string> = {
+    basic: '基本情報',
+    price: '価格テーブル',
+    options: 'オプション',
+}
+
+const CATEGORY_OPTIONS = [
+    { value: 'keychain', label: 'キーホルダー (keychain)' },
+    { value: 'badge', label: 'バッジ (badge)' },
+    { value: 'packaging', label: 'パッケージ (packaging)' },
+    { value: 'other', label: 'その他 (other)' },
+] as const
+
+const DEFAULT_QUANTITY_PRESETS = [10, 30, 50, 100] as const
+const DEFAULT_PRICE_TIER: PriceTier = { minQuantity: 1, maxQuantity: 100, unitPrice: 1000 }
 
 const slugify = (s: string) =>
     s.toLowerCase().trim().replace(/[^a-z0-9ぁ-んァ-ヶ一-龥]+/g, '-').replace(/^-|-$/g, '') || `product-${crypto.randomUUID().slice(0, 8)}`
@@ -48,7 +65,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
             }
         }
         setSelected(p)
-        setDraft(structuredClone(p))
+        setDraft(JSON.parse(JSON.stringify(p)))
         setTab('basic')
         setSaveMsg('')
         setShowCreate(false)
@@ -77,6 +94,9 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     options: draft.options,
                     notificationEmail: (draft as any).notificationEmail ?? '',
                     defaultFactoryId: (draft as any).defaultFactoryId ?? null,
+                    moldFeeRules: draft.moldFeeRules ?? [],
+                    is3d: draft.is3d ?? false,
+                    imageViews: draft.imageViews ?? [],
                 })
                 setProducts((prev) => prev.map((p) => (p.id === draft.id ? draft : p)))
                 setSelected(draft)
@@ -118,8 +138,8 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     category: newCategory,
                     imageUrl: '',
                     features: [],
-                    quantityPresets: [10, 30, 50, 100],
-                    priceTiers: [{ minQuantity: 1, maxQuantity: 100, unitPrice: 1000 }],
+                    quantityPresets: [...DEFAULT_QUANTITY_PRESETS],
+                    priceTiers: [{ ...DEFAULT_PRICE_TIER }],
                     options: [],
                     minQuantity: 1,
                     maxQuantity: 10000,
@@ -283,13 +303,13 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
 
                             {/* Tabs */}
                             <div className="flex gap-1 bg-muted rounded-lg p-1 mb-6 w-fit">
-                                {(['basic', 'price', 'options'] as Tab[]).map((t) => (
+                                {TABS.map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => setTab(t)}
                                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${tab === t ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                                     >
-                                        {t === 'basic' ? '基本情報' : t === 'price' ? '価格テーブル' : 'オプション'}
+                                        {TAB_LABELS[t]}
                                     </button>
                                 ))}
                             </div>
@@ -340,10 +360,9 @@ function CreateForm({
                 <div>
                     <label className="block text-xs font-semibold text-muted-foreground mb-1.5">カテゴリ</label>
                     <select className={inputCls} value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-                        <option value="keychain">キーホルダー (keychain)</option>
-                        <option value="badge">バッジ (badge)</option>
-                        <option value="packaging">パッケージ (packaging)</option>
-                        <option value="other">その他 (other)</option>
+                        {CATEGORY_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
                     </select>
                 </div>
             </div>
@@ -398,6 +417,13 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
         e.target.value = ''
     }
 
+    const moldOverrideSummary = useMemo(() => {
+        const entries = draft.options.flatMap((o) =>
+            o.values.filter((v) => v.requiresMold).map((v) => `${o.name}「${v.label}」¥${(v.moldFee ?? 0).toLocaleString()}`)
+        )
+        return entries.length > 0 ? entries.join('、') : null
+    }, [draft.options])
+
     return (
         <div className="space-y-6 max-w-2xl">
             <div className="grid grid-cols-2 gap-4">
@@ -406,10 +432,9 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
                 </Field>
                 <Field label="カテゴリ">
                     <select className={inputCls} value={draft.category} onChange={(e) => set('category', e.target.value)}>
-                        <option value="keychain">キーホルダー (keychain)</option>
-                        <option value="badge">バッジ (badge)</option>
-                        <option value="packaging">パッケージ (packaging)</option>
-                        <option value="other">その他 (other)</option>
+                        {CATEGORY_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
                     </select>
                 </Field>
             </div>
@@ -463,14 +488,99 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
                         />
                     </Field>
                 )}
-                {draft.options.some((o) => o.values.some((v) => v.requiresMold)) && (
+                {moldOverrideSummary && (
                     <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 text-xs text-orange-800">
                         <span className="font-bold">個別設定あり：</span>
-                        {draft.options.flatMap((o) =>
-                            o.values.filter((v) => v.requiresMold).map((v) => `${o.name}「${v.label}」¥${(v.moldFee ?? 0).toLocaleString()}`)
-                        ).join('、')}
+                        {moldOverrideSummary}
                     </div>
                 )}
+
+                {/* Conditional mold fee rules */}
+                <div className="mt-3 pt-3 border-t space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground">条件付き金型費</h4>
+                    <p className="text-[10px] text-muted-foreground">サイズや数量に応じて金型費を変動させるルールを設定できます。</p>
+                    {(draft.moldFeeRules ?? []).length > 0 && (
+                        <div className="rounded-lg border overflow-hidden">
+                            <table className="w-full text-xs">
+                                <thead className="bg-muted/50 border-b">
+                                    <tr>
+                                        <th className="text-left px-3 py-2 font-semibold">条件タイプ</th>
+                                        <th className="text-left px-3 py-2 font-semibold">条件値</th>
+                                        <th className="text-left px-3 py-2 font-semibold">金型費（円）</th>
+                                        <th className="px-3 py-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(draft.moldFeeRules ?? []).map((rule, i) => (
+                                        <tr key={i} className="border-b last:border-0">
+                                            <td className="px-3 py-1.5">
+                                                <select
+                                                    className={`${smallInput} text-xs`}
+                                                    value={rule.conditionType}
+                                                    onChange={(e) => {
+                                                        const rules = [...(draft.moldFeeRules ?? [])]
+                                                        rules[i] = { ...rules[i], conditionType: e.target.value as MoldFeeRule['conditionType'] }
+                                                        set('moldFeeRules', rules)
+                                                    }}
+                                                >
+                                                    <option value="size">サイズ (size)</option>
+                                                    <option value="quantity">数量 (quantity)</option>
+                                                    <option value="fixed">固定 (fixed)</option>
+                                                </select>
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <input
+                                                    type="text"
+                                                    className={`${smallInput} text-xs`}
+                                                    value={rule.conditionValue ?? ''}
+                                                    onChange={(e) => {
+                                                        const rules = [...(draft.moldFeeRules ?? [])]
+                                                        rules[i] = { ...rules[i], conditionValue: e.target.value || undefined }
+                                                        set('moldFeeRules', rules)
+                                                    }}
+                                                    placeholder={rule.conditionType === 'size' ? 'オプション値ID' : rule.conditionType === 'quantity' ? '1-100' : ''}
+                                                />
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <input
+                                                    type="number"
+                                                    className={`${smallInput} text-xs`}
+                                                    value={rule.moldFee}
+                                                    onChange={(e) => {
+                                                        const rules = [...(draft.moldFeeRules ?? [])]
+                                                        rules[i] = { ...rules[i], moldFee: parseInt(e.target.value) || 0 }
+                                                        set('moldFeeRules', rules)
+                                                    }}
+                                                    placeholder="15000"
+                                                />
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <button
+                                                    onClick={() => {
+                                                        const rules = (draft.moldFeeRules ?? []).filter((_, idx) => idx !== i)
+                                                        set('moldFeeRules', rules)
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 text-xs px-2 py-0.5 border border-red-200 rounded hover:bg-red-50"
+                                                >
+                                                    削除
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => {
+                            const rules = [...(draft.moldFeeRules ?? []), { conditionType: 'fixed' as const, moldFee: 0 }]
+                            set('moldFeeRules', rules)
+                        }}
+                        className="text-xs px-3 py-1.5 border border-dashed border-border rounded-lg hover:bg-muted/50 text-muted-foreground"
+                    >
+                        ＋ ルール追加
+                    </button>
+                </div>
             </div>
 
             <div className="rounded-xl border bg-card p-4 space-y-3">
@@ -585,6 +695,93 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
                     />
                 )}
             </div>
+
+            {/* 3D Product Settings */}
+            <div className="rounded-xl border bg-card p-4 space-y-3">
+                <h3 className="font-semibold text-sm">3D商品設定</h3>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-primary"
+                        checked={!!draft.is3d}
+                        onChange={(e) => set('is3d', e.target.checked)}
+                    />
+                    <span className="text-sm">3D商品（複数面のデザインアップロードが必要）</span>
+                </label>
+                {draft.is3d && (
+                    <div className="space-y-2 mt-2">
+                        <h4 className="text-xs font-semibold text-muted-foreground">画像面（Image Views）</h4>
+                        {(draft.imageViews ?? []).map((view, i) => (
+                            <div key={i} className="grid grid-cols-12 gap-2 items-center rounded-lg border bg-muted/20 p-2">
+                                <div className="col-span-3">
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5">ID</label>
+                                    <input
+                                        type="text"
+                                        className={`${smallInput} font-mono text-xs`}
+                                        value={view.id}
+                                        onChange={(e) => {
+                                            const views = [...(draft.imageViews ?? [])]
+                                            views[i] = { ...views[i], id: e.target.value }
+                                            set('imageViews', views)
+                                        }}
+                                        placeholder="front"
+                                    />
+                                </div>
+                                <div className="col-span-4">
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5">ラベル</label>
+                                    <input
+                                        type="text"
+                                        className={smallInput}
+                                        value={view.label}
+                                        onChange={(e) => {
+                                            const views = [...(draft.imageViews ?? [])]
+                                            views[i] = { ...views[i], label: e.target.value }
+                                            set('imageViews', views)
+                                        }}
+                                        placeholder="正面"
+                                    />
+                                </div>
+                                <div className="col-span-3">
+                                    <label className="text-[10px] text-muted-foreground block mb-0.5">必須</label>
+                                    <label className="flex items-center gap-1.5 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="w-3.5 h-3.5 accent-primary"
+                                            checked={view.required}
+                                            onChange={(e) => {
+                                                const views = [...(draft.imageViews ?? [])]
+                                                views[i] = { ...views[i], required: e.target.checked }
+                                                set('imageViews', views)
+                                            }}
+                                        />
+                                        <span className="text-xs">必須</span>
+                                    </label>
+                                </div>
+                                <div className="col-span-2 flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            const views = (draft.imageViews ?? []).filter((_, idx) => idx !== i)
+                                            set('imageViews', views)
+                                        }}
+                                        className="text-red-500 hover:text-red-700 text-xs px-2 py-1 border border-red-200 rounded hover:bg-red-50"
+                                    >
+                                        削除
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => {
+                                const views = [...(draft.imageViews ?? []), { id: '', label: '', required: true }]
+                                set('imageViews', views)
+                            }}
+                            className="text-xs px-3 py-1.5 border border-dashed border-border rounded-lg hover:bg-muted/50 text-muted-foreground"
+                        >
+                            ＋ 面を追加
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
@@ -614,7 +811,14 @@ function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Di
         setTiers(draft.priceTiers.filter((_, i) => i !== index))
     }
 
-    const basePrice = draft.priceTiers[0]?.unitPrice ?? 1
+    const basePrice = useMemo(() => draft.priceTiers[0]?.unitPrice ?? 1, [draft.priceTiers])
+
+    const discounts = useMemo(() =>
+        draft.priceTiers.map((tier) =>
+            basePrice > tier.unitPrice ? Math.round((1 - tier.unitPrice / basePrice) * 100) : 0
+        ),
+        [draft.priceTiers, basePrice]
+    )
 
     return (
         <div className="max-w-3xl">
@@ -632,11 +836,7 @@ function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Di
                         </tr>
                     </thead>
                     <tbody>
-                        {draft.priceTiers.map((tier, i) => {
-                            const discount = basePrice > tier.unitPrice
-                                ? Math.round((1 - tier.unitPrice / basePrice) * 100)
-                                : 0
-                            return (
+                        {draft.priceTiers.map((tier, i) => (
                                 <tr key={i} className="border-b last:border-0">
                                     <td className="px-4 py-2">
                                         <input type="number" className={smallInput} value={tier.minQuantity} onChange={(e) => updateTier(i, 'minQuantity', parseInt(e.target.value) || 0)} />
@@ -648,7 +848,7 @@ function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Di
                                         <input type="number" className={smallInput} value={tier.unitPrice} onChange={(e) => updateTier(i, 'unitPrice', parseInt(e.target.value) || 0)} />
                                     </td>
                                     <td className="px-4 py-2 text-green-700 font-semibold">
-                                        {discount > 0 ? `-${discount}%` : '—'}
+                                        {discounts[i] > 0 ? `-${discounts[i]}%` : '—'}
                                     </td>
                                     <td className="px-4 py-2">
                                         <button onClick={() => removeTier(i)} className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded border border-red-200 hover:bg-red-50">
@@ -656,8 +856,7 @@ function PriceTiersTab({ draft, setDraft }: { draft: Product; setDraft: React.Di
                                         </button>
                                     </td>
                                 </tr>
-                            )
-                        })}
+                        ))}
                     </tbody>
                 </table>
             </div>
@@ -733,6 +932,10 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                     if (field === 'moldFee') {
                         return { ...v, moldFee: parseInt(value) || 0 }
                     }
+                    if (field === 'shippingModValue') {
+                        const numVal = parseInt(value) || 0
+                        return { ...v, shippingModifier: numVal ? { type: 'add' as const, value: numVal } : undefined }
+                    }
                     return v
                 })
             }
@@ -754,11 +957,18 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                         <select
                             className="text-xs border border-border rounded px-2 py-1 bg-background"
                             value={opt.type}
-                            onChange={(e) => updateOption(opt.id, 'type', e.target.value as any)}
+                            onChange={(e) => {
+                                const newType = e.target.value as any
+                                updateOption(opt.id, 'type', newType)
+                                if (newType === 'checkbox') updateOption(opt.id, 'multiSelect', true)
+                                if (newType === 'number') updateOption(opt.id, 'values', [])
+                            }}
                         >
                             <option value="list">リスト (list)</option>
                             <option value="grid">グリッド (grid)</option>
                             <option value="dropdown">ドロップダウン (dropdown)</option>
+                            <option value="checkbox">チェックボックス（複数選択）</option>
+                            <option value="number">数値入力</option>
                         </select>
                         <button
                             onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
@@ -771,7 +981,64 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
 
                     {expandedOpt === opt.id && (
                         <div className="p-4 space-y-2">
-                            {opt.values.map((val) => (
+                            {/* Number type settings */}
+                            {opt.type === 'number' && (
+                                <div className="rounded-lg border bg-blue-50/50 p-3 space-y-2 mb-3">
+                                    <h4 className="text-xs font-semibold text-blue-700">数値入力設定</h4>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">最小値</label>
+                                            <input
+                                                type="number"
+                                                className={smallInput}
+                                                value={opt.numberMin ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'numberMin', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">最大値</label>
+                                            <input
+                                                type="number"
+                                                className={smallInput}
+                                                value={opt.numberMax ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'numberMax', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                placeholder="1000"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">単位（例: mm）</label>
+                                            <input
+                                                type="text"
+                                                className={smallInput}
+                                                value={opt.numberUnit ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'numberUnit', e.target.value || undefined)}
+                                                placeholder="mm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">1単位あたりの追加単価（円）</label>
+                                            <input
+                                                type="number"
+                                                className={smallInput}
+                                                value={opt.pricePerUnit ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'pricePerUnit', e.target.value ? parseFloat(e.target.value) : undefined)}
+                                                placeholder="10"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">数値入力型では選択肢（values）は使用しません。</p>
+                                </div>
+                            )}
+
+                            {/* Checkbox type info */}
+                            {opt.type === 'checkbox' && (
+                                <div className="rounded-lg border bg-green-50/50 p-3 mb-3">
+                                    <p className="text-xs text-green-700">チェックボックス型: 複数選択が有効です（multiSelect = true）</p>
+                                </div>
+                            )}
+
+                            {opt.type !== 'number' && opt.values.map((val) => (
                                 <div key={val.id} className="rounded-lg border bg-muted/20 p-3 space-y-2">
                                     {/* Row 1: ID, Label, Price modifier */}
                                     <div className="grid grid-cols-12 gap-2 items-center">
@@ -875,14 +1142,28 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                                             </div>
                                         )}
                                     </div>
+                                    {/* Row 4: Shipping modifier */}
+                                    <div className="flex items-center gap-3 pl-1">
+                                        <span className="text-[10px] text-muted-foreground">送料加算額（円）:</span>
+                                        <input
+                                            type="number"
+                                            className={`${smallInput} w-24`}
+                                            value={val.shippingModifier?.value ?? ''}
+                                            onChange={(e) => updateValue(opt.id, val.id, 'shippingModValue', e.target.value)}
+                                            placeholder="0"
+                                        />
+                                        <span className="text-[10px] text-muted-foreground">円（0または空欄=影響なし）</span>
+                                    </div>
                                 </div>
                             ))}
-                            <button
-                                onClick={() => addValue(opt.id)}
-                                className="mt-2 w-full text-xs px-3 py-2 border border-dashed border-border rounded-lg hover:bg-muted/50 text-muted-foreground"
-                            >
-                                + 値を追加
-                            </button>
+                            {opt.type !== 'number' && (
+                                <button
+                                    onClick={() => addValue(opt.id)}
+                                    className="mt-2 w-full text-xs px-3 py-2 border border-dashed border-border rounded-lg hover:bg-muted/50 text-muted-foreground"
+                                >
+                                    + 値を追加
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

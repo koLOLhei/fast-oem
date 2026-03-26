@@ -1,7 +1,7 @@
 'use client'
 
 import { type Locale, translations } from '@/lib/i18n/factory-translations'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateItemStatus, submitTrackingNumber, revertItemStatus } from '@/app/actions/factory'
 import { logout } from '@/app/actions/auth'
@@ -54,6 +54,15 @@ const LOCALES: { code: Locale; label: string; flag: string }[] = [
 // assigned → manufacturing → ready_to_ship (all via button)
 // manufacturing / ready_to_ship → shipped via tracking form
 const STATUS_ORDER = ['assigned', 'manufacturing', 'ready_to_ship']
+
+const statusColors: Record<string, string> = {
+    unassigned:   'bg-gray-100 text-gray-700',
+    assigned:     'bg-yellow-100 text-yellow-800',
+    manufacturing:'bg-blue-100 text-blue-800',
+    ready_to_ship:'bg-purple-100 text-purple-800',
+    shipped:      'bg-green-100 text-green-800',
+    cancelled:    'bg-red-100 text-red-700',
+}
 
 export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientProps) {
     const [locale, setLocale] = useState<Locale>('en')
@@ -108,30 +117,21 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
         setTimeout(() => setSuccessIds((prev) => { const n = { ...prev }; delete n[itemId]; return n }), 4000)
     }
 
-    const nonCancelledItems = items.filter((i) => i.status !== 'cancelled')
-    const cancelledItems   = items.filter((i) => i.status === 'cancelled')
+    const nonCancelledItems = useMemo(() => items.filter((i) => i.status !== 'cancelled'), [items])
+    const cancelledItems   = useMemo(() => items.filter((i) => i.status === 'cancelled'), [items])
 
     // Express-first, then newest-first
-    const sortedItems = [...nonCancelledItems].sort((a, b) => {
+    const sortedItems = useMemo(() => [...nonCancelledItems].sort((a, b) => {
         if (a.express_delivery && !b.express_delivery) return -1
         if (!a.express_delivery && b.express_delivery) return 1
         return new Date(b.orders.created_at).getTime() - new Date(a.orders.created_at).getTime()
-    })
+    }), [nonCancelledItems])
 
-    const activeItems = statusFilter === 'all'
+    const activeItems = useMemo(() => statusFilter === 'all'
         ? sortedItems
-        : sortedItems.filter((i) => i.status === statusFilter)
+        : sortedItems.filter((i) => i.status === statusFilter), [sortedItems, statusFilter])
 
-    const expressCount = nonCancelledItems.filter((i) => i.express_delivery).length
-
-    const statusColors: Record<string, string> = {
-        unassigned:   'bg-gray-100 text-gray-700',
-        assigned:     'bg-yellow-100 text-yellow-800',
-        manufacturing:'bg-blue-100 text-blue-800',
-        ready_to_ship:'bg-purple-100 text-purple-800',
-        shipped:      'bg-green-100 text-green-800',
-        cancelled:    'bg-red-100 text-red-700',
-    }
+    const expressCount = useMemo(() => nonCancelledItems.filter((i) => i.express_delivery).length, [nonCancelledItems])
 
     const handleStatusUpdate = async (itemId: string, targetStatus: string) => {
         setLoadingIds((prev) => [...prev, itemId])

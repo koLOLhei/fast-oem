@@ -21,6 +21,7 @@ function rowToProduct(row: any): Product {
         category: row.category,
         requiresMold: row.requires_mold,
         moldFee: row.mold_fee,
+        moldFeeRules: row.mold_fee_rules ?? [],
         leadTimeDays: row.lead_time_days,
         expressDeliveryFee: row.express_delivery_fee ?? 0,
         notificationEmail: row.notification_email ?? '',
@@ -33,6 +34,8 @@ function rowToProduct(row: any): Product {
         priceTiers: row.price_tiers ?? [],
         options: row.options ?? [],
         isActive: row.is_active ?? true,
+        is3d: row.is_3d ?? false,
+        imageViews: row.image_views ?? [],
     }
 }
 

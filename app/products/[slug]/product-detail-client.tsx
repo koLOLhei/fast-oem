@@ -8,6 +8,8 @@ import { ShoppingCart, Check, ChevronRight, ChevronDown, Star, Shield, Truck, In
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ImageUploader } from '@/components/image-uploader'
+import { MultiViewUploader } from '@/components/multi-view-uploader'
+import { type DesignImageEntry } from '@/lib/cart'
 import { ProductPreview } from '@/components/product-preview'
 import { useCart } from '@/components/cart-provider'
 import {
@@ -15,6 +17,7 @@ import {
   calculateUnitPrice,
   calculateTotalPrice,
   calculateMoldFee,
+  calculateShippingModifier,
   formatPrice,
 } from '@/lib/products'
 
@@ -33,6 +36,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
     product.options.forEach((option) => {
+      if (option.type === 'checkbox' || option.type === 'number') return
       if (option.values.length > 0) {
         initial[option.id] = option.values[0].id
       }
@@ -49,11 +53,23 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [designImages, setDesignImages] = useState<DesignImageEntry[]>([])
+  const [allRequiredDone, setAllRequiredDone] = useState(false)
   // Stable callback ref to avoid DesignCanvas useEffect re-triggering on every render
   const handlePreviewChange = useCallback((dataUrl: string) => {
     setPreviewImage(dataUrl)
   }, [])
   const isAddedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const is3d = product.is3d && product.imageViews && product.imageViews.length > 0
+
+  const handleMultiViewImagesChange = useCallback(
+    (images: DesignImageEntry[], requiredDone: boolean) => {
+      setDesignImages(images)
+      setAllRequiredDone(requiredDone)
+    },
+    [],
+  )
 
   // Restore draft from localStorage on mount
   useEffect(() => {
@@ -115,6 +131,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     }))
   }
 
+  const handleCheckboxToggle = (optionId: string, valueId: string) => {
+    setSelectedOptions((prev) => {
+      const current = (prev[optionId] || '').split(',').filter(Boolean)
+      const idx = current.indexOf(valueId)
+      if (idx >= 0) current.splice(idx, 1)
+      else current.push(valueId)
+      return { ...prev, [optionId]: current.join(',') }
+    })
+  }
+
   const handleQuantitySelect = (qty: number) => {
     setQuantity(qty)
     setCustomQuantity('')
@@ -129,13 +155,24 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   const handleAddToCart = (): boolean => {
-    if (!designImage) {
-      alert('デザイン画像をアップロードしてください')
-      return false
-    }
-    if (!deliveryPdfUrl) {
-      alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
-      return false
+    if (is3d) {
+      if (designImages.length === 0) {
+        alert('デザイン画像をアップロードしてください')
+        return false
+      }
+      if (!allRequiredDone) {
+        alert('必須の面すべてで「納品データを確定（PDF生成）」を完了してください')
+        return false
+      }
+    } else {
+      if (!designImage) {
+        alert('デザイン画像をアップロードしてください')
+        return false
+      }
+      if (!deliveryPdfUrl) {
+        alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
+        return false
+      }
     }
 
     const options = Object.entries(selectedOptions).map(([id, valueId]) => {
@@ -155,13 +192,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       unitPrice,
       totalPrice: totalPriceItems,
       options,
-      designImage,
-      designFileName,
+      designImage: is3d ? designImages[0]?.storagePath ?? null : designImage,
+      designFileName: is3d ? designImages[0]?.fileName ?? null : designFileName,
       moldFee: moldFee > 0 ? moldFee : undefined,
       moldOrderId: moldReuseValid && moldOrderId ? moldOrderId : undefined,
       expressDelivery: expressDelivery || undefined,
       expressDeliveryFee: expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? product.expressDeliveryFee : undefined,
-      deliveryPdfUrl,
+      deliveryPdfUrl: is3d ? designImages[0]?.deliveryPdfUrl ?? null : deliveryPdfUrl,
+      ...(is3d ? { designImages } : {}),
     })
 
     setIsAdded(true)
@@ -177,10 +215,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
   const totalPriceItems = calculateTotalPrice(product, quantity, selectedOptions)
-  const moldInfo = calculateMoldFee(product, selectedOptions)
+  const moldInfo = calculateMoldFee(product, selectedOptions, quantity)
   const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
   const expressFeeCost = expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? (product.expressDeliveryFee ?? 0) : 0
-  const totalPrice = totalPriceItems + moldFee + expressFeeCost
+  const shippingExtra = calculateShippingModifier(product, selectedOptions)
+  const totalPrice = totalPriceItems + moldFee + expressFeeCost + shippingExtra
   const baseTier = product.priceTiers[0]
   const discountPercent = baseTier.unitPrice > unitPrice
     ? Math.round((1 - unitPrice / baseTier.unitPrice) * 100)
@@ -333,6 +372,67 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     })}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+            ))}
+
+            {/* Checkbox Options */}
+            {product.options.filter(o => o.type === 'checkbox').map((option) => (
+              <div key={option.id}>
+                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {option.values.map((v) => {
+                    const checked = (selectedOptions[option.id] || '').split(',').includes(v.id)
+                    return (
+                      <label
+                        key={v.id}
+                        className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition ${
+                          checked
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/30'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleCheckboxToggle(option.id, v.id)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">{v.label}</span>
+                        {v.priceModifier && (
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {formatPriceModifier(v.priceModifier)}
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Number Options */}
+            {product.options.filter(o => o.type === 'number').map((option) => (
+              <div key={option.id}>
+                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={option.numberMin}
+                    max={option.numberMax}
+                    value={selectedOptions[option.id] || ''}
+                    onChange={(e) => handleOptionChange(option.id, e.target.value)}
+                    className="w-32 px-3 py-2 border border-border rounded-lg text-sm"
+                    placeholder={`${option.numberMin ?? 0}〜${option.numberMax ?? ''}`}
+                  />
+                  {option.numberUnit && (
+                    <span className="text-sm text-muted-foreground">{option.numberUnit}</span>
+                  )}
+                  {option.pricePerUnit && option.pricePerUnit > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      （1{option.numberUnit || '単位'}あたり {formatPrice(option.pricePerUnit)} 加算）
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -506,8 +606,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { step: 1, label: 'オプション・数量を選択', done: true },
-              { step: 2, label: 'デザインをアップロード', done: !!designImage },
-              { step: 3, label: '「納品データを確定」を押す', done: !!deliveryPdfUrl },
+              { step: 2, label: 'デザインをアップロード', done: is3d ? designImages.length > 0 : !!designImage },
+              { step: 3, label: '「納品データを確定」を押す', done: is3d ? allRequiredDone : !!deliveryPdfUrl },
               { step: 4, label: 'カートに追加して購入', done: false },
             ].map(({ step, label, done }) => (
               <div key={step} className={`flex items-start gap-3 rounded-lg p-3 text-xs transition-colors ${done ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-background text-muted-foreground border border-border'}`}>
@@ -529,13 +629,32 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 デザインをアップロード
                 <Info className="w-4 h-4 text-muted-foreground" />
               </h3>
-              <ImageUploader
-                onImageSelect={handleImageSelect}
-                currentImage={designImage}
-                currentFileName={designFileName}
-                selectedShape={selectedOptions['shape'] || 'die-cut'}
-                onPreviewChange={handlePreviewChange}
-              />
+              {is3d ? (
+                <MultiViewUploader
+                  imageViews={product.imageViews!}
+                  onImagesChange={handleMultiViewImagesChange}
+                  selectedShape={selectedOptions['shape'] || 'die-cut'}
+                  onPreviewChange={handlePreviewChange}
+                />
+              ) : (
+                <ImageUploader
+                  onImageSelect={handleImageSelect}
+                  currentImage={designImage}
+                  currentFileName={designFileName}
+                  selectedShape={selectedOptions['shape'] || 'die-cut'}
+                  onPreviewChange={handlePreviewChange}
+                  onComplexityDetected={(grade) => {
+                    // Auto-set complexity option if the product has one
+                    const complexityOpt = product.options.find((o) => o.id === 'complexity')
+                    if (complexityOpt) {
+                      const match = complexityOpt.values.find((v) => v.id === grade || v.id === grade.toLowerCase())
+                      if (match) {
+                        setSelectedOptions((prev) => ({ ...prev, complexity: match.id }))
+                      }
+                    }
+                  }}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -718,6 +837,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     <p className="text-lg font-semibold text-orange-500">{formatPrice(expressFeeCost)}</p>
                   </div>
                 )}
+                {shippingExtra > 0 && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">送料加算（オプション）</p>
+                    <p className="text-lg font-semibold text-foreground">+{formatPrice(shippingExtra)}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">合計金額 <span className="text-xs font-semibold text-green-600">（税込）</span></p>
                   <div className="flex flex-col gap-1">
@@ -772,7 +897,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     variant="outline"
                     className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
                     onClick={handleAddToCart}
-                    disabled={!designImage}
+                    disabled={is3d ? designImages.length === 0 : !designImage}
                   >
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     カートに追加
@@ -782,14 +907,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   size="lg"
                   className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
                   onClick={handleBuyNow}
-                  disabled={!designImage || isAdded}
+                  disabled={(is3d ? designImages.length === 0 : !designImage) || isAdded}
                 >
                   今すぐ購入
                 </Button>
               </div>
             </div>
 
-            {!designImage && (
+            {(is3d ? designImages.length === 0 : !designImage) && (
               <p className="text-sm text-muted-foreground text-center mt-4 py-2 px-4 bg-muted rounded-lg">
                 デザイン画像をアップロードすると購入できます
               </p>
