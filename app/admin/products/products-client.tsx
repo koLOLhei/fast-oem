@@ -33,8 +33,9 @@ const CATEGORY_OPTIONS = [
 const DEFAULT_QUANTITY_PRESETS = [10, 30, 50, 100] as const
 const DEFAULT_PRICE_TIER: PriceTier = { minQuantity: 1, maxQuantity: 100, unitPrice: 1000 }
 
+/** Generate a URL-safe slug from product name. Only a-z, 0-9, hyphens allowed. */
 const slugify = (s: string) =>
-    s.toLowerCase().trim().replace(/[^a-z0-9ぁ-んァ-ヶ一-龥]+/g, '-').replace(/^-|-$/g, '') || `product-${crypto.randomUUID().slice(0, 8)}`
+    s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `product-${crypto.randomUUID().slice(0, 8)}`
 
 export function ProductsClient({ initialProducts, factories }: ProductsClientProps) {
     const [products, setProducts] = useState(initialProducts)
@@ -46,6 +47,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
     // New product creation state
     const [showCreate, setShowCreate] = useState(false)
     const [newName, setNewName] = useState('')
+    const [newSlug, setNewSlug] = useState('')
     const [newCategory, setNewCategory] = useState('other')
     const [creating, startCreate] = useTransition()
     const [createError, setCreateError] = useState('')
@@ -151,11 +153,20 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
 
     const handleCreate = () => {
         if (!newName.trim()) { setCreateError('商品名を入力してください'); return }
+        const finalSlug = newSlug.trim() || slugify(newName)
+        if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(finalSlug) && finalSlug.length > 1) {
+            setCreateError('スラッグは半角英数字とハイフンのみ使用できます（例: plush-toy）')
+            return
+        }
+        if (products.some(p => p.slug === finalSlug)) {
+            setCreateError(`スラッグ「${finalSlug}」は既に使われています`)
+            return
+        }
         setCreateError('')
         startCreate(async () => {
             try {
-                const id = crypto.randomUUID()
-                const slug = slugify(newName)
+                const id = finalSlug  // slug をそのまま id として使用（短く、URLフレンドリー）
+                const slug = finalSlug
                 const newProduct: Omit<Product, 'id'> & { id: string } = {
                     id, slug,
                     name: newName.trim(),
@@ -179,6 +190,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                 const created = { ...newProduct, isActive: true } as any
                 setProducts((prev) => [created, ...prev])
                 setNewName('')
+                setNewSlug('')
                 setNewCategory('other')
                 setShowCreate(false)
                 selectProduct(created)
@@ -288,6 +300,8 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                         <CreateForm
                             newName={newName}
                             setNewName={setNewName}
+                            newSlug={newSlug}
+                            setNewSlug={setNewSlug}
                             newCategory={newCategory}
                             setNewCategory={setNewCategory}
                             createError={createError}
@@ -484,14 +498,16 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
 /* New Product Create Form                                             */
 /* ------------------------------------------------------------------ */
 const CreateForm = React.memo(function CreateForm({
-    newName, setNewName, newCategory, setNewCategory,
+    newName, setNewName, newSlug, setNewSlug, newCategory, setNewCategory,
     createError, creating, onSubmit, onCancel,
 }: {
     newName: string; setNewName: (s: string) => void
+    newSlug: string; setNewSlug: (s: string) => void
     newCategory: string; setNewCategory: (s: string) => void
     createError: string; creating: boolean
     onSubmit: () => void; onCancel: () => void
 }) {
+    const autoSlug = newName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     return (
         <div className="max-w-lg space-y-5">
             <h2 className="text-xl font-bold">新規商品を追加</h2>
@@ -507,6 +523,21 @@ const CreateForm = React.memo(function CreateForm({
                         placeholder="例: アクリルキーホルダー"
                         autoFocus
                     />
+                </div>
+                <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                        スラッグ（URL） <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        className={`${inputCls} font-mono`}
+                        value={newSlug}
+                        onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        placeholder={autoSlug || 'acrylic-keychain'}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                        URL: /products/<strong>{newSlug || autoSlug || '...'}</strong>
+                        （半角英数字とハイフンのみ。空欄なら商品名から自動生成）
+                    </p>
                 </div>
                 <div>
                     <label className="block text-xs font-semibold text-muted-foreground mb-1.5">カテゴリ</label>
