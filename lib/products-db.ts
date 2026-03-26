@@ -2,12 +2,11 @@
  * Server-side product fetching from Supabase.
  * Falls back to the hardcoded PRODUCTS array if the DB is unavailable or empty.
  *
- * getProductsFromDb and getProductBySlugFromDb are wrapped with unstable_cache so
- * repeated calls within the same Next.js deployment hit the data cache instead of
- * making a fresh Supabase round-trip on every request.  Call revalidateTag('products')
- * (from app/actions/products.ts) whenever product data changes.
+ * Neither function uses unstable_cache — product pages are force-dynamic and
+ * admin-created products must be accessible immediately without cache delay.
+ * The Supabase round-trip is fast enough (~50ms) and avoids all cache
+ * invalidation bugs that caused new products to 404.
  */
-import { unstable_cache } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { type Product, PRODUCTS } from './products'
 
@@ -44,48 +43,46 @@ function filterActive(products: Product[]): Product[] {
     return products.filter((p) => p.isActive !== false)
 }
 
-export const getProductsFromDb = unstable_cache(
-    async (): Promise<Product[]> => {
-        try {
-            const { data, error } = await createServiceClient()
-                .from('products')
-                .select('*')
-                .eq('is_active', true)
-                .order('created_at')
-            if (error || !data || data.length === 0) return filterActive(PRODUCTS)
-            return data.map(rowToProduct)
-        } catch (err) {
-            console.error('[getProductsFromDb] DB error, falling back to static data:', err)
-            return filterActive(PRODUCTS)
-        }
-    },
-    ['products-list'],
-    { tags: ['products'] }
-)
+/**
+ * Fetch all active products. Falls back to static PRODUCTS on DB error.
+ */
+export async function getProductsFromDb(): Promise<Product[]> {
+    try {
+        const { data, error } = await createServiceClient()
+            .from('products')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at')
+        if (error || !data || data.length === 0) return filterActive(PRODUCTS)
+        return data.map(rowToProduct)
+    } catch (err) {
+        console.error('[getProductsFromDb] DB error, falling back to static data:', err)
+        return filterActive(PRODUCTS)
+    }
+}
 
-export const getProductBySlugFromDb = unstable_cache(
-    async (slug: string): Promise<Product | undefined> => {
-        try {
-            const { data, error } = await createServiceClient()
-                .from('products')
-                .select('*')
-                .eq('slug', slug)
-                .eq('is_active', true)
-                .maybeSingle()
-            if (error || !data) {
-                const fallback = PRODUCTS.find((p) => p.slug === slug)
-                return fallback && fallback.isActive !== false ? fallback : undefined
-            }
-            return rowToProduct(data)
-        } catch (err) {
-            console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
+/**
+ * Fetch a single product by slug. Returns undefined if not found or inactive.
+ */
+export async function getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
+    try {
+        const { data, error } = await createServiceClient()
+            .from('products')
+            .select('*')
+            .eq('slug', slug)
+            .eq('is_active', true)
+            .maybeSingle()
+        if (error || !data) {
             const fallback = PRODUCTS.find((p) => p.slug === slug)
             return fallback && fallback.isActive !== false ? fallback : undefined
         }
-    },
-    ['product-by-slug'],
-    { tags: ['products'] }
-)
+        return rowToProduct(data)
+    } catch (err) {
+        console.error('[getProductBySlugFromDb] DB error, falling back to static data:', err)
+        const fallback = PRODUCTS.find((p) => p.slug === slug)
+        return fallback && fallback.isActive !== false ? fallback : undefined
+    }
+}
 
 /** Used by admin page — returns ALL products including inactive */
 export async function getAllProductsForAdmin() {
