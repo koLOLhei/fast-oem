@@ -801,7 +801,8 @@ export function calculateUnitPrice(
     if (option.type === 'checkbox' || option.multiSelect) {
       const ids = selectedValue.split(',').filter(Boolean)
       for (const id of ids) {
-        const val = option.values.find((v) => v.id === id)
+        // Match by ID first, then by label (cart stores labels after addToCart)
+        const val = option.values.find((v) => v.id === id || v.label === id)
         const mod = val?.priceModifier
         if (!mod) continue
         if (mod.type === 'add') price += mod.value
@@ -811,7 +812,8 @@ export function calculateUnitPrice(
     }
 
     // Standard single-select
-    const value = option.values.find((v) => v.id === selectedValue)
+    // Match by ID first, then by label (cart stores labels after addToCart)
+    const value = option.values.find((v) => v.id === selectedValue || v.label === selectedValue)
     const mod = value?.priceModifier
     if (!mod) continue
     if (mod.type === 'add') {
@@ -906,7 +908,7 @@ export function calculateMoldFee(
     // checkbox: check all selected values
     if (option.type === 'checkbox' || option.multiSelect) {
       for (const id of selectedValue.split(',').filter(Boolean)) {
-        const val = option.values.find((v) => v.id === id)
+        const val = option.values.find((v) => v.id === id || v.label === id)
         if (val?.requiresMold) {
           anyRequiresMold = true
           totalMoldFee += val.moldFee ?? 0
@@ -915,7 +917,7 @@ export function calculateMoldFee(
       continue
     }
 
-    const value = option.values.find((v) => v.id === selectedValue)
+    const value = option.values.find((v) => v.id === selectedValue || v.label === selectedValue)
     if (value?.requiresMold) {
       anyRequiresMold = true
       totalMoldFee += value.moldFee ?? 0
@@ -942,14 +944,15 @@ export function calculateShippingModifier(
     const getModifier = (val: OptionValue | undefined) => {
       if (!val?.shippingModifier) return
       if (val.shippingModifier.type === 'add') extra += val.shippingModifier.value
+      else if (val.shippingModifier.type === 'multiply') extra = Math.round(extra * val.shippingModifier.value)
     }
 
     if (option.type === 'checkbox' || option.multiSelect) {
       for (const id of selectedValue.split(',').filter(Boolean)) {
-        getModifier(option.values.find((v) => v.id === id))
+        getModifier(option.values.find((v) => v.id === id || v.label === id))
       }
     } else {
-      getModifier(option.values.find((v) => v.id === selectedValue))
+      getModifier(option.values.find((v) => v.id === selectedValue || v.label === selectedValue))
     }
   }
   return extra

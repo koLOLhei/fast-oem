@@ -13,6 +13,8 @@ export function CartClient() {
   // Calculate totals
   const itemsTotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0)
   const moldTotal = cart.items.reduce((sum, item) => sum + (item.moldFee || 0), 0)
+  const expressTotal = cart.items.reduce((sum, item) => sum + (item.expressDeliveryFee || 0), 0)
+  const shippingModifierTotal = cart.items.reduce((sum, item) => sum + (item.shippingModifier || 0), 0)
 
   if (isLoading) {
     return (
@@ -176,8 +178,18 @@ export function CartClient() {
                                 {item.moldOrderId && ' (再利用)'}
                               </p>
                             )}
+                            {item.expressDeliveryFee && item.expressDeliveryFee > 0 && (
+                              <p className="text-xs text-blue-600 font-medium mt-1">
+                                + 特急料金 {formatPrice(item.expressDeliveryFee)}
+                              </p>
+                            )}
+                            {item.shippingModifier && item.shippingModifier > 0 && (
+                              <p className="text-xs text-orange-600 font-medium mt-1">
+                                + 送料加算 {formatPrice(item.shippingModifier)}
+                              </p>
+                            )}
                             <p className="text-xl font-bold text-foreground">
-                              {formatPrice(item.totalPrice + (item.moldFee || 0))}
+                              {formatPrice(item.totalPrice + (item.moldFee || 0) + (item.expressDeliveryFee || 0) + (item.shippingModifier || 0))}
                             </p>
                           </div>
                         </div>
@@ -209,6 +221,22 @@ export function CartClient() {
                       <span className="text-muted-foreground">型代（初回のみ）</span>
                       <span className="text-foreground font-medium">
                         {formatPrice(moldTotal)}
+                      </span>
+                    </div>
+                  )}
+                  {expressTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">特急料金</span>
+                      <span className="text-foreground font-medium">
+                        {formatPrice(expressTotal)}
+                      </span>
+                    </div>
+                  )}
+                  {shippingModifierTotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">送料加算</span>
+                      <span className="text-foreground font-medium">
+                        {formatPrice(shippingModifierTotal)}
                       </span>
                     </div>
                   )}

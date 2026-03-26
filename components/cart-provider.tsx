@@ -8,7 +8,7 @@ import {
   calculateCartTotals,
   generateCartItemId,
 } from '@/lib/cart'
-import { calculateUnitPrice, calculateTotalPrice, getProductById } from '@/lib/products'
+import { calculateUnitPrice, calculateTotalPrice, calculateMoldFee, getProductById } from '@/lib/products'
 
 interface CartContextType {
   cart: Cart
@@ -126,7 +126,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
           const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
           const totalPrice = calculateTotalPrice(product, quantity, selectedOptions)
-          return { ...item, quantity, unitPrice, totalPrice }
+          // Recalculate moldFee since it can be quantity-dependent (moldFeeRules)
+          const moldInfo = calculateMoldFee(product, selectedOptions, quantity)
+          const moldFee = moldInfo.requiresMold && !item.moldOrderId
+            ? moldInfo.moldFee
+            : item.moldOrderId ? 0 : undefined
+          return { ...item, quantity, unitPrice, totalPrice, moldFee }
         }
         return item
       })

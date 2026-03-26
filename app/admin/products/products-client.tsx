@@ -410,7 +410,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                                     const unit = calculateUnitPrice(draft, previewQuantity, previewOptions)
                                                     const mold = calculateMoldFee(draft, previewOptions, previewQuantity)
                                                     const shipping = calculateShippingModifier(draft, previewOptions)
-                                                    const total = unit * previewQuantity + (mold.requiresMold ? mold.moldFee : 0)
+                                                    const total = unit * previewQuantity + (mold.requiresMold ? mold.moldFee : 0) + shipping
                                                     return (
                                                         <>
                                                             <div className="flex justify-between text-xs">

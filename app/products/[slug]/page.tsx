@@ -7,18 +7,13 @@ import { getProductBySlugFromDb, getProductsFromDb } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
 export const dynamic = 'force-dynamic'
+// No generateStaticParams — all slugs are rendered on demand.
+// This ensures admin-created products are accessible immediately without rebuild.
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>
-}
-
-export async function generateStaticParams() {
-  const products = await getProductsFromDb()
-  return products.map((product) => ({
-    slug: product.slug,
-  }))
 }
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {

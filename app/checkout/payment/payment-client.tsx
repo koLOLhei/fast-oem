@@ -231,7 +231,7 @@ export function PaymentClient() {
                         </p>
                       </div>
                       <p className="text-sm font-medium text-foreground">
-                        {formatPrice(item.totalPrice)}
+                        {formatPrice(item.totalPrice + (item.moldFee || 0) + (item.expressDeliveryFee || 0) + (item.shippingModifier || 0))}
                       </p>
                     </div>
                   ))}
