@@ -63,7 +63,10 @@ export interface ProductOption {
   numberMax?: number
   numberUnit?: string       // e.g. 'mm'
   pricePerUnit?: number     // for number type: input value × this = added to unit price
-  required?: boolean        // false allows "none" selection
+  required?: boolean        // true = must select before ordering (default: true for backwards compat)
+  // Hierarchical grouping: parent → child → grandchild
+  parentId?: string         // id of the parent option (creates sub-option relationship)
+  showWhen?: string[]       // only show when parent option's selected value is one of these ids
 }
 
 export interface Product {
@@ -186,6 +189,7 @@ export const PRODUCTS: Product[] = [
         name: 'コーティング・加工',
         type: 'checkbox',
         multiSelect: true,
+        required: false,
         values: [
           { id: 'epoxy', label: '樹脂コーティング（エポキシ）', priceModifier: { type: 'add', value: 30 }, description: '立体感のある仕上がり' },
           { id: 'uv', label: 'UV印刷', priceModifier: { type: 'add', value: 15 }, description: '高精細なカラー印刷' },
@@ -198,6 +202,7 @@ export const PRODUCTS: Product[] = [
         id: 'hook',
         name: 'フック・パーツ',
         type: 'list',
+        required: true,
         values: [
           { id: 'ball-chain', label: 'ボールチェーン（デフォルト）',
             previewOverlay: { imageUrl: '/images/parts/ball-chain.png', position: 'top', offsetY: -15, scale: 0.3 } },
@@ -207,13 +212,16 @@ export const PRODUCTS: Product[] = [
             previewOverlay: { imageUrl: '/images/parts/strap.png', position: 'top', offsetY: -12, scale: 0.25 } },
           { id: 'key-ring', label: 'キーリング', priceModifier: { type: 'add', value: 5 },
             previewOverlay: { imageUrl: '/images/parts/key-ring.png', position: 'top', offsetY: -15, scale: 0.3 } },
-          { id: 'header-card', label: 'ヘッダーカード付き', priceModifier: { type: 'add', value: 20 }, shippingModifier: { type: 'add', value: 100 } },
+          { id: 'none', label: 'パーツなし' },
         ],
       },
       {
         id: 'chain_color',
         name: 'チェーン色',
         type: 'grid',
+        required: false,
+        parentId: 'hook',
+        showWhen: ['ball-chain', 'lobster', 'strap', 'key-ring'],
         values: [
           { id: 'silver', label: 'シルバー', previewColor: '#C0C0C0' },
           { id: 'gold', label: 'ゴールド', previewColor: '#DAA520', priceModifier: { type: 'add', value: 5 } },

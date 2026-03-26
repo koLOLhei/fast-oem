@@ -14,6 +14,7 @@ import { ProductPreview } from '@/components/product-preview'
 import { useCart } from '@/components/cart-provider'
 import {
   type Product,
+  type ProductOption,
   calculateUnitPrice,
   calculateTotalPrice,
   calculateMoldFee,
@@ -35,8 +36,21 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [deliveryPdfUrl, setDeliveryPdfUrl] = useState<string | null>(null)
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
+    // First pass: set defaults for top-level options
     product.options.forEach((option) => {
       if (option.type === 'checkbox' || option.type === 'number') return
+      if (option.parentId) return // skip child options initially
+      if (option.values.length > 0) {
+        initial[option.id] = option.values[0].id
+      }
+    })
+    // Second pass: set defaults for child options whose parents are selected and showWhen matches
+    product.options.forEach((option) => {
+      if (option.type === 'checkbox' || option.type === 'number') return
+      if (!option.parentId) return
+      const parentValue = initial[option.parentId]
+      if (!parentValue) return
+      if (option.showWhen && option.showWhen.length > 0 && !option.showWhen.includes(parentValue)) return
       if (option.values.length > 0) {
         initial[option.id] = option.values[0].id
       }
@@ -128,11 +142,57 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     if (!imageData) setPreviewImage(null)
   }
 
+  // Determine whether a hierarchical option should be visible
+  const isOptionVisible = (opt: ProductOption, opts: Record<string, string> = selectedOptions): boolean => {
+    if (!opt.parentId) return true // top-level always visible
+    const parentValue = opts[opt.parentId]
+    if (!parentValue) return false // parent not selected
+    if (!opt.showWhen || opt.showWhen.length === 0) return true // no condition — show when parent selected
+    return opt.showWhen.includes(parentValue)
+  }
+
+  // Recursively collect descendant option ids
+  const getDescendantIds = (parentId: string): string[] => {
+    const children = product.options.filter((o) => o.parentId === parentId)
+    const ids: string[] = []
+    for (const child of children) {
+      ids.push(child.id)
+      ids.push(...getDescendantIds(child.id))
+    }
+    return ids
+  }
+
+  // Return options in hierarchical display order: parent → children → grandchildren
+  const getOrderedOptions = () => {
+    const result: ProductOption[] = []
+    const topLevel = product.options.filter((o) => !o.parentId)
+    for (const parent of topLevel) {
+      result.push(parent)
+      const children = product.options.filter((o) => o.parentId === parent.id)
+      for (const child of children) {
+        result.push(child)
+        const grandchildren = product.options.filter((o) => o.parentId === child.id)
+        result.push(...grandchildren)
+      }
+    }
+    return result
+  }
+
   const handleOptionChange = (optionId: string, valueId: string) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [optionId]: valueId,
-    }))
+    setSelectedOptions((prev) => {
+      const next = { ...prev, [optionId]: valueId }
+      // Clear child options that are no longer visible
+      product.options.forEach((opt) => {
+        if (opt.parentId === optionId) {
+          if (opt.showWhen && opt.showWhen.length > 0 && !opt.showWhen.includes(valueId)) {
+            delete next[opt.id]
+            // Also clear grandchildren
+            getDescendantIds(opt.id).forEach((id) => delete next[id])
+          }
+        }
+      })
+      return next
+    })
   }
 
   const handleCheckboxToggle = (optionId: string, valueId: string) => {
@@ -177,6 +237,21 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
         return false
       }
+    }
+
+    // Check that all visible required options have been selected
+    const missingRequired = product.options.filter((opt) => {
+      if (opt.required === false) return false  // explicitly optional
+      if (!isOptionVisible(opt)) return false   // hidden options are ignored
+      if (opt.type === 'checkbox') return false // checkbox allows 0 selections
+      if (opt.type === 'number') return false   // number allows 0
+      const val = selectedOptions[opt.id]
+      return !val || val === ''
+    })
+
+    if (missingRequired.length > 0) {
+      alert(`以下の必須項目を選択してください:\n${missingRequired.map((o) => o.name).join('\n')}`)
+      return false
     }
 
     const options = Object.entries(selectedOptions).map(([id, valueId]) => {
@@ -312,9 +387,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
           {/* Column 1: Product Type & Shape */}
           <div className="lg:col-span-2 space-y-6">
-            {product.options.filter(o => o.id === 'shape' || o.id === 'type').map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => (o.id === 'shape' || o.id === 'type') && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 {product.id === 'plastic-bag' && option.id === 'shape' && (
                   <p className="text-xs text-muted-foreground mb-2">ビニール袋は袋型のみ対応しています</p>
                 )}
@@ -371,9 +453,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             ))}
 
             {/* Dropdown Options */}
-            {product.options.filter(o => o.type === 'dropdown').map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => o.type === 'dropdown' && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 <div className="relative">
                   <select
                     value={selectedOptions[option.id] || ''}
@@ -395,9 +484,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             ))}
 
             {/* Checkbox Options */}
-            {product.options.filter(o => o.type === 'checkbox').map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => o.type === 'checkbox' && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 <div className="grid grid-cols-2 gap-2">
                   {option.values.map((v) => {
                     const checked = (selectedOptions[option.id] || '').split(',').includes(v.id)
@@ -430,9 +526,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             ))}
 
             {/* Number Options */}
-            {product.options.filter(o => o.type === 'number').map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => o.type === 'number' && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -458,9 +561,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
           {/* Column 2: Material */}
           <div className="lg:col-span-3">
-            {product.options.filter(o => o.id === 'material' || (o.type === 'grid' && o.id !== 'material')).map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => (o.id === 'material' || (o.type === 'grid' && o.id !== 'material')) && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 <div className="grid grid-cols-3 gap-2">
                   {option.values.map((value) => {
                     const priceLabel = formatPriceModifier(value.priceModifier)
@@ -511,9 +621,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
           {/* Column 3: Size */}
           <div className="lg:col-span-3">
-            {product.options.filter(o => o.id === 'size').map((option) => (
-              <div key={option.id}>
-                <h3 className="font-semibold text-foreground mb-3">{option.name}</h3>
+            {product.options.filter(o => o.id === 'size' && isOptionVisible(o)).map((option) => (
+              <div key={option.id} className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}>
+                <h3 className="font-semibold text-foreground mb-3">
+                  {option.name}
+                  {option.required !== false ? (
+                    <span className="text-red-500 ml-1">*</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground ml-2">（任意）</span>
+                  )}
+                </h3>
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                   <div className="max-h-[400px] overflow-y-auto">
                     {option.values.map((value, index) => {

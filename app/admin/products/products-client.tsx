@@ -1112,6 +1112,15 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
                             <option value="checkbox">チェックボックス（複数選択）</option>
                             <option value="number">数値入力</option>
                         </select>
+                        <label className="flex items-center gap-1 text-[10px]">
+                            <input
+                                type="checkbox"
+                                className="w-3 h-3"
+                                checked={opt.required !== false}
+                                onChange={(e) => updateOption(opt.id, 'required', e.target.checked)}
+                            />
+                            <span className={opt.required !== false ? 'text-red-600 font-medium' : 'text-muted-foreground'}>必須</span>
+                        </label>
                         <button
                             onClick={() => setExpandedOpt(expandedOpt === opt.id ? null : opt.id)}
                             className="text-xs px-2 py-1 border border-border rounded hover:bg-muted"
@@ -1123,6 +1132,41 @@ function OptionsTab({ draft, setDraft }: { draft: Product; setDraft: React.Dispa
 
                     {expandedOpt === opt.id && (
                         <div className="p-4 space-y-2">
+                            {/* 階層設定 */}
+                            <div className="rounded-lg border bg-indigo-50/50 p-3 space-y-2 mb-3">
+                                <h4 className="text-xs font-semibold text-indigo-700">階層設定（親子関係）</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5">親オプション</label>
+                                        <select
+                                            className={`${smallInput} text-xs`}
+                                            value={opt.parentId ?? ''}
+                                            onChange={(e) => updateOption(opt.id, 'parentId', e.target.value || undefined)}
+                                        >
+                                            <option value="">なし（トップレベル）</option>
+                                            {draft.options.filter(o => o.id !== opt.id && !o.parentId).map(o => (
+                                                <option key={o.id} value={o.id}>{o.name} ({o.id})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] text-muted-foreground block mb-0.5">表示条件（親の値）</label>
+                                        <input
+                                            className={`${smallInput} text-xs`}
+                                            value={(opt.showWhen ?? []).join(',')}
+                                            onChange={(e) => updateOption(opt.id, 'showWhen', e.target.value ? e.target.value.split(',').map(s => s.trim()) : undefined)}
+                                            placeholder="ball-chain,lobster"
+                                            disabled={!opt.parentId}
+                                        />
+                                        {opt.parentId && (
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                                                親の値IDをカンマ区切りで入力（空=常に表示）
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Number type settings */}
                             {opt.type === 'number' && (
                                 <div className="rounded-lg border bg-blue-50/50 p-3 space-y-2 mb-3">
