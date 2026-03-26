@@ -47,6 +47,7 @@ function computeUnitPrice(
   options: Product['options'],
   quantity: number,
   selectedOptions: Record<string, string>,
+  fixedUnitPrice = false,
 ): number {
   const tier = priceTiers.find((t) => quantity >= t.minQuantity && quantity <= t.maxQuantity)
   let base: number
@@ -57,6 +58,8 @@ function computeUnitPrice(
   } else {
     base = priceTiers[priceTiers.length - 1]?.unitPrice ?? 0
   }
+
+  if (fixedUnitPrice) return base
 
   let price = base
   for (const [optionId, valueIdOrLabel] of Object.entries(selectedOptions)) {
@@ -184,6 +187,7 @@ async function validateAndRepricItems(
       master.options ?? [],
       item.quantity,
       selectedOptionsMap,
+      master.fixed_unit_price ?? false,
     )
     const serverTotalPrice = serverUnitPrice * item.quantity
 

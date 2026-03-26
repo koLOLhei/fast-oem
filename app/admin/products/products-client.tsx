@@ -112,6 +112,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     moldFeeRules: draft.moldFeeRules ?? [],
                     is3d: draft.is3d ?? false,
                     imageViews: draft.imageViews ?? [],
+                    fixedUnitPrice: draft.fixedUnitPrice ?? false,
                 })
                 setProducts((prev) => prev.map((p) => (p.id === draft.id ? draft : p)))
                 setSelected(draft)
@@ -709,6 +710,22 @@ function BasicTab({ draft, setDraft, factories }: { draft: Product; setDraft: Re
                         ＋ ルール追加
                     </button>
                 </div>
+            </div>
+
+            <div className="rounded-xl border bg-card p-4 space-y-3">
+                <h3 className="font-semibold text-sm">💰 単価固定設定</h3>
+                <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-primary"
+                        checked={!!draft.fixedUnitPrice}
+                        onChange={(e) => set('fixedUnitPrice' as any, e.target.checked)}
+                    />
+                    <div>
+                        <p className="text-sm font-medium">オプションによる単価変動を無効にする</p>
+                        <p className="text-xs text-muted-foreground">ONにすると、どのオプションを選択しても個数毎の単価は価格テーブルの値で固定されます。オプションは表示・記録されますが金額には影響しません。</p>
+                    </div>
+                </label>
             </div>
 
             <div className="rounded-xl border bg-card p-4 space-y-3">

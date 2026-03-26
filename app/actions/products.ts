@@ -27,6 +27,7 @@ function productToRow(p: Partial<Product> & { isActive?: boolean }) {
     if (p.moldFeeRules !== undefined)  row.mold_fee_rules = p.moldFeeRules
     if (p.is3d !== undefined)          row.is_3d = p.is3d
     if (p.imageViews !== undefined)    row.image_views = p.imageViews
+    if (p.fixedUnitPrice !== undefined) row.fixed_unit_price = p.fixedUnitPrice
     // defaultFactoryId: null means "no default" — we store it explicitly so
     // admins can clear a previously-set factory by selecting "未設定".
     if ('defaultFactoryId' in p)       row.default_factory_id = p.defaultFactoryId ?? null

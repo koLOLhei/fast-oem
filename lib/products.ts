@@ -93,6 +93,7 @@ export interface Product {
   isActive?: boolean            // false = hidden from storefront
   is3d?: boolean                // 3D product requiring multi-view design uploads
   imageViews?: ImageView[]      // required views for 3D products
+  fixedUnitPrice?: boolean      // true = unit price from priceTiers only, option modifiers ignored
 }
 
 export const PRODUCTS: Product[] = [
@@ -788,7 +789,7 @@ export function calculateUnitPrice(
     base = product.priceTiers[product.priceTiers.length - 1].unitPrice
   }
 
-  if (!selectedOptions) return base
+  if (!selectedOptions || product.fixedUnitPrice) return base
 
   // Apply option modifiers
   let price = base

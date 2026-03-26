@@ -125,7 +125,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   // Helper function to format price modifier
   const formatPriceModifier = (modifier?: { type: 'add' | 'multiply'; value: number }) => {
-    if (!modifier) return ''
+    if (!modifier || product.fixedUnitPrice) return ''
     if (modifier.type === 'add') {
       return `+${formatPrice(modifier.value)}`
     } else if (modifier.type === 'multiply') {
