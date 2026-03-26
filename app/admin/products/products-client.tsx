@@ -7,6 +7,7 @@ import { updateProduct, toggleProductActive, createProduct, applyGlobalPriceAdju
 interface Factory {
     id: string
     name: string
+    contact_email?: string
 }
 
 interface ProductsClientProps {
@@ -795,11 +796,11 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
             </div>
 
             <div className="rounded-xl border bg-card p-4 space-y-3">
-                <h3 className="font-semibold text-sm">🏭 自動工場割り当て</h3>
+                <h3 className="font-semibold text-sm">🏭 担当工場 & 発注メール</h3>
                 <p className="text-xs text-muted-foreground">
-                    注文確定時にこの商品の注文明細を自動的に指定工場へ割り当てます。
+                    注文確定時にこの商品の注文明細を指定工場へ割り当て、工場の登録メールアドレスに発注通知を自動送信します。
                 </p>
-                <Field label="デフォルト担当工場">
+                <Field label="担当工場">
                     <select
                         className={inputCls}
                         value={(draft as any).defaultFactoryId ?? ''}
@@ -811,22 +812,28 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
                         ))}
                     </select>
                 </Field>
-            </div>
-
-            <div className="rounded-xl border bg-card p-4 space-y-3">
-                <h3 className="font-semibold text-sm">📧 工場発注メール</h3>
-                <p className="text-xs text-muted-foreground">
-                    この商品の注文が入った際に発注メールを送る宛先です。カンマ区切りで複数指定可。
-                </p>
-                <Field label="工場発注メールアドレス">
-                    <input
-                        type="text"
-                        className={inputCls}
-                        value={(draft as any).notificationEmail ?? ''}
-                        placeholder="例: factory@example.com, ops@factory.cn"
-                        onChange={(e) => set('notificationEmail' as any, e.target.value)}
-                    />
-                </Field>
+                {(draft as any).defaultFactoryId && (() => {
+                    const f = factories.find(f => f.id === (draft as any).defaultFactoryId)
+                    return f ? (
+                        <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                            ✓ 発注メール送信先: <strong>{(f as any).contact_email || '未設定'}</strong>（工場管理で登録済みのメールアドレス）
+                        </p>
+                    ) : null
+                })()}
+                <div className="border-t pt-3 mt-2">
+                    <Field label="メール送信先を上書き（任意）">
+                        <input
+                            type="text"
+                            className={inputCls}
+                            value={(draft as any).notificationEmail ?? ''}
+                            placeholder="空欄なら工場の登録メールに送信"
+                            onChange={(e) => set('notificationEmail' as any, e.target.value)}
+                        />
+                    </Field>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                        ここに入力すると、工場の登録メールの代わりにこのアドレスに発注通知が送信されます。
+                    </p>
+                </div>
             </div>
 
             <Field label="数量プリセット（カンマ区切り）">

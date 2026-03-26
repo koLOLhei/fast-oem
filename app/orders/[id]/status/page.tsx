@@ -22,13 +22,16 @@ export default async function OrderStatusPage({
 
     const supabase = createServiceClient()
 
-    const { data: order } = await supabase
+    const { data: order, error: orderError } = await supabase
         .from('orders')
-        .select(`*, order_items(*, products(slug))`)
+        .select(`*, order_items(*)`)
         .eq('id', id)
         .eq('access_token', token)
         .single()
 
+    if (orderError) {
+        console.error('[OrderStatusPage] Query error:', orderError.message)
+    }
     if (!order) notFound()
 
     // Generate short-lived signed URLs so the customer can re-download their design files.
@@ -209,7 +212,8 @@ export default async function OrderStatusPage({
                     <table className="w-full text-sm">
                         <tbody>
                             {items.map((item: any) => {
-                                const productSlug = item.products?.slug as string | undefined
+                                // product_id is the slug for legacy products; newer ones use UUID
+                                const productSlug = item.product_id as string | undefined
                                 return (
                                 <tr key={item.id} className="border-b last:border-0">
                                     <td className="p-4">

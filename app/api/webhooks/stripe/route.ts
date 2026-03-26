@@ -86,6 +86,42 @@ export async function POST(req: Request) {
             || 'お客様'
           const customerEmail = customerInfo?.email || session.customer_email || ''
 
+          // Resolve factory notification email:
+          // 1. product.notification_email (per-product override)
+          // 2. factory.contact_email (from product's default_factory_id or order_item's factory_id)
+          // 3. FACTORY_DEFAULT_EMAIL env var
+          const orderItems = (order.order_items as any[]) ?? []
+          const productIds = [...new Set(orderItems.map((i: any) => i.product_id))]
+          const factoryIds = [...new Set(orderItems.map((i: any) => i.factory_id).filter(Boolean))]
+          let factoryEmail = ''
+
+          // Try product.notification_email first
+          if (productIds.length > 0) {
+            const { data: products } = await supabase
+              .from('products')
+              .select('notification_email, default_factory_id')
+              .in('id', productIds)
+            const productWithEmail = products?.find((p: any) => p.notification_email)
+            if (productWithEmail?.notification_email) {
+              factoryEmail = productWithEmail.notification_email
+            }
+            // Collect default_factory_ids from products too
+            products?.forEach((p: any) => {
+              if (p.default_factory_id && !factoryIds.includes(p.default_factory_id)) {
+                factoryIds.push(p.default_factory_id)
+              }
+            })
+          }
+
+          // If no product email, try factory.contact_email
+          if (!factoryEmail && factoryIds.length > 0) {
+            const { data: factories } = await supabase
+              .from('factories')
+              .select('contact_email')
+              .in('id', factoryIds)
+            factoryEmail = factories?.find((f: any) => f.contact_email)?.contact_email ?? ''
+          }
+
           const emailData = {
             orderId: order.id,
             orderNumber: order.order_number,
@@ -93,6 +129,7 @@ export async function POST(req: Request) {
             accessToken: order.access_token,
             customerEmail,
             customerName,
+            notificationEmail: factoryEmail,
             items: ((order.order_items as any[]) ?? []).map((item: any) => ({
               productId: item.product_id,
               productName: item.product_name,
@@ -133,18 +170,31 @@ export async function POST(req: Request) {
           if (custResult.status === 'rejected') {
             console.error('[webhook] Customer email failed:', custResult.reason)
           } else {
-            console.log('[webhook] Customer confirmation email sent for', order.order_number)
+            const custVal = custResult.value as any
+            console.log('[webhook] Customer email result:', order.order_number, custVal?.success ? 'SENT' : 'FAILED', custVal?.error || '')
           }
           if (factResult.status === 'rejected') {
             console.error('[webhook] Factory email failed:', factResult.reason)
           } else {
-            console.log('[webhook] Factory notification email sent for', order.order_number)
+            const factVal = factResult.value as any
+            console.log('[webhook] Factory email result:', order.order_number, 'to=' + factoryEmail, factVal?.success ? 'SENT' : 'FAILED', factVal?.error || '')
           }
 
           // Slack notification
           await sendSlackMessage(
-            `🎉 *新規注文* ${order.order_number}\n顧客: ${customerName}\n合計: ¥${order.total_price?.toLocaleString()}\n${((order.order_items as any[]) ?? []).map((i: any) => `• ${i.product_name} ×${i.quantity}`).join('\n')}`
+            `🎉 *新規注文* ${order.order_number}\n顧客: ${customerName}\n合計: ¥${order.total_price?.toLocaleString()}\n${orderItems.map((i: any) => `• ${i.product_name} ×${i.quantity}`).join('\n')}`
           ).catch(() => {})
+
+          // Auto-set converted_design_url from design_url for items that have it.
+          // This replaces the Edge Function image processing that was never configured.
+          for (const item of orderItems) {
+            if (!item.converted_design_url && item.design_url) {
+              await supabase
+                .from('order_items')
+                .update({ converted_design_url: item.design_url })
+                .eq('id', item.id)
+            }
+          }
         }
       } catch (emailErr) {
         // Email failure must NOT affect webhook response

@@ -60,8 +60,8 @@ export async function sendFactoryNotification(data: OrderNotificationData) {
     : new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' })
   const toEmail = notificationEmail || FACTORY_DEFAULT_EMAIL
   if (!toEmail) {
-    console.warn(`[sendFactoryNotification] No factory email configured for order ${displayOrderNumber} — skipping`)
-    return { success: false }
+    console.error(`[sendFactoryNotification] ❌ No factory email configured for order ${displayOrderNumber}. Set FACTORY_DEFAULT_EMAIL in .env.local or configure notification_email on the product in admin.`)
+    return { success: false, error: 'No factory email configured' }
   }
 
   const isRepeatOrder = items.some((item) => item.moldOrderId)
