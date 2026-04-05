@@ -85,6 +85,85 @@ export async function analyzeComplexity(imageUrl: string): Promise<ComplexityGra
   return 'E'
 }
 
+/**
+ * Detect if a die-cut image has interior holes (hollow shape).
+ * Uses flood-fill from the border to find "outside" transparent pixels,
+ * then checks for remaining interior transparent pixels surrounded by opaque area.
+ * Returns true if the image is hollow (has interior holes that make die-cutting impossible).
+ */
+export async function detectHollow(imageUrl: string): Promise<boolean> {
+  const img = await loadImage(imageUrl)
+  const size = 200
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+
+  ctx.drawImage(img, 0, 0, size, size)
+  const { data, width, height } = ctx.getImageData(0, 0, size, size)
+
+  const total = width * height
+  // true = transparent (alpha <= 128)
+  const transparent = new Uint8Array(total)
+  let transparentCount = 0
+  for (let i = 0; i < total; i++) {
+    if (data[i * 4 + 3] <= 128) {
+      transparent[i] = 1
+      transparentCount++
+    }
+  }
+
+  // If image has no transparency at all, it's not hollow
+  if (transparentCount === 0) return false
+
+  // Flood-fill from all border transparent pixels to mark "outside"
+  const visited = new Uint8Array(total)
+  const queue: number[] = []
+
+  // Seed from all 4 borders
+  for (let x = 0; x < width; x++) {
+    const top = x
+    const bottom = (height - 1) * width + x
+    if (transparent[top] && !visited[top]) { visited[top] = 1; queue.push(top) }
+    if (transparent[bottom] && !visited[bottom]) { visited[bottom] = 1; queue.push(bottom) }
+  }
+  for (let y = 0; y < height; y++) {
+    const left = y * width
+    const right = y * width + (width - 1)
+    if (transparent[left] && !visited[left]) { visited[left] = 1; queue.push(left) }
+    if (transparent[right] && !visited[right]) { visited[right] = 1; queue.push(right) }
+  }
+
+  // BFS flood-fill
+  while (queue.length > 0) {
+    const idx = queue.pop()!
+    const x = idx % width
+    const y = (idx - x) / width
+    const neighbors = [
+      y > 0 ? idx - width : -1,
+      y < height - 1 ? idx + width : -1,
+      x > 0 ? idx - 1 : -1,
+      x < width - 1 ? idx + 1 : -1,
+    ]
+    for (const n of neighbors) {
+      if (n >= 0 && transparent[n] && !visited[n]) {
+        visited[n] = 1
+        queue.push(n)
+      }
+    }
+  }
+
+  // Count interior holes: transparent pixels NOT reached by flood-fill
+  let interiorHoles = 0
+  for (let i = 0; i < total; i++) {
+    if (transparent[i] && !visited[i]) interiorHoles++
+  }
+
+  // Threshold: if interior holes are > 1% of total pixels, consider it hollow
+  const holeRatio = interiorHoles / total
+  return holeRatio > 0.01
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image()
