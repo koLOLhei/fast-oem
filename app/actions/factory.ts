@@ -351,7 +351,7 @@ export async function bulkAssignFactory(orderId: string, factoryId: string) {
  *
  * Cancellable statuses: pending, paid, processing, partially_shipped
  */
-export async function adminCancelOrder(orderId: string, reason: string): Promise<void> {
+export async function adminCancelOrder(orderId: string, reason: string, cancellationFee?: number): Promise<void> {
     await requireAdmin()
 
     if (!reason.trim()) throw new Error('キャンセル理由を入力してください')
@@ -399,6 +399,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
         : 0
 
     // ── Stripe refund (paid orders only) ────────────────────────────────────
+    const fee = cancellationFee && cancellationFee > 0 ? cancellationFee : 0
     let refundIssued = false
     let refundAmount = 0 // 0 = full refund
     if (order.status !== 'pending') {
@@ -416,13 +417,20 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
 
             if (piId) {
                 if (isPartiallyShipped && partialRefundAmount > 0) {
-                    // Partial refund: only the unshipped items' value
-                    await stripe.refunds.create({ payment_intent: piId, amount: partialRefundAmount })
-                    refundAmount = partialRefundAmount
+                    // Partial refund: only the unshipped items' value minus cancellation fee
+                    const actualRefund = Math.max(0, partialRefundAmount - fee)
+                    if (actualRefund > 0) {
+                        await stripe.refunds.create({ payment_intent: piId, amount: actualRefund })
+                    }
+                    refundAmount = actualRefund
                 } else if (!isPartiallyShipped) {
-                    // Full refund
-                    await stripe.refunds.create({ payment_intent: piId })
-                    refundAmount = (order as any).total_price ?? 0
+                    // Full or partial refund (minus cancellation fee)
+                    const orderTotal = (order as any).total_price ?? 0
+                    const actualRefund = Math.max(0, orderTotal - fee)
+                    if (actualRefund > 0) {
+                        await stripe.refunds.create({ payment_intent: piId, amount: actualRefund })
+                    }
+                    refundAmount = actualRefund
                 }
                 refundIssued = true
             } else {
@@ -448,6 +456,7 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
             ...(refundIssued ? {
                 refunded_at: new Date().toISOString(),
                 refunded_amount: refundAmount,
+                cancellation_fee: fee > 0 ? fee : null,
             } : {}),
         })
         .eq('id', orderId)
@@ -481,12 +490,14 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                 `${customerName} 様`,
                 '',
                 'FAST OEMをご利用いただき、誠にありがとうございます。',
-                '誠に恐れ入りますが、下記の注文につきまして、弊社都合によりキャンセルさせていただくこととなりました。',
+                '誠に恐れ入りますが、下記の注文につきまして、キャンセルさせていただくこととなりました。',
                 '',
                 `【注文番号】 ${orderNumber}`,
                 '',
                 refundIssued
-                    ? refundAmount > 0
+                    ? fee > 0
+                        ? `■ ご返金について\nキャンセル料 ¥${fee.toLocaleString('ja-JP')} を差し引いた ¥${refundAmount.toLocaleString('ja-JP')} をご返金いたします。\nカード会社の処理により、反映まで数営業日かかる場合がございます。`
+                        : refundAmount > 0 && isPartiallyShipped
                         ? `■ ご返金について\n未発送分の商品代金 ¥${refundAmount.toLocaleString('ja-JP')} をご返金いたします。\n既に発送済みの商品につきましては返金対象外となります。\nカード会社の処理により、反映まで数営業日かかる場合がございます。`
                         : '■ ご返金について\nご決済いただいた金額は全額ご返金いたします。\nカード会社の処理により、反映まで数営業日かかる場合がございます。'
                     : '',
@@ -519,7 +530,9 @@ export async function adminCancelOrder(orderId: string, reason: string): Promise
                     <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
                       <p style="margin:0;font-size:14px;font-weight:bold;color:#166534;">💳 ご返金について</p>
                       <p style="margin:8px 0 0;font-size:13px;color:#4b5563;">
-                        ${refundAmount > 0
+                        ${fee > 0
+                          ? `キャンセル料 <strong>¥${fee.toLocaleString('ja-JP')}</strong> を差し引いた <strong>¥${refundAmount.toLocaleString('ja-JP')}</strong> をご返金いたします。`
+                          : refundAmount > 0 && isPartiallyShipped
                           ? `未発送分の商品代金 <strong>¥${refundAmount.toLocaleString('ja-JP')}</strong> をご返金いたします。<br/>既に発送済みの商品につきましては返金対象外となります。`
                           : 'ご決済いただいた金額は全額ご返金いたします。'
                         }<br/>
