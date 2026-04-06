@@ -72,7 +72,7 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
     // Pass role/factory_id in user_metadata as belt-and-suspenders alongside the invitation record.
     const { error: authError } = await service.auth.admin.inviteUserByEmail(email, {
         data: { full_name: name || undefined, role, factory_id: factoryId ?? undefined },
-        redirectTo: `${SITE_URL}/auth/callback?next=/login`,
+        redirectTo: `${SITE_URL}/auth/callback?next=/reset-password/confirm`,
     })
     if (authError) {
         // Rollback invitation record on auth failure
