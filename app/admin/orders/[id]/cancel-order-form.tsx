@@ -14,6 +14,7 @@ interface Props {
 export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Props) {
     const [open, setOpen] = useState(false)
     const [reason, setReason] = useState('')
+    const [cancellationFee, setCancellationFee] = useState('')
     const [confirmed, setConfirmed] = useState(false)
     const [error, setError] = useState('')
     const [isPending, startTransition] = useTransition()
@@ -32,13 +33,18 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
         )
     }
 
+    const feeAmount = cancellationFee ? parseInt(cancellationFee, 10) : 0
+    const refundAmount = needsRefund ? Math.max(0, totalPrice - feeAmount) : 0
+
     const handleCancel = () => {
         if (!reason.trim()) { setError('キャンセル理由を入力してください'); return }
+        if (feeAmount < 0) { setError('キャンセル料は0以上を入力してください'); return }
+        if (feeAmount > totalPrice) { setError('キャンセル料は注文金額を超えることはできません'); return }
         if (!confirmed) { setError('確認チェックボックスにチェックを入れてください'); return }
         setError('')
         startTransition(async () => {
             try {
-                await adminCancelOrder(orderId, reason)
+                await adminCancelOrder(orderId, reason, feeAmount || undefined)
                 // Page will revalidate — no manual redirect needed
             } catch (e: any) {
                 setError(e.message ?? 'キャンセルに失敗しました')
@@ -76,6 +82,35 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                         </div>
                     )}
 
+                    {needsRefund && (
+                        <div>
+                            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                                キャンセル料（税込）
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">¥</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={totalPrice}
+                                    value={cancellationFee}
+                                    onChange={(e) => { setCancellationFee(e.target.value); setError('') }}
+                                    placeholder="0"
+                                    className="w-40 text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-red-300"
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                著作権侵害等によるキャンセルの場合、キャンセル料を差し引いた金額を返金します。
+                                0 または空欄で全額返金。
+                            </p>
+                            {feeAmount > 0 && (
+                                <p className="text-xs text-amber-800 mt-1 font-semibold">
+                                    返金額: ¥{refundAmount.toLocaleString('ja-JP')}（注文額 ¥{totalPrice.toLocaleString('ja-JP')} − キャンセル料 ¥{feeAmount.toLocaleString('ja-JP')}）
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                             キャンセル理由 <span className="text-red-500">*</span>
@@ -100,8 +135,12 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                             className="mt-0.5 h-4 w-4 accent-red-600 shrink-0"
                         />
                         <span className="text-sm text-foreground">
-                            注文番号 <strong className="font-mono">{orderNumber}</strong> を取り消し、
-                            {needsRefund ? '全額返金を発行する' : 'キャンセルする'}ことを確認しました
+                            注文番号 <strong className="font-mono">{orderNumber}</strong> を取り消し
+                            {needsRefund
+                                ? feeAmount > 0
+                                    ? `、キャンセル料 ¥${feeAmount.toLocaleString('ja-JP')} を差し引いて ¥${refundAmount.toLocaleString('ja-JP')} を返金する`
+                                    : '、全額返金を発行する'
+                                : 'キャンセルする'}ことを確認しました
                         </span>
                     </label>
 

@@ -41,6 +41,7 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
   const [shippingZoneLabel, setShippingZoneLabel] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [agreedToCancel, setAgreedToCancel] = useState(false)
+  const [agreedToCopyright, setAgreedToCopyright] = useState(false)
 
   // Debounce timer ref for postal code lookup
   const postalCodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -170,6 +171,7 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
 
     if (!agreedToTerms) newErrors.agreedToTerms = '利用規約・プライバシーポリシーへの同意が必要です'
     if (!agreedToCancel) newErrors.agreedToCancel = 'キャンセル・返金不可についての確認が必要です'
+    if (!agreedToCopyright) newErrors.agreedToCopyright = '著作権に関する確認が必要です'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -582,6 +584,31 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
                       </label>
                       {errors.agreedToCancel && (
                         <p className="text-xs text-destructive pl-7">{errors.agreedToCancel}</p>
+                      )}
+                    </div>
+
+                    {/* Copyright agreement */}
+                    <div className="space-y-1">
+                      <label className="flex items-start gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={agreedToCopyright}
+                          onChange={(e) => {
+                            setAgreedToCopyright(e.target.checked)
+                            if (e.target.checked && errors.agreedToCopyright) {
+                              setErrors((prev) => { const n = { ...prev }; delete n.agreedToCopyright; return n })
+                            }
+                          }}
+                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                        />
+                        <span className="text-sm text-foreground leading-relaxed">
+                          アップロードするデザインは<strong>第三者の著作権・商標権・肖像権その他の権利を侵害していない</strong>ことを確認しました。
+                          権利侵害が判明した場合、<strong>注文のキャンセルおよびキャンセル料が発生する</strong>ことを理解しました
+                          <span className="text-destructive ml-1">*</span>
+                        </span>
+                      </label>
+                      {errors.agreedToCopyright && (
+                        <p className="text-xs text-destructive pl-7">{errors.agreedToCopyright}</p>
                       )}
                     </div>
 
