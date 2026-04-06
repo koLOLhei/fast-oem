@@ -33,7 +33,7 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
         )
     }
 
-    const feeAmount = cancellationFee ? parseInt(cancellationFee, 10) : 0
+    const feeAmount = cancellationFee ? (parseInt(cancellationFee, 10) || 0) : 0
     const refundAmount = needsRefund ? Math.max(0, totalPrice - feeAmount) : 0
 
     const handleCancel = () => {
@@ -157,7 +157,7 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                             {isPending ? '処理中...' : needsRefund ? '注文をキャンセル・返金する' : '注文をキャンセルする'}
                         </button>
                         <button
-                            onClick={() => { setOpen(false); setReason(''); setConfirmed(false); setError('') }}
+                            onClick={() => { setOpen(false); setReason(''); setCancellationFee(''); setConfirmed(false); setError('') }}
                             disabled={isPending}
                             className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted transition disabled:opacity-60"
                         >
