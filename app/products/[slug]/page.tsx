@@ -3,14 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
-import { getProductBySlugFromDb, getProductsFromDb } from '@/lib/products-db'
+import { getProductBySlugFromDb, getRelatedProducts } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
-export const dynamic = 'force-dynamic'
-export const fetchCache = 'force-no-store'
-export const revalidate = 0
-// No generateStaticParams — all slugs are rendered on demand.
-// This ensures admin-created products are accessible immediately without rebuild.
+export const revalidate = 60
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -59,13 +55,10 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params
-  const [product, allProducts] = await Promise.all([
-    getProductBySlugFromDb(slug),
-    getProductsFromDb(),
-  ])
+  const product = await getProductBySlugFromDb(slug)
   if (!product) notFound()
 
-  const relatedProducts = allProducts.filter((p) => p.slug !== slug).slice(0, 3)
+  const relatedProducts = await getRelatedProducts(slug, 3)
 
   const minPriceExTax = product.priceTiers.length > 0
     ? Math.min(...product.priceTiers.map((t) => t.unitPrice))

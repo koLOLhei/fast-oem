@@ -108,6 +108,27 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
     }
 }
 
+/**
+ * Fetch a few related products, excluding the given slug.
+ * Much lighter than fetching all products just to pick 3.
+ */
+export async function getRelatedProducts(excludeSlug: string, limit = 3): Promise<Product[]> {
+    try {
+        const { data, error } = await createProductsClient()
+            .from('products')
+            .select('*')
+            .eq('is_active', true)
+            .neq('slug', excludeSlug)
+            .limit(limit)
+        if (error || !data || data.length === 0) {
+            return filterActive(PRODUCTS).filter((p) => p.slug !== excludeSlug).slice(0, limit)
+        }
+        return data.map(rowToProduct)
+    } catch {
+        return filterActive(PRODUCTS).filter((p) => p.slug !== excludeSlug).slice(0, limit)
+    }
+}
+
 /** Used by admin page — returns ALL products including inactive */
 export async function getAllProductsForAdmin() {
     // Use service client to bypass RLS: the public policy only allows is_active=TRUE,
