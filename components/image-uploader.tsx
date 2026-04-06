@@ -118,7 +118,7 @@ export function ImageUploader({
         setIsUploading(false)
       }
     },
-    [onImageSelect],
+    [onImageSelect, selectedShape],
   )
 
   const handleConfirmLayout = useCallback(async () => {
