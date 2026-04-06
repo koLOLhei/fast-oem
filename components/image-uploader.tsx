@@ -82,10 +82,6 @@ export function ImageUploader({
           .upload(storagePath, file, { upsert: false })
         if (uploadError) throw uploadError
 
-        // Pass storage path (NOT public URL) to parent — server-side
-        // code uses toSignedUrl() to generate short-lived download URLs.
-        onImageSelect(storagePath, file.name, null)
-
         // For die-cut shapes, check if the image has interior holes (hollow)
         if (selectedShape === 'die-cut') {
           const { detectHollow } = await import('@/lib/complexity-analyzer')
@@ -96,11 +92,14 @@ export function ImageUploader({
             setLocalPreviewUrl(null)
             // Remove the uploaded file from storage
             await supabase.storage.from('designs').remove([storagePath])
-            onImageSelect(null, null, null)
             setIsUploading(false)
             return
           }
         }
+
+        // Pass storage path (NOT public URL) to parent — server-side
+        // code uses toSignedUrl() to generate short-lived download URLs.
+        onImageSelect(storagePath, file.name, null)
 
         // Run complexity analysis in background (non-blocking)
         if (onComplexityDetected) {
