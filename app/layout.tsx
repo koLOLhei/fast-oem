@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { Noto_Sans_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
-import { getProductsFromDb } from '@/lib/products-db'
 import './globals.css'
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
+  display: 'swap',
   variable: '--font-noto-sans-jp',
 })
 
@@ -79,26 +80,40 @@ export const viewport: Viewport = {
   maximumScale: 5,
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const products = await getProductsFromDb()
-  const productNav = products.map((p) => ({ slug: p.slug, name: p.name }))
-
   return (
     <html lang="ja">
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <Suspense fallback={<HeaderFallback />}>
+              <Header />
+            </Suspense>
             <main className="flex-1">{children}</main>
-            <Footer products={productNav} />
+            <Suspense>
+              <Footer />
+            </Suspense>
           </div>
         </CartProvider>
         <Analytics />
       </body>
     </html>
+  )
+}
+
+function HeaderFallback() {
+  return (
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-18 py-3">
+          <div className="w-11 h-11 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-8 w-48 bg-gray-100 rounded animate-pulse" />
+        </div>
+      </div>
+    </header>
   )
 }

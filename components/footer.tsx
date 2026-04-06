@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Mail, ArrowRight, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getProductsFromDb } from '@/lib/products-db'
 
-type ProductNav = { slug: string; name: string }
-
-export function Footer({ products }: { products: ProductNav[] }) {
+export async function Footer() {
+  const allProducts = await getProductsFromDb()
+  const products = allProducts.map((p) => ({ slug: p.slug, name: p.name }))
   return (
     <footer className="bg-foreground text-white relative overflow-hidden">
       {/* Colorful top border */}
@@ -45,7 +47,7 @@ export function Footer({ products }: { products: ProductNav[] }) {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-              <img src="/logo.png" alt="FAST OEM logo" className="w-full h-full object-contain" />
+              <Image src="/logo.png" alt="FAST OEM logo" width={48} height={48} className="w-full h-full object-contain" />
             </div>
               <div>
                 <span className="font-black text-2xl block leading-none">

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,7 +23,7 @@ export async function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
-              <img src="/logo.png" alt="FAST OEM logo" className="w-full h-full object-contain" />
+              <Image src="/logo.png" alt="FAST OEM logo" width={44} height={44} className="w-full h-full object-contain" />
             </div>
             <div className="flex flex-col">
               <span className="font-black text-xl text-foreground leading-none">
