@@ -82,6 +82,21 @@ export function ImageUploader({
           .upload(storagePath, file, { upsert: false })
         if (uploadError) throw uploadError
 
+        // For die-cut shapes, check if the image has interior holes (hollow)
+        if (selectedShape === 'die-cut') {
+          const { detectHollow } = await import('@/lib/complexity-analyzer')
+          const isHollow = await detectHollow(blobUrl)
+          if (isHollow) {
+            setError('中身が空洞のデザインは型抜きで製造できません。空洞のない画像をアップロードしてください。')
+            URL.revokeObjectURL(blobUrl)
+            setLocalPreviewUrl(null)
+            // Remove the uploaded file from storage
+            await supabase.storage.from('designs').remove([storagePath])
+            setIsUploading(false)
+            return
+          }
+        }
+
         // Pass storage path (NOT public URL) to parent — server-side
         // code uses toSignedUrl() to generate short-lived download URLs.
         onImageSelect(storagePath, file.name, null)

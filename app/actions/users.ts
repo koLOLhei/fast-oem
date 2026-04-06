@@ -4,6 +4,8 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
+
 export type ActionResult = { error?: string }
 
 /**
@@ -42,11 +44,7 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
         .eq('email', email)
         .maybeSingle()
 
-    if (existing?.used_at != null) {
-        return { error: 'このメールアドレスはすでに招待を承認済みです。ロール変更は「ユーザー管理」から行ってください。' }
-    }
-
-    // Also check if a profile with this email already exists (user already registered)
+    // Check if a profile with this email already exists (user already registered)
     const { data: existingProfile } = await service
         .from('profiles')
         .select('id')
@@ -56,8 +54,12 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
         return { error: 'このメールアドレスは既に登録済みです。ロール変更は「ユーザー管理」から行ってください。' }
     }
 
-    // Delete old pending invitation if exists, then insert fresh
-    if (existing) {
+    if (existing?.used_at != null) {
+        // Invitation was used but the profile no longer exists (user was deleted).
+        // Delete the stale invitation so we can re-invite.
+        await service.from('staff_invitations').delete().eq('id', existing.id)
+    } else if (existing) {
+        // Delete old pending invitation, then insert fresh
         await service.from('staff_invitations').delete().eq('id', existing.id)
     }
 
@@ -70,6 +72,7 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
     // Pass role/factory_id in user_metadata as belt-and-suspenders alongside the invitation record.
     const { error: authError } = await service.auth.admin.inviteUserByEmail(email, {
         data: { full_name: name || undefined, role, factory_id: factoryId ?? undefined },
+        redirectTo: `${SITE_URL}/auth/callback?next=/login`,
     })
     if (authError) {
         // Rollback invitation record on auth failure
@@ -231,8 +234,18 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
         }
     }
 
+    // Fetch email before deleting auth user so we can clean up invitation records
+    const { data: profile } = await service
+        .from('profiles').select('email').eq('id', userId).single()
+
     const { error } = await service.auth.admin.deleteUser(userId)
     if (error) return { error: error.message }
+
+    // Clean up staff_invitations so the email can be re-invited later
+    if (profile?.email) {
+        await service.from('staff_invitations').delete().eq('email', profile.email.toLowerCase())
+    }
+
     revalidatePath('/admin/users')
     return {}
 }
