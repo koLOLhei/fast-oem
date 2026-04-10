@@ -1,11 +1,17 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
   title: '特定商取引法に基づく表記 | FAST OEM',
   description: 'FAST OEMの特定商取引法に基づく表記。販売業者・運営責任者・所在地・連絡先・販売価格・支払方法・引渡時期・返品ポリシーなど。',
+  openGraph: {
+    title: '特定商取引法に基づく表記 | FAST OEM',
+    description: 'FAST OEMの特定商取引法に基づく表記。販売業者・所在地・連絡先・支払方法・返品ポリシーなど。',
+    url: `${BASE_URL}/tokushoho`,
+  },
   alternates: { canonical: `${BASE_URL}/tokushoho` },
 }
 
@@ -43,30 +49,17 @@ const items = [
   },
 ]
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
-    { '@type': 'ListItem', position: 2, name: '特定商取引法に基づく表記', item: 'https://fast-oem.soara-mu.jp/tokushoho' },
-  ],
-}
-
 export default function TokushohoPage() {
+  const bcJsonLd = bcJsonLdFn([{ name: '特定商取引法に基づく表記' }])
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
       />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="パンくずリスト">
-          <Link href="/" className="hover:text-foreground transition-colors">トップ</Link>
-          <span>/</span>
-          <span className="text-foreground font-medium">特定商取引法に基づく表記</span>
-        </nav>
+        <Breadcrumb items={[{ name: '特定商取引法に基づく表記' }]} />
 
         <h1 className="text-2xl md:text-3xl font-black text-foreground mb-2">
           特定商取引法に基づく表記

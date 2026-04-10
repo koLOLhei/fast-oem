@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { BookOpen, ArrowRight, HelpCircle, Palette, Upload, CheckCircle, Truck } from 'lucide-react'
+import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -158,14 +159,6 @@ const faqJsonLd = {
   })),
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: BASE_URL },
-    { '@type': 'ListItem', position: 2, name: 'グッズ製作ガイド', item: `${BASE_URL}/guide` },
-  ],
-}
 
 const stepsData = [
   {
@@ -195,21 +188,17 @@ const stepsData = [
 ]
 
 export default function GuidePage() {
+  const bcJsonLd = bcJsonLdFn([{ name: 'グッズ製作ガイド' }])
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([howToJsonLd, faqJsonLd, breadcrumbJsonLd]) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([howToJsonLd, faqJsonLd, bcJsonLd]) }}
       />
 
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="パンくずリスト">
-            <Link href="/" className="hover:text-foreground transition-colors">トップ</Link>
-            <span>/</span>
-            <span className="text-foreground font-medium">グッズ製作ガイド</span>
-          </nav>
+          <Breadcrumb items={[{ name: 'グッズ製作ガイド' }]} />
 
           {/* Header */}
           <div className="text-center mb-16">

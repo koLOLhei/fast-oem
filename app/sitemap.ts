@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { getProductsFromDb } from '@/lib/products-db'
+import { articles } from '@/lib/blog-articles'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -25,6 +26,57 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.85,
+    },
+    // Use-case landing pages (high priority for SEO)
+    {
+      url: `${BASE_URL}/use-cases/doujin`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/use-cases/novelty`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/use-cases/oshikatsu`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    // Category landing pages
+    {
+      url: `${BASE_URL}/products/category/keychain`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${BASE_URL}/products/category/badge`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${BASE_URL}/products/category/packaging`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    // Blog & Cases
+    {
+      url: `${BASE_URL}/blog`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/cases`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.7,
     },
     {
       url: `${BASE_URL}/faq`,
@@ -71,5 +123,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticPages, ...productPages]
+  const blogPages: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${BASE_URL}/blog/${article.slug}`,
+    lastModified: new Date(article.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.65,
+  }))
+
+  return [...staticPages, ...productPages, ...blogPages]
 }

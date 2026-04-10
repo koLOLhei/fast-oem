@@ -2,13 +2,15 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { Mail, Clock, MessageCircle, ArrowRight, HelpCircle, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-  title: 'お問い合わせ | FAST OEM',
+  title: 'お問い合わせ | OEMグッズ製作のご相談・お見積もり',
   description:
-    'FAST OEMへのお問い合わせ。注文・デザインデータ・納期・返品など、ご不明な点はメールにてお気軽にお問い合わせください。平日10:00〜18:00対応。',
+    'FAST OEMへのお問い合わせ。注文・デザインデータ・納期・返品など、OEMグッズ製作に関するご不明な点はメールにてお気軽にお問い合わせください。平日10:00〜18:00対応。',
+  keywords: ['OEM お問い合わせ', 'グッズ製作 相談', 'グッズ製作 見積もり', 'OEM 問い合わせ'],
   alternates: { canonical: `${BASE_URL}/contact` },
 }
 
@@ -19,30 +21,17 @@ const topics = [
   { icon: HelpCircle, label: 'その他のお問い合わせ', example: '商品の品質不良、ご注文後の変更など' },
 ]
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
-    { '@type': 'ListItem', position: 2, name: 'お問い合わせ', item: 'https://fast-oem.soara-mu.jp/contact' },
-  ],
-}
-
 export default function ContactPage() {
+  const bcJsonLd = bcJsonLdFn([{ name: 'お問い合わせ' }])
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
       />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="パンくずリスト">
-          <Link href="/" className="hover:text-foreground transition-colors">トップ</Link>
-          <span>/</span>
-          <span className="text-foreground font-medium">お問い合わせ</span>
-        </nav>
+        <Breadcrumb items={[{ name: 'お問い合わせ' }]} />
 
         {/* Header */}
         <div className="text-center mb-12">

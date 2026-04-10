@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import { Noto_Sans_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/components/cart-provider'
@@ -89,6 +90,13 @@ export default async function RootLayout({
 
   return (
     <html lang="ja">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://utwvalzykfxdeuwnebne.supabase.co" />
+        <link rel="dns-prefetch" href="https://utwvalzykfxdeuwnebne.supabase.co" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
@@ -98,6 +106,24 @@ export default async function RootLayout({
           </div>
         </CartProvider>
         <Analytics />
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-K27ZY9QJDT"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('consent', 'default', {
+              analytics_storage: 'granted',
+              ad_storage: 'denied',
+              ad_user_data: 'denied',
+              ad_personalization: 'denied',
+            });
+            gtag('config', 'G-K27ZY9QJDT');
+          `}
+        </Script>
       </body>
     </html>
   )

@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronDown, Package, ArrowRight } from 'lucide-react'
+import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     title: 'よくある質問（FAQ） | FAST OEM',
     description: 'OEMグッズ製作に関するよくある質問。注文・納期・データ形式・支払など全方位で解説。',
     url: `${BASE_URL}/faq`,
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
   alternates: { canonical: `${BASE_URL}/faq` },
 }
@@ -162,34 +163,17 @@ const jsonLd = {
   ),
 }
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
-    { '@type': 'ListItem', position: 2, name: 'よくある質問', item: 'https://fast-oem.soara-mu.jp/faq' },
-  ],
-}
-
 export default function FaqPage() {
+  const bcJsonLd = bcJsonLdFn([{ name: 'よくある質問' }])
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, bcJsonLd]) }}
       />
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="パンくずリスト">
-            <Link href="/" className="hover:text-foreground transition-colors">トップ</Link>
-            <span>/</span>
-            <span className="text-foreground font-medium">よくある質問</span>
-          </nav>
+          <Breadcrumb items={[{ name: 'よくある質問' }]} />
 
           {/* Header */}
           <div className="text-center mb-12">

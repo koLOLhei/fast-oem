@@ -88,18 +88,42 @@ export function Footer({ products }: { products: ProductNav[] }) {
             </nav>
           </div>
 
-          {/* Support */}
+          {/* Use Cases */}
           <div>
             <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
               <span className="w-2 h-6 bg-[#ff7b54] rounded-full" />
-              サポート
+              用途別で探す
             </h3>
             <nav className="flex flex-col gap-3">
               <Link
-                href="/#how-it-works"
+                href="/use-cases/doujin"
                 className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
-                ご利用方法
+                同人グッズ製作
+              </Link>
+              <Link
+                href="/use-cases/novelty"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                企業ノベルティ製作
+              </Link>
+              <Link
+                href="/use-cases/oshikatsu"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                推し活グッズ製作
+              </Link>
+              <Link
+                href="/cases"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                製作事例
+              </Link>
+              <Link
+                href="/blog"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                コラム
               </Link>
               <Link
                 href="/guide"
@@ -112,12 +136,6 @@ export function Footer({ products }: { products: ProductNav[] }) {
                 className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
                 よくある質問
-              </Link>
-              <Link
-                href="/contact"
-                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
-              >
-                お問い合わせ
               </Link>
               <Link
                 href="/shipping"

@@ -106,16 +106,24 @@ const features = [
 
 const organizationJsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
+  '@type': ['Organization', 'LocalBusiness'],
   name: 'FAST OEM',
   url: BASE_URL,
   logo: `${BASE_URL}/logo.png`,
+  image: `${BASE_URL}/opengraph-image.png`,
   description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
+  telephone: '',
+  email: 'contact@soara-mu.com',
+  priceRange: '¥50〜¥800',
+  currenciesAccepted: 'JPY',
+  paymentAccepted: 'Credit Card',
+  openingHours: 'Mo-Fr 10:00-18:00',
   contactPoint: {
     '@type': 'ContactPoint',
     email: 'contact@soara-mu.com',
     contactType: 'customer service',
     availableLanguage: 'Japanese',
+    areaServed: 'JP',
   },
   address: {
     '@type': 'PostalAddress',
@@ -125,7 +133,34 @@ const organizationJsonLd = {
     streetAddress: '神奈川区金港町5-14 クアドリフォリオ8階',
     addressCountry: 'JP',
   },
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude: 35.4657,
+    longitude: 139.6281,
+  },
+  areaServed: {
+    '@type': 'Country',
+    name: 'Japan',
+  },
   sameAs: [],
+}
+
+const siteNavigationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SiteNavigationElement',
+  name: 'メインナビゲーション',
+  hasPart: [
+    { '@type': 'WebPage', name: '商品一覧', url: `${BASE_URL}/products` },
+    { '@type': 'WebPage', name: 'グッズ製作ガイド', url: `${BASE_URL}/guide` },
+    { '@type': 'WebPage', name: 'よくある質問', url: `${BASE_URL}/faq` },
+    { '@type': 'WebPage', name: 'お問い合わせ', url: `${BASE_URL}/contact` },
+    { '@type': 'WebPage', name: '配送について', url: `${BASE_URL}/shipping` },
+    { '@type': 'WebPage', name: '同人グッズ製作', url: `${BASE_URL}/use-cases/doujin` },
+    { '@type': 'WebPage', name: '企業ノベルティ製作', url: `${BASE_URL}/use-cases/novelty` },
+    { '@type': 'WebPage', name: '推し活グッズ製作', url: `${BASE_URL}/use-cases/oshikatsu` },
+    { '@type': 'WebPage', name: '製作事例', url: `${BASE_URL}/cases` },
+    { '@type': 'WebPage', name: 'コラム', url: `${BASE_URL}/blog` },
+  ],
 }
 
 const websiteJsonLd = {
@@ -193,7 +228,7 @@ export default async function HomePage() {
     <div className="bg-background overflow-hidden">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd]) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd, siteNavigationJsonLd]) }}
       />
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center bg-[#fdfbf6] overflow-hidden">
@@ -248,9 +283,10 @@ export default async function HomePage() {
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border-4 border-[#ffe135]">
                       <Image
                         src="/images/acrylic-keychain.jpg"
-                        alt="アクリルキーホルダー OEM製作"
+                        alt="アクリルキーホルダー OEM製作 - 透明アクリル素材にフルカラー印刷、小ロット10個から対応"
                         fill
                         priority
+                        sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
                       <div className="absolute bottom-2 left-2 bg-[#ffe135] text-foreground text-xs font-bold px-2 py-1 rounded-lg">
@@ -260,9 +296,10 @@ export default async function HomePage() {
                     <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg border-4 border-[#7ed957]">
                       <Image
                         src="/images/pin-badge.jpg"
-                        alt="ピンバッジ OEM製作"
+                        alt="ピンバッジ OEM製作 - 金属エナメル仕上げ、企業ノベルティに人気"
                         fill
                         priority
+                        sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
                     </div>
@@ -271,16 +308,18 @@ export default async function HomePage() {
                     <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-lg border-4 border-[#ff7b54]">
                       <Image
                         src="/images/can-badge.jpg"
-                        alt="缶バッジ OEM製作"
+                        alt="缶バッジ OEM製作 - フルカラー印刷、同人イベント・推し活に最適"
                         fill
+                        sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
                     </div>
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border-4 border-[#00c8c8]">
                       <Image
                         src="/images/rubber-keychain.jpg"
-                        alt="ラバーキーホルダー OEM製作"
+                        alt="ラバーキーホルダー OEM製作 - PVC素材で立体デザイン対応、キャラクターグッズに最適"
                         fill
+                        sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
                       <div className="absolute bottom-2 right-2 bg-[#00c8c8] text-white text-xs font-bold px-2 py-1 rounded-lg">
@@ -440,20 +479,87 @@ export default async function HomePage() {
 
 
 
+      {/* Use Case Links */}
+      <section className="py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-block bg-[#ffe135] text-foreground px-6 py-2 rounded-full text-sm font-bold mb-4 shadow-lg">
+              USE CASES
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black text-foreground">
+              用途に合わせて選べる
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              あなたの目的に合ったグッズ製作の方法をご案内します
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link href="/use-cases/doujin" className="group block p-8 bg-gradient-to-br from-[#ff7b54]/5 to-[#ff7b54]/10 rounded-3xl border-2 border-[#ff7b54]/20 hover:border-[#ff7b54]/50 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <h3 className="text-xl font-black text-foreground group-hover:text-[#ff7b54] transition-colors">同人グッズ製作</h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">コミケ・即売会の頒布物に。小ロット10個〜対応で個人クリエイターも安心。</p>
+              <span className="inline-flex items-center text-sm font-bold text-[#ff7b54] mt-4">
+                詳しく見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link href="/use-cases/novelty" className="group block p-8 bg-gradient-to-br from-[#00c8c8]/5 to-[#00c8c8]/10 rounded-3xl border-2 border-[#00c8c8]/20 hover:border-[#00c8c8]/50 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <h3 className="text-xl font-black text-foreground group-hover:text-[#00c8c8] transition-colors">企業ノベルティ製作</h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">展示会・キャンペーン向け。領収書・インボイス対応で法人も安心。</p>
+              <span className="inline-flex items-center text-sm font-bold text-[#00c8c8] mt-4">
+                詳しく見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link href="/use-cases/oshikatsu" className="group block p-8 bg-gradient-to-br from-pink-50 to-pink-100/50 rounded-3xl border-2 border-pink-200 hover:border-pink-400 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <h3 className="text-xl font-black text-foreground group-hover:text-pink-500 transition-colors">推し活グッズ製作</h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">推しの写真やイラストでオリジナルグッズ。ライブ・イベントの応援グッズに。</p>
+              <span className="inline-flex items-center text-sm font-bold text-pink-500 mt-4">
+                詳しく見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* SEO Content Block */}
-      <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">グッズ製作をもっと詳しく</h2>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            初めてのグッズ制作でも安心。デザインのコツから費用の目安まで、完全ガイドをご用意しています。
-          </p>
-          <Link
-            href="/guide"
-            className="inline-flex items-center gap-2 text-[#00c8c8] font-bold text-lg hover:text-[#00b0b0] transition-colors"
-          >
-            グッズ製作ガイドを見る
-            <ArrowRight className="h-5 w-5" />
-          </Link>
+      <section className="py-16 bg-muted/20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-4">グッズ製作をもっと詳しく</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              初めてのグッズ制作でも安心。ガイド・事例・コラムで情報をチェック。
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link
+              href="/guide"
+              className="group block p-6 bg-white rounded-2xl border-2 border-[#00c8c8]/20 hover:border-[#00c8c8]/50 transition-all hover:-translate-y-1 hover:shadow-lg"
+            >
+              <h3 className="text-lg font-bold text-foreground group-hover:text-[#00c8c8] transition-colors">製作ガイド</h3>
+              <p className="text-sm text-muted-foreground mt-2">デザインのコツから費用の目安まで、完全ガイド。</p>
+              <span className="inline-flex items-center text-sm font-bold text-[#00c8c8] mt-3">
+                詳しく見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link
+              href="/cases"
+              className="group block p-6 bg-white rounded-2xl border-2 border-[#ff7b54]/20 hover:border-[#ff7b54]/50 transition-all hover:-translate-y-1 hover:shadow-lg"
+            >
+              <h3 className="text-lg font-bold text-foreground group-hover:text-[#ff7b54] transition-colors">製作事例</h3>
+              <p className="text-sm text-muted-foreground mt-2">同人・企業・推し活など、実際のお客様の製作事例を紹介。</p>
+              <span className="inline-flex items-center text-sm font-bold text-[#ff7b54] mt-3">
+                事例を見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+            <Link
+              href="/blog"
+              className="group block p-6 bg-white rounded-2xl border-2 border-[#7ed957]/20 hover:border-[#7ed957]/50 transition-all hover:-translate-y-1 hover:shadow-lg"
+            >
+              <h3 className="text-lg font-bold text-foreground group-hover:text-[#7ed957] transition-colors">コラム</h3>
+              <p className="text-sm text-muted-foreground mt-2">グッズ製作のノウハウやトレンド情報をお届け。</p>
+              <span className="inline-flex items-center text-sm font-bold text-[#7ed957] mt-3">
+                記事を読む <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+          </div>
         </div>
       </section>
 

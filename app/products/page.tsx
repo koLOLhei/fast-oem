@@ -2,18 +2,11 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { Package, Sparkles } from 'lucide-react'
 import { ProductCard } from '@/components/product-card'
+import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { getProductsFromDb } from '@/lib/products-db'
+import { type Product } from '@/lib/products'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
-
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: BASE_URL },
-    { '@type': 'ListItem', position: 2, name: '商品一覧', item: `${BASE_URL}/products` },
-  ],
-}
 
 export const metadata: Metadata = {
   title: 'OEMグッズ製作 商品一覧 | アクリルキーホルダー・缶バッジ・ピンバッジ',
@@ -28,7 +21,7 @@ export const metadata: Metadata = {
     title: 'OEMグッズ製作 商品一覧 | FAST OEM',
     description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
     url: `${BASE_URL}/products`,
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
   alternates: { canonical: `${BASE_URL}/products` },
 }
@@ -66,14 +59,52 @@ async function ProductsContent({
       ? allProducts
       : allProducts.filter((p) => p.category === selectedCategory)
 
+  const bcJsonLd = breadcrumbJsonLd([{ name: '商品一覧' }])
+
+  const itemListJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'FAST OEM 商品一覧',
+    description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作商品一覧',
+    numberOfItems: allProducts.length,
+    itemListElement: allProducts.map((product: Product, index: number) => {
+      const minPrice = product.priceTiers.length > 0
+        ? Math.round(Math.min(...product.priceTiers.map((t) => t.unitPrice)) * 1.1)
+        : undefined
+      return {
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'Product',
+          name: product.name,
+          url: `${BASE_URL}/products/${product.slug}`,
+          image: product.imageUrl || undefined,
+          description: product.shortDescription || product.description,
+          brand: { '@type': 'Brand', name: 'FAST OEM' },
+          ...(minPrice !== undefined && {
+            offers: {
+              '@type': 'Offer',
+              priceCurrency: 'JPY',
+              price: minPrice,
+              availability: 'https://schema.org/InStock',
+            },
+          }),
+        },
+      }
+    }),
+  }
+
   return (
     <>
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, itemListJsonLd]) }}
     />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb */}
+        <Breadcrumb items={[{ name: '商品一覧' }]} />
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
@@ -100,7 +131,7 @@ async function ProductsContent({
                 href={
                   category.id === 'all'
                     ? '/products'
-                    : `/products?category=${category.id}`
+                    : `/products/category/${category.id}`
                 }
                 className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
                   isSelected
