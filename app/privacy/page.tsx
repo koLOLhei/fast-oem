@@ -1,15 +1,31 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
+
+const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
     title: 'プライバシーポリシー | FAST OEM',
-    description: 'FAST OEM プライバシーポリシー（個人情報の取り扱いについて）',
+    description: 'FAST OEM プライバシーポリシー（個人情報の取り扱いについて）。株式会社SOARAが運営するFAST OEMにおける個人情報の取得・利用目的・第三者提供・安全管理について。',
+    openGraph: {
+        title: 'プライバシーポリシー | FAST OEM',
+        description: 'FAST OEMのプライバシーポリシー。個人情報の取得・利用目的・第三者提供・安全管理について。',
+        url: `${BASE_URL}/privacy`,
+    },
+    alternates: { canonical: `${BASE_URL}/privacy` },
 }
 
 export default function PrivacyPage() {
+    const bcJsonLd = breadcrumbJsonLd([{ name: 'プライバシーポリシー' }])
     return (
+        <>
+        <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
+        />
         <div className="min-h-screen bg-background py-12">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <Breadcrumb items={[{ name: 'プライバシーポリシー' }]} />
                 <h1 className="text-3xl font-bold text-foreground mb-2">プライバシーポリシー</h1>
                 <p className="text-sm text-muted-foreground mb-10">最終更新日：2026年3月21日</p>
 
@@ -173,5 +189,6 @@ export default function PrivacyPage() {
                 </div>
             </div>
         </div>
+        </>
     )
 }

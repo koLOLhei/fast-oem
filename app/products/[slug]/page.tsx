@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
       url: `${BASE_URL}/products/${slug}`,
       images: product.imageUrl
         ? [{ url: product.imageUrl, width: 1200, height: 630, alt: product.name }]
-        : [{ url: '/og-image.png', width: 1200, height: 630 }],
+        : [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
     },
     alternates: { canonical: `${BASE_URL}/products/${slug}` },
   }
@@ -76,33 +76,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
         url: `${BASE_URL}/products/${slug}`,
         image: product.imageUrl ? [product.imageUrl] : [],
         brand: { '@type': 'Brand', name: 'FAST OEM' },
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: '4.9',
-          reviewCount: '2500',
-          bestRating: '5',
-          worstRating: '1',
-        },
-        review: [
-          {
-            '@type': 'Review',
-            author: { '@type': 'Person', name: '同人サークル主催者' },
-            reviewRating: { '@type': 'Rating', ratingValue: 5, bestRating: 5 },
-            reviewBody: '小ロットでも高品質。即売会で大好評でした。',
-          },
-          {
-            '@type': 'Review',
-            author: { '@type': 'Person', name: '企業ノベルティ担当' },
-            reviewRating: { '@type': 'Rating', ratingValue: 5, bestRating: 5 },
-            reviewBody: '納期通りに届き、仕上がりも綺麗で大満足です。リピート確定。',
-          },
-          {
-            '@type': 'Review',
-            author: { '@type': 'Person', name: '推し活グッズ製作者' },
-            reviewRating: { '@type': 'Rating', ratingValue: 4, bestRating: 5 },
-            reviewBody: '発色が良く、推しの魅力がしっかり再現されていました。',
-          },
-        ],
+        category: 'OEMグッズ',
+        manufacturer: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
         ...(minPrice !== undefined && {
           offers: {
             '@type': 'Offer',
@@ -176,7 +151,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     <div className="aspect-[4/3] relative overflow-hidden bg-muted">
                       <Image
                         src={rel.imageUrl}
-                        alt={rel.name}
+                        alt={`${rel.name} - OEM製作・オリジナルグッズ | FAST OEM`}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         sizes="(max-width: 768px) 100vw, 33vw"

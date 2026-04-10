@@ -74,11 +74,25 @@ export function MobileMenu({ products }: { products: ProductNav[] }) {
               すべての商品を見る
             </Link>
             <Link
-              href="/#how-it-works"
+              href="/guide"
               className="text-foreground py-3 px-3 hover:bg-[#ffe135]/20 rounded-xl transition-colors font-medium"
               onClick={() => setIsMenuOpen(false)}
             >
-              ご利用方法
+              製作ガイド
+            </Link>
+            <Link
+              href="/cases"
+              className="text-foreground py-3 px-3 hover:bg-[#ffe135]/20 rounded-xl transition-colors font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              製作事例
+            </Link>
+            <Link
+              href="/blog"
+              className="text-foreground py-3 px-3 hover:bg-[#ffe135]/20 rounded-xl transition-colors font-medium"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              コラム
             </Link>
             <Link
               href="/contact"

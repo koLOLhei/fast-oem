@@ -68,10 +68,22 @@ export async function Header() {
             </DropdownMenu>
 
             <Link
-              href="/#how-it-works"
+              href="/guide"
               className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
             >
-              ご利用方法
+              製作ガイド
+            </Link>
+            <Link
+              href="/cases"
+              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
+            >
+              製作事例
+            </Link>
+            <Link
+              href="/blog"
+              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
+            >
+              コラム
             </Link>
             <Link
               href="/contact"

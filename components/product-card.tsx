@@ -35,7 +35,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           {!imgError && product.imageUrl ? (
             <Image
               src={product.imageUrl}
-              alt={product.name}
+              alt={`${product.name} - OEM製作・オリジナルグッズ | FAST OEM`}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

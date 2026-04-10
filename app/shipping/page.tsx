@@ -1,13 +1,20 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { Truck, Clock, MapPin, Package, Zap, Search, ArrowRight } from 'lucide-react'
+import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-  title: '配送について | FAST OEM',
+  title: '配送・納期について | OEMグッズの送料・特急対応',
   description:
-    'FAST OEMの配送・納期について。標準納期14〜30日・特急10日対応。送料は基本無料（離島・沖縄・一部遠隔地は別途）。ヤマト運輸・佐川急便にて発送。',
+    'FAST OEMの配送・納期について。標準納期14〜30営業日・特急約10営業日対応。日本国内送料無料（離島・沖縄・一部遠隔地は別途）。ヤマト運輸・佐川急便にて発送。',
+  keywords: ['OEM 納期', 'グッズ製作 納期', 'OEM 送料', 'グッズ 特急', 'OEM 配送'],
+  openGraph: {
+    title: '配送・納期について | FAST OEM',
+    description: 'OEMグッズの配送・納期情報。標準14〜30営業日・特急約10営業日。日本国内送料無料。',
+    url: `${BASE_URL}/shipping`,
+  },
   alternates: { canonical: `${BASE_URL}/shipping` },
 }
 
@@ -19,30 +26,17 @@ const deliveryProducts = [
   { name: 'レジ袋', standard: '21〜30営業日', express: '約10営業日', expressAvailable: true },
 ]
 
-const breadcrumbJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://fast-oem.soara-mu.jp' },
-    { '@type': 'ListItem', position: 2, name: '配送について', item: 'https://fast-oem.soara-mu.jp/shipping' },
-  ],
-}
-
 export default function ShippingPage() {
+  const bcJsonLd = bcJsonLdFn([{ name: '配送について' }])
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
       />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8" aria-label="パンくずリスト">
-          <Link href="/" className="hover:text-foreground transition-colors">トップ</Link>
-          <span>/</span>
-          <span className="text-foreground font-medium">配送について</span>
-        </nav>
+        <Breadcrumb items={[{ name: '配送について' }]} />
 
         {/* Header */}
         <div className="text-center mb-12">
