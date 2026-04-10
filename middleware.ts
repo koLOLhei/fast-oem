@@ -220,8 +220,9 @@ export async function middleware(request: NextRequest) {
 
     const isAdminRoute = pathname.startsWith('/admin')
     const isFactoryRoute = pathname.startsWith('/factory')
+    const isMypageRoute = pathname.startsWith('/mypage')
 
-    if (!user && (isAdminRoute || isFactoryRoute)) {
+    if (!user && (isAdminRoute || isFactoryRoute || isMypageRoute)) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
