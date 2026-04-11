@@ -370,16 +370,39 @@ export async function updateFactoryNote(orderId: string, note: string) {
 
 export async function bulkAssignFactory(orderId: string, factoryId: string) {
     await requireAdmin()
-    const { error } = await createServiceClient()
+    const service = createServiceClient()
+
+    // First, fetch the unassigned item IDs to prevent concurrent double-assignment.
+    const { data: unassigned, error: fetchErr } = await service
         .from('order_items')
-        .update({ factory_id: factoryId, status: 'assigned' })
+        .select('id')
         .eq('order_id', orderId)
         .eq('status', 'unassigned')
+
+    if (fetchErr) {
+        console.error('[bulkAssignFactory] Fetch error:', { orderId, factoryId, error: fetchErr })
+        throw new Error(fetchErr.message)
+    }
+    if (!unassigned || unassigned.length === 0) {
+        throw new Error('割り当て可能なアイテムがありません')
+    }
+
+    // Use explicit ID list + status guard as optimistic lock
+    const { data: updated, error } = await service
+        .from('order_items')
+        .update({ factory_id: factoryId, status: 'assigned' })
+        .in('id', unassigned.map(i => i.id))
+        .eq('status', 'unassigned')
+        .select('id')
 
     if (error) {
         console.error('[bulkAssignFactory] DB error:', { orderId, factoryId, error })
         throw new Error(error.message)
     }
+    if ((updated?.length ?? 0) < unassigned.length) {
+        console.warn(`[bulkAssignFactory] Partial assignment: ${updated?.length}/${unassigned.length} items (concurrent modification)`)
+    }
+
     revalidatePath(`/admin/orders/${orderId}`)
     revalidatePath('/admin')
 }

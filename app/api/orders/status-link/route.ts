@@ -11,7 +11,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 export async function GET(req: NextRequest) {
     const sessionId = req.nextUrl.searchParams.get('session_id')
 
-    if (!sessionId || !sessionId.startsWith('cs_')) {
+    if (!sessionId || !sessionId.startsWith('cs_') || sessionId.length > 200) {
         return NextResponse.json({ error: 'Invalid session_id' }, { status: 400 })
     }
 

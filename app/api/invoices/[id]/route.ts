@@ -70,25 +70,25 @@ export async function GET(
     const shippingFee  = (order as any).shipping_fee  ?? 0
     const orderNumber  = (order as any).order_number  ?? id
 
-    const itemsExTax = orderItems.reduce((sum: number, item: any) => {
-        const itemTotal    = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
-        const moldFeeExTax = item.mold_fee             ? Math.round(item.mold_fee             / (1 + TAX_RATE)) : 0
-        const expressExTax = item.express_delivery_fee ? Math.round(item.express_delivery_fee / (1 + TAX_RATE)) : 0
-        return sum + itemTotal + moldFeeExTax + expressExTax
-    }, 0)
-    const shippingFeeExTax = shippingFee > 0 ? Math.round(shippingFee / (1 + TAX_RATE)) : 0
-    const priceExTax = itemsExTax + shippingFeeExTax
+    // Tax calculation: derive ex-tax from the authoritative total to avoid
+    // rounding errors from summing individually-rounded line items.
+    const priceExTax = Math.round(orderTotal / (1 + TAX_RATE))
     const taxAmount  = orderTotal - priceExTax
+    const shippingFeeExTax = shippingFee > 0 ? Math.round(shippingFee / (1 + TAX_RATE)) : 0
 
     // --- PDF ---
     const pdfDoc = await PDFDocument.create()
     const page   = pdfDoc.addPage([595, 842]) // A4
     const { width, height } = page.getSize()
 
-    const jaFontBytes = await loadJapaneseFont()
-    const font = jaFontBytes
-        ? await pdfDoc.embedFont(jaFontBytes, { subset: true })
-        : await pdfDoc.embedFont(StandardFonts.Helvetica)
+    let font
+    try {
+        const jaFontBytes = await loadJapaneseFont()
+        font = await pdfDoc.embedFont(jaFontBytes, { subset: true })
+    } catch (fontErr) {
+        console.error('[invoice] Japanese font load failed, falling back to Helvetica:', fontErr)
+        font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    }
 
     const drawText = (
         text: string, x: number, yPos: number,

@@ -20,6 +20,7 @@ export default async function UsersPage() {
     let staffProfiles: any[] = []
     let pendingInvites: any[] = []
     let factories: any[] = []
+    let fetchError = false
 
     try {
         const [selfProfileResult, profilesResult, invitesResult, factoriesResult] = await Promise.all([
@@ -45,6 +46,7 @@ export default async function UsersPage() {
         factories = factoriesResult.data ?? []
     } catch (err) {
         console.error('[UsersPage] Failed to fetch data:', err)
+        fetchError = true
     }
 
     const roleLabel = ROLE_LABELS
@@ -58,6 +60,12 @@ export default async function UsersPage() {
                     管理者・工場アカウントの招待・権限変更・無効化を行います。
                 </p>
             </div>
+
+            {fetchError && (
+                <div className="px-4 py-3 rounded-xl text-sm font-medium border bg-red-50 border-red-200 text-red-800">
+                    ⚠ データの取得に失敗しました。ページを再読み込みしてください。表示されているデータが不完全な可能性があります。
+                </div>
+            )}
 
             {/* ── Pending Invitations ──────────────────────────────── */}
             {pendingInvites.length > 0 && (

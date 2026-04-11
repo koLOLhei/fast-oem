@@ -31,7 +31,12 @@ export function CompleteClient() {
     let cancelled = false
     let timerId: ReturnType<typeof setTimeout>
 
-    const savedOrder = sessionStorage.getItem('completed-order')
+    let savedOrder: string | null = null
+    try {
+      savedOrder = sessionStorage.getItem('completed-order')
+    } catch {
+      // sessionStorage unavailable (e.g. some privacy settings) — show minimal page
+    }
     if (savedOrder) {
       try {
         const parsed = JSON.parse(savedOrder) as CompletedOrder

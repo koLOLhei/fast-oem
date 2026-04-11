@@ -173,8 +173,11 @@ export default async function AdminPage({
     const FACTORY_OVERLOAD_THRESHOLD = 10
     const overloadedFactories = factoryStats.filter((f) => f.active >= FACTORY_OVERLOAD_THRESHOLD)
 
-    // Completion rate (shipped / total active+shipped)
-    const completionRate = totalItems > 0 ? Math.round((itemCounts.shipped / totalItems) * 100) : 0
+    // Completion rate: shipped / (total - cancelled). Cancelled items are excluded
+    // so the percentage reflects actual operational progress, not cancellations.
+    const cancelledCount = allItems.filter((i) => i.status === 'cancelled').length
+    const effectiveTotal = totalItems - cancelledCount
+    const completionRate = effectiveTotal > 0 ? Math.round((itemCounts.shipped / effectiveTotal) * 100) : 0
 
     // Stuck items: already filtered to paid orders in the DB query
     const stuckPaidItems = stuckItems ?? []

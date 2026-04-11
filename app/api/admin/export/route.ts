@@ -207,7 +207,10 @@ function escapeCell(value: unknown): string {
     const str = String(value ?? '')
     // Sanitize CSV formula injection: Excel/Sheets execute cells starting with =, +, -, @
     // Also prefix % and | which are used by DDE payloads in some legacy spreadsheet parsers
-    const sanitized = str.length > 0 && '=+-@\t\r%|'.includes(str[0]) ? `'${str}` : str
+    // Guard against CSV formula injection: prefix dangerous first characters.
+    // Includes Unicode full-width variants (＝, ＋, ＠) used to bypass ASCII-only checks.
+    const DANGEROUS_FIRST_CHARS = '=+-@\t\r%|＝＋ー＠'
+    const sanitized = str.length > 0 && DANGEROUS_FIRST_CHARS.includes(str[0]) ? `'${str}` : str
     // Wrap in quotes if contains comma, newline, or quote; escape inner quotes
     if (sanitized.includes(',') || sanitized.includes('\n') || sanitized.includes('"')) {
         return `"${sanitized.replace(/"/g, '""')}"`

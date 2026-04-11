@@ -12,8 +12,17 @@ export async function getSiteSettings(): Promise<Record<string, string>> {
     return settings
 }
 
+const MAX_SETTING_VALUE_LENGTH = 2000
+
 export async function updateSiteSettings(updates: Record<string, string>) {
     await requireAdmin()
+
+    // Validate value sizes to prevent DB bloat
+    for (const [key, value] of Object.entries(updates)) {
+        if (value.length > MAX_SETTING_VALUE_LENGTH) {
+            throw new Error(`設定値「${key}」が長すぎます（最大${MAX_SETTING_VALUE_LENGTH}文字）`)
+        }
+    }
 
     const service = createServiceClient()
     const now = new Date().toISOString()
