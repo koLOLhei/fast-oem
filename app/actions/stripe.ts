@@ -378,6 +378,18 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   const { validatedItems: items, serverTotal: totalPrice } =
     await validateAndRepricItems(rawItems, shippingFee, shippingAddress.email, supabase)
 
+  // Sanity check: reject orders with implausible totals (guards against
+  // misconfigured price tiers or integer overflow)
+  const MAX_ORDER_TOTAL_JPY = 10_000_000 // ¥10M
+  if (totalPrice <= 0 || totalPrice > MAX_ORDER_TOTAL_JPY) {
+    console.error(JSON.stringify({
+      evt: 'security.implausible_total',
+      totalPrice,
+      customerEmail: shippingAddress.email,
+    }))
+    throw new Error('合計金額が不正です。カートの内容をご確認ください。')
+  }
+
   // ── Step 1: Insert pending order into DB FIRST ──────────────────────────────
   let order: any = null
   let orderError: any = null

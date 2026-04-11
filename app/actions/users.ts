@@ -6,6 +6,13 @@ import { requireAdmin } from '@/lib/auth/require-admin'
 
 export type ActionResult = { error?: string }
 
+const VALID_ROLES = ['super_admin', 'admin', 'factory'] as const
+type ValidRole = typeof VALID_ROLES[number]
+
+function isValidRole(role: string): role is ValidRole {
+    return (VALID_ROLES as readonly string[]).includes(role)
+}
+
 /**
  * Invite a new staff member (admin, super_admin, or factory).
  * Stores the invitation record, then sends an invite email via Supabase Auth.
@@ -85,6 +92,8 @@ export async function inviteStaffUser(formData: FormData): Promise<ActionResult>
  * Update an existing user's role and factory assignment.
  */
 export async function updateUserRole(userId: string, role: string, factoryId: string | null): Promise<ActionResult> {
+    if (!isValidRole(role)) return { error: `無効なロールです: ${role}` }
+
     let adminId: string
     let isSuperAdmin: boolean
     try {
@@ -167,6 +176,8 @@ export async function updateUser(
     } catch {
         return { error: '認証エラーが発生しました。再度ログインしてください。' }
     }
+
+    if (!isValidRole(data.role)) return { error: `無効なロールです: ${data.role}` }
 
     // Cannot change own role
     if (userId === adminId) {

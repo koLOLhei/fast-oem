@@ -72,13 +72,25 @@ export async function POST(req: Request) {
       // ── Send confirmation emails (best-effort, non-blocking) ──
       try {
         // Fetch full order with items for email
-        const { data: order } = await supabase
+        const { data: order, error: orderFetchError } = await supabase
           .from('orders')
           .select('*, order_items(*)')
           .eq('stripe_session_id', session.id)
           .single()
 
-        if (order && !order.confirmation_email_sent_at) {
+        if (orderFetchError || !order) {
+          console.error('[webhook] Failed to fetch order for email:', orderFetchError?.message ?? 'no rows')
+        } else {
+          // Atomically claim email-sending responsibility to prevent duplicate
+          // emails when concurrent webhook deliveries race on the same order.
+          const { data: claimed } = await supabase
+            .from('orders')
+            .update({ confirmation_email_sent_at: new Date().toISOString() })
+            .eq('id', order.id)
+            .is('confirmation_email_sent_at', null)
+            .select('id')
+
+          if (claimed && claimed.length > 0) {
           const customerInfo = order.customer_info as any
           const shippingAddr = order.shipping_address as any
           const customerName = customerInfo?.name
@@ -155,29 +167,40 @@ export async function POST(req: Request) {
             totalPrice: order.total_price,
           }
 
-          // Send both emails in parallel, mark as sent
+          // Send both emails in parallel
           const [custResult, factResult] = await Promise.allSettled([
             sendCustomerConfirmation(emailData),
             sendFactoryNotification(emailData),
           ])
 
-          // Mark email as sent to prevent duplicates
-          await supabase
-            .from('orders')
-            .update({ confirmation_email_sent_at: new Date().toISOString() })
-            .eq('id', order.id)
-
+          const emailErrors: string[] = []
           if (custResult.status === 'rejected') {
-            console.error('[webhook] Customer email failed:', custResult.reason)
+            const msg = custResult.reason instanceof Error ? custResult.reason.message : String(custResult.reason)
+            console.error('[webhook] Customer email failed:', msg)
+            emailErrors.push(`顧客メール: ${msg}`)
           } else {
             const custVal = custResult.value as any
             console.log('[webhook] Customer email result:', order.order_number, custVal?.success ? 'SENT' : 'FAILED', custVal?.error || '')
+            if (!custVal?.success) emailErrors.push(`顧客メール: ${custVal?.error ?? 'unknown'}`)
           }
           if (factResult.status === 'rejected') {
-            console.error('[webhook] Factory email failed:', factResult.reason)
+            const msg = factResult.reason instanceof Error ? factResult.reason.message : String(factResult.reason)
+            console.error('[webhook] Factory email failed:', msg)
+            emailErrors.push(`工場メール: ${msg}`)
           } else {
             const factVal = factResult.value as any
             console.log('[webhook] Factory email result:', order.order_number, 'to=' + factoryEmail, factVal?.success ? 'SENT' : 'FAILED', factVal?.error || '')
+            if (!factVal?.success) emailErrors.push(`工場メール: ${factVal?.error ?? 'unknown'}`)
+          }
+
+          // Record email failures in DB so admins can see them in the dashboard
+          if (emailErrors.length > 0) {
+            await supabase
+              .from('orders')
+              .update({
+                email_send_error: `確認メール送信失敗 (${new Date().toISOString()}): ${emailErrors.join('; ')}`,
+              })
+              .eq('id', order.id)
           }
 
           // Slack notification
@@ -195,7 +218,8 @@ export async function POST(req: Request) {
                 .eq('id', item.id)
             }
           }
-        }
+          } // end if (claimed)
+        } // end if order fetched
       } catch (emailErr) {
         // Email failure must NOT affect webhook response
         console.error('[webhook] Email sending failed (non-fatal):', emailErr)

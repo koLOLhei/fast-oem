@@ -132,6 +132,7 @@ const WINDOW_MS = 60_000      // 1 minute
 const MAX_REQUESTS = 20       // per window per IP
 
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
+let lastPurgeAt = 0
 
 async function isRateLimited(ip: string): Promise<boolean> {
     // Use Upstash Redis if configured
@@ -143,9 +144,11 @@ async function isRateLimited(ip: string): Promise<boolean> {
     // Fallback: in-memory rate limiting
     const now = Date.now()
 
-    // Purge expired entries to prevent unbounded Map growth (memory leak guard)
-    // Only scan when the store has grown to avoid unnecessary iteration on every request
-    if (rateLimitStore.size > 5000) {
+    // Purge expired entries every 60s to prevent unbounded Map growth.
+    // Uses a time-based interval instead of size threshold so entries don't
+    // accumulate silently between 0 and the old 5000 threshold.
+    if (now - lastPurgeAt > 60_000) {
+        lastPurgeAt = now
         for (const [k, v] of rateLimitStore) {
             if (now > v.resetAt) rateLimitStore.delete(k)
         }
@@ -220,8 +223,9 @@ export async function middleware(request: NextRequest) {
 
     const isAdminRoute = pathname.startsWith('/admin')
     const isFactoryRoute = pathname.startsWith('/factory')
+    const isMypageRoute = pathname.startsWith('/mypage')
 
-    if (!user && (isAdminRoute || isFactoryRoute)) {
+    if (!user && (isAdminRoute || isFactoryRoute || isMypageRoute)) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
