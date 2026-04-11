@@ -14,7 +14,7 @@ export async function sendSlackMessage(text: string): Promise<void> {
     if (!response.ok) {
       console.error(`[slack] Failed to send message (${response.status}): ${await response.text()}`)
     }
-  } catch (err: any) {
-    console.error(`[slack] Error sending message: ${err.message}`)
+  } catch (err: unknown) {
+    console.error(`[slack] Error sending message: ${err instanceof Error ? err.message : String(err)}`)
   }
 }

@@ -28,8 +28,8 @@ export async function processImage(
                 const binaryString = atob(base64Data)
                 const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
                 imageBuffer = bytes.buffer
-            } catch (decodeErr) {
-                console.error('Failed to decode data URI base64:', decodeErr)
+            } catch (decodeErr: unknown) {
+                console.error('Failed to decode data URI base64:', decodeErr instanceof Error ? decodeErr.message : String(decodeErr))
                 return null
             }
         } else {
@@ -45,7 +45,7 @@ export async function processImage(
                 .download(path)
 
             if (downloadError || !fileData) {
-                console.error('Error downloading image from storage', downloadError)
+                console.error('Error downloading image from storage:', downloadError?.message ?? String(downloadError))
                 return null
             }
             imageBuffer = await fileData.arrayBuffer()
@@ -76,7 +76,7 @@ export async function processImage(
             })
 
         if (uploadError) {
-            console.error('Error uploading converted image', uploadError)
+            console.error('Error uploading converted image:', uploadError?.message ?? String(uploadError))
             return null
         }
 
