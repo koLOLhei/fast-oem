@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
-    console.error('Webhook signature verification failed:', err)
+    console.error('Webhook signature verification failed:', (err as Error).message)
     await sendSlackMessage(`🚨 *Stripe Webhook署名検証エラー*\n${(err as Error).message}\n\nWebhookシークレットの設定を確認してください。`).catch(() => {})
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         .eq('status', 'pending')
 
       if (error) {
-        console.error('Webhook [checkout.session.completed] DB error:', error)
+        console.error('Webhook [checkout.session.completed] DB error:', error.message)
         await sendSlackMessage(
           `❌ *Webhookエラー: checkout.session.completed*\nセッションID: ${session.id}\nエラー: ${error.message}`
         ).catch(() => {})
@@ -242,13 +242,13 @@ export async function POST(req: Request) {
         } // end if order fetched
       } catch (emailErr) {
         // Email failure must NOT affect webhook response
-        console.error('[webhook] Email sending failed (non-fatal):', emailErr)
+        console.error('[webhook] Email sending failed (non-fatal):', (emailErr as Error).message)
       }
 
       revalidatePath('/admin')
       revalidatePath('/admin/orders/[id]', 'page')
     } catch (err) {
-      console.error('Webhook [checkout.session.completed] unexpected error:', err)
+      console.error('Webhook [checkout.session.completed] unexpected error:', (err as Error).message)
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
   }
@@ -272,7 +272,7 @@ export async function POST(req: Request) {
           .not('status', 'eq', 'refunded')
 
         if (error) {
-          console.error('Webhook [charge.refunded] DB error:', error)
+          console.error('Webhook [charge.refunded] DB error:', error.message)
           await sendSlackMessage(
             `❌ *Webhookエラー: charge.refunded*\nPaymentIntent: ${paymentIntentId}\nエラー: ${error.message}\n\n手動でDBを確認してください。`
           ).catch(() => {})
@@ -281,7 +281,7 @@ export async function POST(req: Request) {
         revalidatePath('/admin')
         revalidatePath('/admin/orders/[id]', 'page')
       } catch (err) {
-        console.error('Webhook [charge.refunded] unexpected error:', err)
+        console.error('Webhook [charge.refunded] unexpected error:', (err as Error).message)
       }
     }
   }

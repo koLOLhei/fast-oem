@@ -45,7 +45,7 @@ export default async function UsersPage() {
         pendingInvites = invitesResult.data ?? []
         factories = factoriesResult.data ?? []
     } catch (err) {
-        console.error('[UsersPage] Failed to fetch data:', err)
+        console.error('[UsersPage] Failed to fetch data:', (err as Error).message)
         fetchError = true
     }
 

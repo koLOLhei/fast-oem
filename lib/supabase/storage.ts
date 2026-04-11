@@ -102,7 +102,7 @@ export async function toSignedUrls(
 
         return resolved.map((p) => (p ? (urlMap.get(p) ?? null) : null))
     } catch (err) {
-        console.error('[toSignedUrls] Batch signing failed:', err)
+        console.error('[toSignedUrls] Batch signing failed:', (err as Error).message)
         return paths.map(() => null)
     }
 }

@@ -47,7 +47,7 @@ export async function createFactory(formData: FormData): Promise<ActionResult> {
         })
 
     if (error) {
-        console.error('[createFactory] DB error:', error)
+        console.error('[createFactory] DB error:', error.message)
         return { error: '工場の登録に失敗しました' }
     }
 
@@ -82,7 +82,7 @@ export async function updateFactory(factoryId: string, formData: FormData): Prom
         .eq('id', factoryId)
 
     if (error) {
-        console.error('[updateFactory] DB error:', error)
+        console.error('[updateFactory] DB error:', error.message)
         return { error: '工場の更新に失敗しました' }
     }
 
@@ -127,7 +127,7 @@ export async function deleteFactory(factoryId: string): Promise<ActionResult> {
         .eq('id', factoryId)
 
     if (error) {
-        console.error('[deleteFactory] DB error:', error)
+        console.error('[deleteFactory] DB error:', error.message)
         return { error: '工場の削除に失敗しました' }
     }
 

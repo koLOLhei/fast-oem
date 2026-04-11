@@ -92,7 +92,7 @@ export async function GET(
         const jaFontBytes = await loadJapaneseFont()
         font = await pdfDoc.embedFont(jaFontBytes, { subset: true })
     } catch (fontErr) {
-        console.error('[invoice] Japanese font load failed, falling back to Helvetica:', fontErr)
+        console.error('[invoice] Japanese font load failed, falling back to Helvetica:', (fontErr as Error).message)
         font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     }
 

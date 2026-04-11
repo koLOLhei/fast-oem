@@ -30,17 +30,22 @@ export function PaymentClient() {
 
   useEffect(() => {
     // Load shipping address from sessionStorage
-    const savedAddress = sessionStorage.getItem('shipping-address')
-    const savedFee = sessionStorage.getItem('shipping-fee')
-    if (savedAddress) {
-      try {
-        setShippingAddress(JSON.parse(savedAddress))
-        setShippingFee(savedFee ? parseInt(savedFee, 10) : 0)
-      } catch {
-        setError('配送先情報の読み込みに失敗しました')
+    try {
+      const savedAddress = sessionStorage.getItem('shipping-address')
+      const savedFee = sessionStorage.getItem('shipping-fee')
+      if (savedAddress) {
+        try {
+          setShippingAddress(JSON.parse(savedAddress))
+          setShippingFee(savedFee ? parseInt(savedFee, 10) : 0)
+        } catch {
+          setError('配送先情報の読み込みに失敗しました')
+        }
+      } else {
+        // No shipping address, redirect to checkout
+        router.push('/checkout')
       }
-    } else {
-      // No shipping address, redirect to checkout
+    } catch {
+      // sessionStorage unavailable (e.g. private browsing)
       router.push('/checkout')
     }
     setIsLoading(false)

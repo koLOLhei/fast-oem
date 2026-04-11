@@ -131,7 +131,7 @@ async function validateAndRepricItems(
     .in('id', productIds)
 
   if (masterError) {
-    console.error('[pricing] Product master lookup failed:', masterError)
+    console.error('[pricing] Product master lookup failed:', masterError.message)
     throw new Error('商品情報の取得に失敗しました。もう一度お試しください。')
   }
 
@@ -429,7 +429,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   }
 
   if (orderError) {
-    console.error('Failed to create pending order:', orderError)
+    console.error('Failed to create pending order:', orderError.message)
     throw new Error('注文の作成に失敗しました。もう一度お試しください。')
   }
 
@@ -489,7 +489,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
 
   if (itemsError) {
     await supabase.from('orders').delete().eq('id', order.id)
-    console.error('Failed to create order items:', itemsError)
+    console.error('Failed to create order items:', itemsError.message)
     throw new Error('注文明細の作成に失敗しました。もう一度お試しください。')
   }
 
@@ -609,7 +609,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
     })
   } catch (stripeErr) {
     await supabase.from('orders').delete().eq('id', order.id)
-    console.error('Failed to create Stripe session:', stripeErr)
+    console.error('Failed to create Stripe session:', (stripeErr as Error).message)
     throw new Error('決済セッションの作成に失敗しました。もう一度お試しください。')
   }
 
@@ -620,7 +620,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
     .eq('id', order.id)
 
   if (updateError) {
-    console.error(`[${orderId}] Failed to update stripe_session_id — webhook will use dbOrderId fallback:`, updateError)
+    console.error(`[${orderId}] Failed to update stripe_session_id — webhook will use dbOrderId fallback:`, updateError.message)
     try {
       const { sendSlackMessage } = await import('@/lib/slack')
       await sendSlackMessage(

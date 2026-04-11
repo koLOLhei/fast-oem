@@ -147,7 +147,7 @@ export async function sendFactoryNotification(data: OrderNotificationData) {
     `,
   })
   } catch (err) {
-    console.error('[sendFactoryNotification] Resend API error:', err)
+    console.error('[sendFactoryNotification] Resend API error:', (err as Error).message)
     return { success: false, error: (err as Error).message }
   }
 
@@ -255,7 +255,7 @@ ${SITE_URL}
     `,
   })
   } catch (err) {
-    console.error('[sendCustomerConfirmation] Resend API error:', err)
+    console.error('[sendCustomerConfirmation] Resend API error:', (err as Error).message)
     return { success: false, error: (err as Error).message }
   }
 
@@ -353,7 +353,7 @@ ${SITE_URL}
     })
     return { success: true }
   } catch (err) {
-    console.error('[sendShippingNotification] Resend API error:', err)
+    console.error('[sendShippingNotification] Resend API error:', (err as Error).message)
     return { success: false, error: (err as Error).message }
   }
 }
@@ -474,7 +474,7 @@ ${SITE_URL}
     })
     return { success: true }
   } catch (err) {
-    console.error('[sendAllShippedNotification] Resend API error:', err)
+    console.error('[sendAllShippedNotification] Resend API error:', (err as Error).message)
     return { success: false, error: (err as Error).message }
   }
 }

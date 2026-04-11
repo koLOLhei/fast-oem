@@ -76,7 +76,7 @@ export async function getProductsFromDb(): Promise<Product[]> {
         }
         return data.map(rowToProduct)
     } catch (err) {
-        console.error('[getProductsFromDb] DB error, falling back to static data:', err)
+        console.error('[getProductsFromDb] DB error, falling back to static data:', (err as Error).message)
         return filterActive(PRODUCTS)
     }
 }
@@ -102,7 +102,7 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
         }
         return rowToProduct(data)
     } catch (err) {
-        console.error('[getProductBySlugFromDb] Exception:', err)
+        console.error('[getProductBySlugFromDb] Exception:', (err as Error).message)
         const fallback = PRODUCTS.find((p) => p.slug === slug)
         return fallback && fallback.isActive !== false ? fallback : undefined
     }

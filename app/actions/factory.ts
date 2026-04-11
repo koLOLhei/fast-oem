@@ -26,7 +26,7 @@ export async function assignFactory(itemId: string, factoryId: string) {
         .eq('id', itemId)
 
     if (error) {
-        console.error('[assignFactory] DB error:', { itemId, factoryId, error })
+        console.error('[assignFactory] DB error:', error.message)
         throw new Error('工場の割り当てに失敗しました')
     }
     revalidatePath('/admin')

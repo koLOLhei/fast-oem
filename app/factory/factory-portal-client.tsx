@@ -81,13 +81,17 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
 
     // Restore preferences from localStorage on mount
     useEffect(() => {
-        const savedLocale = localStorage.getItem('factory-locale') as Locale
-        if (savedLocale && ['ja', 'en', 'zh', 'vi'].includes(savedLocale)) setLocale(savedLocale)
+        try {
+            const savedLocale = localStorage.getItem('factory-locale') as Locale
+            if (savedLocale && ['ja', 'en', 'zh', 'vi'].includes(savedLocale)) setLocale(savedLocale)
 
-        const savedTz = localStorage.getItem('factory-timezone')
-        if (savedTz && TIMEZONES.some((z) => z.tz === savedTz)) setTimezone(savedTz)
+            const savedTz = localStorage.getItem('factory-timezone')
+            if (savedTz && TIMEZONES.some((z) => z.tz === savedTz)) setTimezone(savedTz)
 
-        if (!localStorage.getItem('factory-guide-seen')) setShowGuide(true)
+            if (!localStorage.getItem('factory-guide-seen')) setShowGuide(true)
+        } catch {
+            // localStorage unavailable (e.g. private browsing)
+        }
     }, [])
 
     useEffect(() => { setLastRefreshed(new Date()) }, [])
@@ -103,12 +107,12 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
 
     const handleLocaleChange = (code: Locale) => {
         setLocale(code)
-        localStorage.setItem('factory-locale', code)
+        try { localStorage.setItem('factory-locale', code) } catch {}
     }
 
     const handleTimezoneChange = (tz: string) => {
         setTimezone(tz)
-        localStorage.setItem('factory-timezone', tz)
+        try { localStorage.setItem('factory-timezone', tz) } catch {}
         setShowTzPicker(false)
     }
 
@@ -335,7 +339,7 @@ export function FactoryPortalClient({ items, factoryName }: FactoryPortalClientP
                     <button
                         onClick={() => {
                             setShowGuide((v) => !v)
-                            localStorage.setItem('factory-guide-seen', '1')
+                            try { localStorage.setItem('factory-guide-seen', '1') } catch {}
                         }}
                         className="w-full flex items-center justify-between px-5 py-3 text-left min-h-[48px]"
                     >

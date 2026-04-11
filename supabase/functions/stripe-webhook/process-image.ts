@@ -86,7 +86,7 @@ export async function processImage(
         return newPath
 
     } catch (err) {
-        console.error('Image processing failed:', err)
+        console.error('Image processing failed:', (err as Error).message)
         return null
     }
 }

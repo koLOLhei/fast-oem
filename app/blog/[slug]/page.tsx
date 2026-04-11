@@ -5,6 +5,17 @@ import { ArrowLeft, ArrowRight, Calendar, Clock } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { articles, categoryColors, getArticleBySlug } from '@/lib/blog-articles'
 
+/** Render markdown-style **bold** text as safe React nodes (no dangerouslySetInnerHTML). */
+function renderBoldText(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.*?)\*\*/g)
+  if (parts.length === 1) return text
+  return parts.map((part, i) =>
+    i % 2 === 1
+      ? <strong key={i} className="text-foreground">{part}</strong>
+      : part || null
+  )
+}
+
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 interface BlogPostPageProps {
@@ -144,7 +155,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 return (
                   <ul key={i} className="list-disc list-inside space-y-2 my-4 text-foreground/80">
                     {items.map((item, j) => (
-                      <li key={j} dangerouslySetInnerHTML={{ __html: item.replace('- ', '').replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>') }} />
+                      <li key={j}>{renderBoldText(item.replace('- ', ''))}</li>
                     ))}
                   </ul>
                 )
@@ -154,13 +165,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 return (
                   <ol key={i} className="list-decimal list-inside space-y-2 my-4 text-foreground/80">
                     {items.map((item, j) => (
-                      <li key={j} dangerouslySetInnerHTML={{ __html: item.replace(/^\d+\. /, '').replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>') }} />
+                      <li key={j}>{renderBoldText(item.replace(/^\d+\. /, ''))}</li>
                     ))}
                   </ol>
                 )
               }
               return (
-                <p key={i} className="text-foreground/80 leading-relaxed my-4" dangerouslySetInnerHTML={{ __html: block.replace(/\*\*(.*?)\*\*/g, '<strong class="text-foreground">$1</strong>') }} />
+                <p key={i} className="text-foreground/80 leading-relaxed my-4">{renderBoldText(block)}</p>
               )
             })}
           </div>

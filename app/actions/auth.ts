@@ -124,7 +124,7 @@ export async function signup(formData: FormData) {
         )
         if (upsertError) {
             // DB trigger is a backup, but log for monitoring
-            console.error('[signup] Profile upsert failed (DB trigger should recover):', upsertError)
+            console.error('[signup] Profile upsert failed (DB trigger should recover):', upsertError.message)
         }
     }
 

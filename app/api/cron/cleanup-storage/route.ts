@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         .list('', { limit: PAGE_SIZE, offset })
 
       if (listError) {
-        console.error('Storage list error:', listError)
+        console.error('Storage list error:', listError.message)
         return NextResponse.json({ error: 'Failed to list files' }, { status: 500 })
       }
       if (!page || page.length === 0) break
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
           .remove(safeToDelete)
 
         if (deleteError) {
-          console.error('Storage delete error:', deleteError)
+          console.error('Storage delete error:', deleteError.message)
           return NextResponse.json({ error: 'Failed to delete files' }, { status: 500 })
         }
       }
@@ -106,7 +106,7 @@ export async function GET(request: Request) {
       message: '削除対象のファイルはありません'
     })
   } catch (error) {
-    console.error('Cleanup error:', error)
+    console.error('Cleanup error:', (error as Error).message)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
