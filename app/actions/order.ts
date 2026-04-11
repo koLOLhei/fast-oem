@@ -16,6 +16,8 @@ interface OrderItem {
   moldOrderId?: string | null
   options: { name: string; value: string }[]
   designFileName?: string
+  designDownloadUrl?: string    // signed URL for factory to download design
+  deliveryPdfDownloadUrl?: string  // signed URL for delivery PDF
 }
 
 interface ShippingAddress {
@@ -53,7 +55,7 @@ const FACTORY_DEFAULT_EMAIL = process.env.FACTORY_DEFAULT_EMAIL ?? ''
 
 // Send order notification to the factory (in English)
 export async function sendFactoryNotification(data: OrderNotificationData) {
-  const { orderId, orderNumber, orderDate, items, shippingAddress, totalPrice, notificationEmail } = data
+  const { orderId, orderNumber, orderDate, items, shippingAddress, notificationEmail } = data
   const displayOrderNumber = orderNumber ?? orderId
   const displayDate = orderDate
     ? new Date(orderDate).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' })
@@ -64,17 +66,22 @@ export async function sendFactoryNotification(data: OrderNotificationData) {
     return { success: false, error: 'No factory email configured' }
   }
 
+  const factoryPortalUrl = `${SITE_URL}/factory`
+
   const isRepeatOrder = items.some((item) => item.moldOrderId)
   const itemRowsHtml = items.map((item, index) => {
     const repeatNote = item.moldOrderId ? ' <span style="color:#f59e0b;font-weight:bold;">[REPEAT — Reuse existing mold]</span>' : ''
+    const optionsText = item.options.map((o) => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ') || '—'
+    const designLinks = [
+      item.designDownloadUrl ? `<a href="${item.designDownloadUrl}" style="color:#1e40af;text-decoration:underline;font-size:11px;">Design Image ↓</a>` : '',
+      item.deliveryPdfDownloadUrl ? `<a href="${item.deliveryPdfDownloadUrl}" style="color:#1e40af;text-decoration:underline;font-size:11px;">PDF ↓</a>` : '',
+    ].filter(Boolean).join(' &nbsp;|&nbsp; ') || escapeHtml(item.designFileName || 'Not uploaded')
     return `
       <tr>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;">${index + 1}. ${escapeHtml(item.productName)}${repeatNote}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;">${item.quantity} pcs</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;">¥${item.unitPrice.toLocaleString()}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:bold;">¥${item.totalPrice.toLocaleString()}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${item.options.map((o) => `${escapeHtml(o.name)}: ${escapeHtml(o.value)}`).join(' / ') || '—'}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${escapeHtml(item.designFileName || 'Not uploaded')}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${optionsText}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;">${designLinks}</td>
       </tr>`
   }).join('')
 
@@ -85,33 +92,57 @@ export async function sendFactoryNotification(data: OrderNotificationData) {
     subject: `[NEW ORDER${isRepeatOrder ? ' / REPEAT' : ''}] ${displayOrderNumber}`,
     html: `
       <div style="font-family:sans-serif;max-width:700px;margin:0 auto;padding:24px;background:#ffffff;">
-        <h2 style="color:#1f2937;">🆕 New Order Notification</h2>
+        <div style="background:#1f2937;color:white;padding:16px 24px;border-radius:8px 8px 0 0;margin:-24px -24px 24px -24px;">
+          <h2 style="margin:0;font-size:18px;">🆕 New Order Notification</h2>
+          <p style="margin:4px 0 0;font-size:12px;opacity:0.8;">FAST OEM Production Order</p>
+        </div>
         ${isRepeatOrder ? '<div style="padding:10px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;margin-bottom:16px;font-size:13px;font-weight:bold;color:#92400e;">★ REPEAT CUSTOMER — Mold Reuse (no new mold required)</div>' : ''}
         <div style="padding:12px 16px;background:#f3f4f6;border-radius:8px;margin-bottom:20px;font-size:13px;">
-          <strong>Order Number:</strong> <span style="font-family:monospace;">${displayOrderNumber}</span><br/>
+          <strong>Order Number:</strong> <span style="font-family:monospace;font-size:15px;font-weight:bold;">${displayOrderNumber}</span><br/>
           <strong>Date:</strong> ${displayDate} JST
         </div>
-        <h3 style="font-size:14px;color:#1f2937;margin:20px 0 8px;">Ordered Items</h3>
+
+        <h3 style="font-size:14px;color:#1f2937;margin:20px 0 8px;">📦 Ordered Items</h3>
         <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;font-size:13px;">
           <thead><tr style="background:#f9fafb;">
             <th style="padding:8px 12px;text-align:left;border-bottom:1px solid #e5e7eb;">Product</th>
             <th style="padding:8px 12px;text-align:center;border-bottom:1px solid #e5e7eb;">Qty</th>
-            <th style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Unit Price</th>
-            <th style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Subtotal</th>
-            <th style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Options</th>
+            <th style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Options / Specs</th>
             <th style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">Design File</th>
           </tr></thead>
           <tbody>${itemRowsHtml}</tbody>
         </table>
-        <p style="text-align:right;font-size:15px;font-weight:bold;margin-top:12px;">Total: ¥${totalPrice.toLocaleString()}</p>
-        <h3 style="font-size:14px;color:#1f2937;margin:20px 0 8px;">Ship To</h3>
+
+        <h3 style="font-size:14px;color:#1f2937;margin:20px 0 8px;">📍 Ship To</h3>
         <div style="padding:12px 16px;background:#f3f4f6;border-radius:8px;font-size:13px;line-height:1.8;">
           <strong>${escapeHtml(shippingAddress.lastName)} ${escapeHtml(shippingAddress.firstName)}</strong><br/>
           〒${escapeHtml(shippingAddress.postalCode)}<br/>
           ${escapeHtml(shippingAddress.prefecture)}${escapeHtml(shippingAddress.city)}${escapeHtml(shippingAddress.address1)}${shippingAddress.address2 ? ' ' + escapeHtml(shippingAddress.address2) : ''}<br/>
           Phone: ${escapeHtml(shippingAddress.phone)}
         </div>
-        <p style="font-size:11px;color:#9ca3af;margin-top:24px;">This is an automated notification from FAST OEM.</p>
+
+        <div style="margin:24px 0;padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:13px;color:#1e40af;font-weight:bold;">🔗 Factory Portal</p>
+          <p style="margin:0 0 12px;font-size:12px;color:#6b7280;">View details, download design files, and update tracking numbers:</p>
+          <a href="${factoryPortalUrl}" style="display:inline-block;padding:10px 24px;background:#1e40af;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:bold;">Open Factory Portal →</a>
+        </div>
+
+        <div style="margin-top:24px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
+          <p style="margin:0;font-size:12px;color:#92400e;font-weight:bold;">📋 Next Steps:</p>
+          <ol style="margin:8px 0 0;padding-left:20px;font-size:12px;color:#78716c;line-height:1.8;">
+            <li>Log in to the <a href="${factoryPortalUrl}" style="color:#1e40af;">Factory Portal</a> to download design data</li>
+            <li>Begin production according to the specifications above</li>
+            <li>Once shipped, enter the tracking number in the portal</li>
+          </ol>
+        </div>
+
+        <div style="margin-top:24px;padding:12px 16px;background:#f9fafb;border-radius:8px;font-size:11px;color:#6b7280;line-height:1.6;">
+          <strong>Need help or have questions about this order?</strong><br/>
+          Contact FAST OEM: <a href="mailto:${CONTACT_EMAIL}" style="color:#1e40af;">${CONTACT_EMAIL}</a><br/>
+          Business hours: Weekdays 10:00–18:00 JST (Email only)
+        </div>
+
+        <p style="font-size:10px;color:#9ca3af;margin-top:16px;text-align:center;">This is an automated notification from FAST OEM. Do not reply to this email.</p>
       </div>
     `,
   })

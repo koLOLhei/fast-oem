@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
+    await sendSlackMessage(`🚨 *Stripe Webhook署名検証エラー*\n${(err as Error).message}\n\nWebhookシークレットの設定を確認してください。`).catch(() => {})
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -122,6 +123,23 @@ export async function POST(req: Request) {
             factoryEmail = factories?.find((f: any) => f.contact_email)?.contact_email ?? ''
           }
 
+          // Generate signed download URLs for design files (valid 7 days)
+          const itemsWithUrls = await Promise.all(orderItems.map(async (item: any) => {
+            let designDownloadUrl = ''
+            let deliveryPdfDownloadUrl = ''
+            if (item.design_url && !item.design_url.startsWith('data:')) {
+              const path = item.design_url.replace(/.*\/storage\/v1\/object\/public\/designs\//, '')
+              const { data } = await supabase.storage.from('designs').createSignedUrl(path, 604800)
+              if (data?.signedUrl) designDownloadUrl = data.signedUrl
+            }
+            if (item.delivery_pdf_url) {
+              const path = item.delivery_pdf_url.replace(/.*\/storage\/v1\/object\/public\/designs\//, '')
+              const { data } = await supabase.storage.from('designs').createSignedUrl(path, 604800)
+              if (data?.signedUrl) deliveryPdfDownloadUrl = data.signedUrl
+            }
+            return { ...item, designDownloadUrl, deliveryPdfDownloadUrl }
+          }))
+
           const emailData = {
             orderId: order.id,
             orderNumber: order.order_number,
@@ -130,7 +148,7 @@ export async function POST(req: Request) {
             customerEmail,
             customerName,
             notificationEmail: factoryEmail,
-            items: ((order.order_items as any[]) ?? []).map((item: any) => ({
+            items: itemsWithUrls.map((item: any) => ({
               productId: item.product_id,
               productName: item.product_name,
               quantity: item.quantity,
@@ -140,6 +158,8 @@ export async function POST(req: Request) {
               moldOrderId: item.mold_order_id,
               options: item.options ?? [],
               designFileName: item.design_file_name,
+              designDownloadUrl: item.designDownloadUrl,
+              deliveryPdfDownloadUrl: item.deliveryPdfDownloadUrl,
             })),
             shippingAddress: {
               lastName: shippingAddr?.lastName ?? '',
