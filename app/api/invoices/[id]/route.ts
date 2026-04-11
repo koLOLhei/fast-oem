@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { isValidUUID, MAX_ADDRESSEE_LENGTH } from '@/lib/validation'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -22,11 +23,16 @@ export async function GET(
 ) {
     const { id } = await params
     const token = req.nextUrl.searchParams.get('token')
-    const addresseeParam = req.nextUrl.searchParams.get('addressee') ?? ''
+    const rawAddressee = req.nextUrl.searchParams.get('addressee') ?? ''
 
+    if (!isValidUUID(id)) {
+        return new NextResponse('Invalid order ID', { status: 400 })
+    }
     if (!token) {
         return new NextResponse('token parameter is required', { status: 400 })
     }
+    // Sanitize addressee: limit length and strip control characters
+    const addresseeParam = rawAddressee.slice(0, MAX_ADDRESSEE_LENGTH).replace(/[\x00-\x1f\x7f]/g, '')
 
     const supabase = createServiceClient()
 

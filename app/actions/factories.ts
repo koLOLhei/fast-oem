@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { isValidUUID } from '@/lib/validation'
 
 export type ActionResult = { error?: string }
 
@@ -61,6 +62,7 @@ export async function updateFactory(factoryId: string, formData: FormData): Prom
     } catch {
         return { error: '認証エラーが発生しました。再度ログインしてください。' }
     }
+    if (!isValidUUID(factoryId)) return { error: '無効な工場IDです' }
 
     const maxCapacityRaw = formData.get('max_capacity') as string | null
 
@@ -74,7 +76,7 @@ export async function updateFactory(factoryId: string, formData: FormData): Prom
             contact_name: (formData.get('contact_name') as string)?.trim() || null,
             phone: (formData.get('phone') as string)?.trim() || null,
             address: (formData.get('address') as string)?.trim() || null,
-            max_capacity: maxCapacityRaw ? parseInt(maxCapacityRaw, 10) : null,
+            max_capacity: maxCapacityRaw ? Math.min(parseInt(maxCapacityRaw, 10), 1_000_000) : null,
             is_active: formData.get('is_active') === 'true',
         })
         .eq('id', factoryId)
@@ -95,6 +97,7 @@ export async function deleteFactory(factoryId: string): Promise<ActionResult> {
     } catch {
         return { error: '認証エラーが発生しました。再度ログインしてください。' }
     }
+    if (!isValidUUID(factoryId)) return { error: '無効な工場IDです' }
 
     const supabase = createServiceClient()
 

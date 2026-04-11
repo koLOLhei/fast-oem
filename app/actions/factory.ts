@@ -7,6 +7,7 @@ import { stripe } from '@/lib/stripe'
 import { sendSlackMessage } from '@/lib/slack'
 import { requireAdmin, requireFactory } from '@/lib/auth/require-admin'
 import { escapeHtml } from '@/lib/utils'
+import { isValidUUID } from '@/lib/validation'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -16,6 +17,9 @@ const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
 
 export async function assignFactory(itemId: string, factoryId: string) {
     await requireAdmin()
+    if (!isValidUUID(itemId) || !isValidUUID(factoryId)) {
+        throw new Error('無効なIDが指定されました')
+    }
     const { error } = await createServiceClient()
         .from('order_items')
         .update({ factory_id: factoryId, status: 'assigned' })
@@ -23,7 +27,7 @@ export async function assignFactory(itemId: string, factoryId: string) {
 
     if (error) {
         console.error('[assignFactory] DB error:', { itemId, factoryId, error })
-        throw new Error(error.message)
+        throw new Error('工場の割り当てに失敗しました')
     }
     revalidatePath('/admin')
     revalidatePath('/admin/orders/[id]', 'page')

@@ -172,7 +172,9 @@ export async function uploadProductImage(formData: FormData): Promise<string> {
     if (file.size > maxBytes) throw new Error('ファイルサイズは5MB以内にしてください')
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowed.includes(file.type)) throw new Error('JPG・PNG・WebP・GIF のみアップロード可能です')
-    const ext = file.name.split('.').pop() ?? 'jpg'
+    const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif']
+    const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase()
+    if (!ALLOWED_EXTENSIONS.includes(ext)) throw new Error('許可されていないファイル拡張子です')
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const bytes = await file.arrayBuffer()
     const supabase = createServiceClient()

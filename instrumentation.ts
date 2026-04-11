@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
 
 export async function register() {
+  // Validate required environment variables on startup
+  const { validateEnv } = await import("./lib/env-check");
+  validateEnv();
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("./sentry.server.config");
   }

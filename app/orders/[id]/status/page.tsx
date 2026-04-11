@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { formatPrice } from '@/lib/products'
 import { addBusinessDays } from '@/lib/holidays'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
+import { isValidUUID } from '@/lib/validation'
 import { ReceiptButton } from './receipt-button'
 import { InvoiceButton } from './invoice-button'
 import { StatusPoller } from './status-poller'
@@ -18,7 +19,7 @@ export default async function OrderStatusPage({
     const { id } = await params
     const { token } = await searchParams
 
-    if (!token) notFound()
+    if (!token || !isValidUUID(id)) notFound()
 
     const supabase = createServiceClient()
 

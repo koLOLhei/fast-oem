@@ -5,6 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
 
 export async function getSiteSettings(): Promise<Record<string, string>> {
+    // Guard: only admins should read all settings via server action.
+    // Public pages that need individual settings read them directly from DB.
+    await requireAdmin()
     const supabase = createServiceClient()
     const { data } = await supabase.from('site_settings').select('key, value')
     const settings: Record<string, string> = {}

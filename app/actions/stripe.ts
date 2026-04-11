@@ -7,6 +7,7 @@ import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import { sendSlackMessage } from '@/lib/slack'
 import { type Product, calculateMoldFee, calculateShippingModifier, checkComplexityRestriction } from '@/lib/products'
 import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
+import { MAX_UNIT_PRICE_JPY, MAX_CHECKBOX_VALUES } from '@/lib/validation'
 
 interface CheckoutSessionData {
   items: CartItem[]
@@ -69,15 +70,18 @@ function computeUnitPrice(
     // number type: input value × pricePerUnit
     if (option.type === 'number' && option.pricePerUnit) {
       const num = parseFloat(valueIdOrLabel)
-      if (!isNaN(num)) {
+      if (!isNaN(num) && isFinite(num) && Math.abs(num) <= 100_000) {
         price += Math.round(num * option.pricePerUnit)
+      }
+      if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
+        throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
       }
       continue
     }
 
     // checkbox type: comma-separated values, accumulate all modifiers
     if (option.type === 'checkbox' || option.multiSelect) {
-      const ids = valueIdOrLabel.split(',').filter(Boolean)
+      const ids = valueIdOrLabel.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)
       for (const id of ids) {
         // Cart stores option value LABELS (not IDs), so match by label first, then ID
         const val = option.values.find((v) => v.label === id || v.id === id)
@@ -85,6 +89,9 @@ function computeUnitPrice(
         if (!mod) continue
         if (mod.type === 'add') price += mod.value
         else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+        if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
+          throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
+        }
       }
       continue
     }
@@ -96,6 +103,9 @@ function computeUnitPrice(
     if (!mod) continue
     if (mod.type === 'add') price += mod.value
     else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+    if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
+      throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
+    }
   }
   return price
 }

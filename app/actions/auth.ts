@@ -88,6 +88,9 @@ export async function signup(formData: FormData) {
     if (password.length < 8) {
         return redirect('/signup?message=' + encodeURIComponent('パスワードは8文字以上で入力してください'))
     }
+    if (password.length > 128) {
+        return redirect('/signup?message=' + encodeURIComponent('パスワードは128文字以内で入力してください'))
+    }
 
     const supabase = await createClient()
 
@@ -151,6 +154,9 @@ export async function updatePassword(formData: FormData) {
 
     if (!password || password.length < 8) {
         return redirect('/reset-password/confirm?message=' + encodeURIComponent('パスワードは8文字以上で入力してください'))
+    }
+    if (password.length > 128) {
+        return redirect('/reset-password/confirm?message=' + encodeURIComponent('パスワードは128文字以内で入力してください'))
     }
 
     const supabase = await createClient()
