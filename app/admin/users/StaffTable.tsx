@@ -17,7 +17,7 @@ type Profile = {
     factory_id: string | null
     is_active: boolean
     created_at: string
-    factories: unknown
+    factories: { id: string; name: string } | null
 }
 
 import { ROLE_LABELS as roleLabel, ROLE_COLORS as roleColor } from '@/lib/status-labels'
@@ -137,7 +137,7 @@ export function StaffTable({
                                 </span>
                             </td>
                             <td className="p-4 text-sm text-muted-foreground">
-                                {(p.factories as any)?.name ?? (p.role === 'factory' ? '⚠ 未設定' : '—')}
+                                {p.factories?.name ?? (p.role === 'factory' ? '⚠ 未設定' : '—')}
                             </td>
                             <td className="p-4">
                                 <span className={`text-xs font-semibold ${p.is_active ? 'text-green-600' : 'text-red-500'}`}>

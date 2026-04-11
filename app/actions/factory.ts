@@ -8,6 +8,7 @@ import { sendSlackMessage } from '@/lib/slack'
 import { requireAdmin, requireFactory } from '@/lib/auth/require-admin'
 import { escapeHtml } from '@/lib/utils'
 import { isValidUUID } from '@/lib/validation'
+import type { CustomerInfo, OrderRow, OrderItemRow } from '@/lib/database.types'
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -218,12 +219,12 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
     if (itemError || !item) throw new Error('アイテムが見つかりません')
 
     // Verify this item belongs to the current factory user
-    if ((item as any).factory_id !== factoryId) {
+    if (item.factory_id !== factoryId) {
         throw new Error('このアイテムへのアクセス権限がありません')
     }
 
-    const order = item.orders as any
-    const customerInfo = order?.customer_info as any
+    const order = item.orders as unknown as Pick<OrderRow, 'id' | 'order_number' | 'access_token' | 'customer_info'> | null
+    const customerInfo = order?.customer_info as CustomerInfo | undefined
     const customerEmail = customerInfo?.email as string
     const customerName = customerInfo?.name ?? `${customerInfo?.lastName ?? ''} ${customerInfo?.firstName ?? ''}`.trim()
     const orderId = order?.id as string
@@ -368,7 +369,7 @@ export async function updateOrderNote(orderId: string, note: string) {
     const { data: existing } = await service
         .from('orders').select('admin_notes').eq('id', orderId).single()
     const stamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
-    const prev = (existing as any)?.admin_notes ?? ''
+    const prev = existing?.admin_notes ?? ''
     const newNotes = `[${stamp}]\n${trimmed}${prev ? `\n\n${prev}` : ''}`.slice(0, 4000)
 
     const { error } = await service
@@ -469,14 +470,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
     // ── Determine refund amount ──────────────────────────────────────────────
     // For partially_shipped orders: refund only the items that have NOT shipped yet.
     // For all other paid statuses: full refund.
-    const items = (order as any).order_items as Array<{
-        id: string
-        status: string
-        unit_price: number
-        quantity: number
-        mold_fee?: number
-        express_delivery_fee?: number
-    }> ?? []
+    const items: OrderItemRow[] = (order as OrderRow & { order_items: OrderItemRow[] }).order_items ?? []
 
     const isPartiallyShipped = order.status === 'partially_shipped'
     const unshippedItems = isPartiallyShipped
@@ -500,7 +494,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
     if (order.status !== 'pending') {
         try {
             const paymentIntentId: string | null =
-                (order as any).payment_intent_id ?? null
+                order.payment_intent_id ?? null
 
             let piId = paymentIntentId
 
@@ -520,7 +514,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
                     refundAmount = actualRefund
                 } else if (!isPartiallyShipped) {
                     // Full or partial refund (minus cancellation fee)
-                    const orderTotal = (order as any).total_price ?? 0
+                    const orderTotal = order.total_price ?? 0
                     const actualRefund = Math.max(0, orderTotal - fee)
                     if (actualRefund > 0) {
                         await stripe.refunds.create({ payment_intent: piId, amount: actualRefund })
@@ -535,7 +529,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
             // Non-fatal: log and alert, but still cancel in DB so ops can handle manually
             console.error(`[adminCancelOrder] Stripe refund failed for ${orderId}:`, stripeErr.message)
             await sendSlackMessage(
-                `❌ *返金失敗（要手動対応）*\n注文番号: ${(order as any).order_number ?? orderId}\n` +
+                `❌ *返金失敗（要手動対応）*\n注文番号: ${order.order_number ?? orderId}\n` +
                 `エラー: ${stripeErr.message}\n手動でStripeダッシュボードから返金してください。`,
             ).catch(() => {})
         }
@@ -570,10 +564,10 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
     }
 
     // ── Customer email ───────────────────────────────────────────────────────
-    const customerInfo = order.customer_info as any
+    const customerInfo = order.customer_info as CustomerInfo
     const customerEmail: string = customerInfo?.email ?? ''
     const customerName: string = customerInfo?.name ?? `${customerInfo?.lastName ?? ''} ${customerInfo?.firstName ?? ''}`.trim()
-    const orderNumber: string = (order as any).order_number ?? orderId
+    const orderNumber: string = order.order_number ?? orderId
 
     if (customerEmail) {
         try {
@@ -670,7 +664,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
     await sendSlackMessage(
         `🚫 *管理者キャンセル* 注文番号: ${orderNumber}\n` +
         `顧客: ${customerName}（${customerEmail}）\n` +
-        `合計: ¥${((order as any).total_price ?? 0).toLocaleString('ja-JP')}\n` +
+        `合計: ¥${(order.total_price ?? 0).toLocaleString('ja-JP')}\n` +
         `理由: ${reason.trim()}\n` +
         `${refundIssued ? `💳 Stripe返金を発行しました${refundAmount > 0 ? `（一部返金: ¥${refundAmount.toLocaleString('ja-JP')}）` : '（全額）'}\n` : ''}` +
         `<${adminUrl}|管理画面で確認>`,

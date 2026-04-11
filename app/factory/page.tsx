@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { FactoryPortalClient } from './factory-portal-client'
 import { toSignedUrls } from '@/lib/supabase/storage'
+import type { FactoryRow } from '@/lib/database.types'
 
 export default async function FactoryPage() {
     const supabase = await createClient()
@@ -21,7 +22,7 @@ export default async function FactoryPage() {
         .eq('id', user.id)
         .single()
 
-    const factory = profile?.factories as any
+    const factory = profile?.factories as unknown as Pick<FactoryRow, 'name'> | null
     const factoryId = profile?.factory_id
     const factoryName = factory?.name ?? 'Factory'
 
@@ -69,15 +70,18 @@ export default async function FactoryPage() {
     // This keeps the `designs` bucket private — client components never receive
     // permanent storage URLs, only short-lived signed ones.
     const itemList = items ?? []
-    const allPaths = itemList.flatMap((item) => [
-        (item as any).converted_design_url as string | null,
-        (item as any).delivery_pdf_url as string | null,
-        (item as any).design_url as string | null,
-    ])
+    const allPaths = itemList.flatMap((item) => {
+        const typedItem = item as { converted_design_url: string | null; delivery_pdf_url: string | null; design_url: string | null }
+        return [
+            typedItem.converted_design_url,
+            typedItem.delivery_pdf_url,
+            typedItem.design_url,
+        ]
+    })
     const signedUrls = await toSignedUrls(allPaths, 43200)
 
     const signedItems = itemList.map((item, i) => ({
-        ...(item as any),
+        ...item,
         converted_design_url: signedUrls[i * 3],
         delivery_pdf_url: signedUrls[i * 3 + 1],
         design_url: signedUrls[i * 3 + 2],
@@ -85,7 +89,7 @@ export default async function FactoryPage() {
 
     return (
         <FactoryPortalClient
-            items={signedItems as any}
+            items={signedItems as unknown as React.ComponentProps<typeof FactoryPortalClient>['items']}
             factoryName={factoryName}
         />
     )

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
 import { ORDER_STATUS_LABELS } from '@/lib/status-labels'
+import type { OrderItemRow } from '@/lib/database.types'
 
 export const metadata: Metadata = {
     title: 'マイページ',
@@ -66,7 +67,7 @@ export default async function MypagePage() {
                                                 {new Date(order.created_at).toLocaleDateString('ja-JP')}
                                             </p>
                                             <p className="text-sm">
-                                                {(order.order_items as any[]).map((i: any) => `${i.product_name} ×${i.quantity}`).join(', ')}
+                                                {(order.order_items as Pick<OrderItemRow, 'product_name' | 'quantity'>[]).map((i) => `${i.product_name} ×${i.quantity}`).join(', ')}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3">

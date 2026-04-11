@@ -17,6 +17,10 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { sendSlackMessage } from '@/lib/slack'
 import { sendCustomerConfirmation, sendFactoryNotification } from '@/app/actions/order'
 import { revalidatePath } from 'next/cache'
+import type { CustomerInfo, OrderItemRow, OrderRow, ProductRow, FactoryRow } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
+
+type EmailResult = { success: boolean; error?: string }
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -92,8 +96,9 @@ export async function POST(req: Request) {
             .select('id')
 
           if (claimed && claimed.length > 0) {
-          const customerInfo = order.customer_info as any
-          const shippingAddr = order.shipping_address as any
+          const typedOrder = order as OrderRow & { order_items: OrderItemRow[] }
+          const customerInfo = typedOrder.customer_info as CustomerInfo
+          const shippingAddr = typedOrder.shipping_address as ShippingAddress
           const customerName = customerInfo?.name
             || `${customerInfo?.lastName || ''} ${customerInfo?.firstName || ''}`.trim()
             || 'お客様'
@@ -103,9 +108,9 @@ export async function POST(req: Request) {
           // 1. product.notification_email (per-product override)
           // 2. factory.contact_email (from product's default_factory_id or order_item's factory_id)
           // 3. FACTORY_DEFAULT_EMAIL env var
-          const orderItems = (order.order_items as any[]) ?? []
-          const productIds = [...new Set(orderItems.map((i: any) => i.product_id))]
-          const factoryIds = [...new Set(orderItems.map((i: any) => i.factory_id).filter(Boolean))]
+          const orderItems: OrderItemRow[] = typedOrder.order_items ?? []
+          const productIds = [...new Set(orderItems.map((i) => i.product_id))]
+          const factoryIds: string[] = [...new Set(orderItems.map((i) => i.factory_id).filter((id): id is string => Boolean(id)))]
           let factoryEmail = ''
 
           // Try product.notification_email first
@@ -114,12 +119,13 @@ export async function POST(req: Request) {
               .from('products')
               .select('notification_email, default_factory_id')
               .in('id', productIds)
-            const productWithEmail = products?.find((p: any) => p.notification_email)
+            const typedProducts = products as Pick<ProductRow, 'notification_email' | 'default_factory_id'>[] | null
+            const productWithEmail = typedProducts?.find((p) => p.notification_email)
             if (productWithEmail?.notification_email) {
               factoryEmail = productWithEmail.notification_email
             }
             // Collect default_factory_ids from products too
-            products?.forEach((p: any) => {
+            typedProducts?.forEach((p) => {
               if (p.default_factory_id && !factoryIds.includes(p.default_factory_id)) {
                 factoryIds.push(p.default_factory_id)
               }
@@ -132,11 +138,12 @@ export async function POST(req: Request) {
               .from('factories')
               .select('contact_email')
               .in('id', factoryIds)
-            factoryEmail = factories?.find((f: any) => f.contact_email)?.contact_email ?? ''
+            const typedFactories = factories as Pick<FactoryRow, 'contact_email'>[] | null
+            factoryEmail = typedFactories?.find((f) => f.contact_email)?.contact_email ?? ''
           }
 
           // Generate signed download URLs for design files (valid 7 days)
-          const itemsWithUrls = await Promise.all(orderItems.map(async (item: any) => {
+          const itemsWithUrls = await Promise.all(orderItems.map(async (item) => {
             let designDownloadUrl = ''
             let deliveryPdfDownloadUrl = ''
             if (item.design_url && !item.design_url.startsWith('data:')) {
@@ -153,38 +160,38 @@ export async function POST(req: Request) {
           }))
 
           const emailData = {
-            orderId: order.id,
-            orderNumber: order.order_number,
-            orderDate: order.created_at,
-            accessToken: order.access_token,
+            orderId: typedOrder.id,
+            orderNumber: typedOrder.order_number ?? undefined,
+            orderDate: typedOrder.created_at,
+            accessToken: typedOrder.access_token,
             customerEmail,
             customerName,
             notificationEmail: factoryEmail,
-            items: itemsWithUrls.map((item: any) => ({
+            items: itemsWithUrls.map((item) => ({
               productId: item.product_id,
               productName: item.product_name,
               quantity: item.quantity,
               unitPrice: item.unit_price,
-              totalPrice: item.total_price,
-              moldFee: item.mold_fee,
-              moldOrderId: item.mold_order_id,
+              totalPrice: item.total_price ?? item.unit_price * item.quantity,
+              moldFee: item.mold_fee ?? 0,
+              moldOrderId: item.mold_order_id ?? undefined,
               options: item.options ?? [],
-              designFileName: item.design_file_name,
+              designFileName: item.design_file_name ?? undefined,
               designDownloadUrl: item.designDownloadUrl,
               deliveryPdfDownloadUrl: item.deliveryPdfDownloadUrl,
             })),
             shippingAddress: {
-              lastName: shippingAddr?.lastName ?? '',
-              firstName: shippingAddr?.firstName ?? '',
-              postalCode: shippingAddr?.postalCode ?? '',
-              prefecture: shippingAddr?.prefecture ?? '',
-              city: shippingAddr?.city ?? '',
-              address1: shippingAddr?.address1 ?? '',
-              address2: shippingAddr?.address2 ?? '',
-              phone: shippingAddr?.phone ?? '',
+              lastName: shippingAddr.lastName ?? '',
+              firstName: shippingAddr.firstName ?? '',
+              postalCode: shippingAddr.postalCode ?? '',
+              prefecture: shippingAddr.prefecture ?? '',
+              city: shippingAddr.city ?? '',
+              address1: shippingAddr.address1 ?? '',
+              address2: shippingAddr.address2 ?? '',
+              phone: shippingAddr.phone ?? '',
               email: customerEmail,
             },
-            totalPrice: order.total_price,
+            totalPrice: typedOrder.total_price,
           }
 
           // Send both emails in parallel
@@ -199,18 +206,18 @@ export async function POST(req: Request) {
             console.error('[webhook] Customer email failed:', msg)
             emailErrors.push(`顧客メール: ${msg}`)
           } else {
-            const custVal = custResult.value as any
-            console.log('[webhook] Customer email result:', order.order_number, custVal?.success ? 'SENT' : 'FAILED', custVal?.error || '')
-            if (!custVal?.success) emailErrors.push(`顧客メール: ${custVal?.error ?? 'unknown'}`)
+            const custVal = custResult.value as EmailResult
+            console.log('[webhook] Customer email result:', typedOrder.order_number, custVal.success ? 'SENT' : 'FAILED', custVal.error || '')
+            if (!custVal.success) emailErrors.push(`顧客メール: ${custVal.error ?? 'unknown'}`)
           }
           if (factResult.status === 'rejected') {
             const msg = factResult.reason instanceof Error ? factResult.reason.message : String(factResult.reason)
             console.error('[webhook] Factory email failed:', msg)
             emailErrors.push(`工場メール: ${msg}`)
           } else {
-            const factVal = factResult.value as any
-            console.log('[webhook] Factory email result:', order.order_number, 'to=' + factoryEmail, factVal?.success ? 'SENT' : 'FAILED', factVal?.error || '')
-            if (!factVal?.success) emailErrors.push(`工場メール: ${factVal?.error ?? 'unknown'}`)
+            const factVal = factResult.value as EmailResult
+            console.log('[webhook] Factory email result:', typedOrder.order_number, 'to=' + factoryEmail, factVal.success ? 'SENT' : 'FAILED', factVal.error || '')
+            if (!factVal.success) emailErrors.push(`工場メール: ${factVal.error ?? 'unknown'}`)
           }
 
           // Record email failures in DB so admins can see them in the dashboard
@@ -225,7 +232,7 @@ export async function POST(req: Request) {
 
           // Slack notification
           await sendSlackMessage(
-            `🎉 *新規注文* ${order.order_number}\n顧客: ${customerName}\n合計: ¥${order.total_price?.toLocaleString()}\n${orderItems.map((i: any) => `• ${i.product_name} ×${i.quantity}`).join('\n')}`
+            `🎉 *新規注文* ${typedOrder.order_number}\n顧客: ${customerName}\n合計: ¥${typedOrder.total_price?.toLocaleString()}\n${orderItems.map((i) => `• ${i.product_name} ×${i.quantity}`).join('\n')}`
           ).catch(() => {})
 
           // Auto-set converted_design_url from design_url for items that have it.

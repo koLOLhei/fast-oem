@@ -80,7 +80,7 @@ export default async function UsersPage() {
                                     <p className="text-sm font-medium truncate">{inv.email}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {roleLabel[inv.role] ?? inv.role}
-                                        {(inv.factories as any)?.name && ` — ${(inv.factories as any).name}`}
+                                        {inv.factories?.name && ` — ${inv.factories.name}`}
                                         　招待日: {new Date(inv.created_at).toLocaleDateString('ja-JP')}
                                     </p>
                                 </div>

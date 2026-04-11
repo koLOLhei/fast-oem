@@ -150,7 +150,7 @@ export function FactoriesClient({ factories }: { factories: Factory[] }) {
                                         <div className="text-xs">{f.phone}</div>
                                     )}
                                 </td>
-                                <td className="p-4">{(f.profiles as any[])?.length ?? 0}名</td>
+                                <td className="p-4">{f.profiles?.length ?? 0}名</td>
                                 <td className="p-4">
                                     <span className={`text-xs font-semibold ${f.is_active ? 'text-green-600' : 'text-red-500'}`}>
                                         {f.is_active ? '● 有効' : '● 無効'}

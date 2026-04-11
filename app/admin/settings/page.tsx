@@ -4,7 +4,7 @@ import { ShippingFeesForm } from './shipping-fees-form'
 
 export const dynamic = 'force-dynamic'
 
-const SHIPPING_KEYS = ['shipping_fee_okinawa', 'shipping_fee_remote_island'] as const
+const SHIPPING_KEYS: readonly string[] = ['shipping_fee_okinawa', 'shipping_fee_remote_island']
 
 export default async function AdminSettingsPage() {
     const supabase = createServiceClient()
@@ -16,11 +16,11 @@ export default async function AdminSettingsPage() {
     const allRows = rows ?? []
 
     const companyFields = allRows
-        .filter((r) => !SHIPPING_KEYS.includes(r.key as any))
+        .filter((r) => !SHIPPING_KEYS.includes(r.key))
         .map((r) => ({ key: r.key, label: r.label, value: r.value }))
 
     const shippingRows = allRows
-        .filter((r) => SHIPPING_KEYS.includes(r.key as any))
+        .filter((r) => SHIPPING_KEYS.includes(r.key))
         .map((r) => ({ key: r.key, label: r.label, value: r.value }))
 
     return (

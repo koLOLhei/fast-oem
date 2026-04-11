@@ -7,6 +7,8 @@ import { CancelOrderForm } from './cancel-order-form'
 import { toSignedUrls } from '@/lib/supabase/storage'
 import { ITEM_STATUS_LABELS, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
 import { SubmitButton } from '@/components/submit-button'
+import type { OrderRow, OrderItemRow, OrderItemOption, FactoryRow, CustomerInfo } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +36,9 @@ export default async function OrderDetailPage({
 
     if (!order) notFound()
 
+    const typedOrder = order as unknown as OrderRow & { order_items: (OrderItemRow & { factories: Pick<FactoryRow, 'id' | 'name'> | null })[] }
+    const customerInfo: CustomerInfo = typedOrder.customer_info
+
     // Validate that a URL (public or signed) belongs to our Supabase project.
     // Signed URLs contain a `token` query param; public URLs do not.
     // Both are accepted; non-Supabase hostnames are rejected to prevent open-redirect / XSS.
@@ -52,14 +57,14 @@ export default async function OrderDetailPage({
     // Pre-sign all design/PDF URLs so client receives only short-lived signed URLs.
     // `isSafeStorageUrl` still guards against open-redirect, but signed URLs are
     // the primary access control mechanism once the bucket is set to private.
-    const rawItems = (order.order_items as any[]) ?? []
+    const rawItems = typedOrder.order_items ?? []
     const allPaths = rawItems.flatMap((item) => [
         item.converted_design_url as string | null,
         item.delivery_pdf_url as string | null,
         item.design_url as string | null,
     ])
     const signedUrls = await toSignedUrls(allPaths, 43200)
-    const orderItems: any[] = rawItems.map((item, i) => ({
+    const orderItems = rawItems.map((item, i) => ({
         ...item,
         converted_design_url: signedUrls[i * 3],
         delivery_pdf_url: signedUrls[i * 3 + 1],
@@ -73,7 +78,7 @@ export default async function OrderDetailPage({
     const formatPrice = (yen: number) =>
         new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(yen)
 
-    const shippingAddress = order.shipping_address as any
+    const shippingAddress: ShippingAddress = typedOrder.shipping_address
     const companyName  = shippingAddress?.companyName?.trim()  ?? ''
     const department   = shippingAddress?.department?.trim()   ?? ''
     const poNumber     = shippingAddress?.poNumber?.trim()     ?? ''
@@ -87,25 +92,25 @@ export default async function OrderDetailPage({
             )}
 
             {/* Risk #3: Email delivery failure alert */}
-            {(order as any).email_send_error && (
+            {typedOrder.email_send_error && (
                 <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-4 space-y-2">
                     <p className="text-sm font-semibold text-red-800">⚠️ 確認メールの送信に失敗しました</p>
-                    <p className="text-xs text-red-700 font-mono break-all">{(order as any).email_send_error}</p>
+                    <p className="text-xs text-red-700 font-mono break-all">{typedOrder.email_send_error}</p>
                     <p className="text-xs text-red-700">
-                        顧客メール: <strong>{(order.customer_info as any)?.email ?? '—'}</strong> に手動で確認メールを送信してください。
+                        顧客メール: <strong>{customerInfo?.email ?? '—'}</strong> に手動で確認メールを送信してください。
                     </p>
                 </div>
             )}
 
             {/* Risk #2: Refund alert */}
-            {(order as any).refunded_at && (
+            {typedOrder.refunded_at && (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 space-y-1">
                     <p className="text-sm font-semibold text-amber-800">
-                        💸 返金済み — ¥{((order as any).refunded_amount ?? 0).toLocaleString('ja-JP')}
-                        {(order as any).refunded_amount < (order as any).total_price ? '（一部返金）' : '（全額）'}
+                        💸 返金済み — ¥{(typedOrder.refunded_amount ?? 0).toLocaleString('ja-JP')}
+                        {(typedOrder.refunded_amount ?? 0) < typedOrder.total_price ? '（一部返金）' : '（全額）'}
                     </p>
                     <p className="text-xs text-amber-700">
-                        返金日時: {new Date((order as any).refunded_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                        返金日時: {new Date(typedOrder.refunded_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
                     </p>
                 </div>
             )}
@@ -127,7 +132,7 @@ export default async function OrderDetailPage({
                     <dl className="space-y-2 text-sm">
                         <div className="flex gap-2">
                             <dt className="text-muted-foreground w-32 shrink-0">注文番号</dt>
-                            <dd className="font-mono font-semibold">{(order as any).order_number ?? '—'}</dd>
+                            <dd className="font-mono font-semibold">{typedOrder.order_number ?? '—'}</dd>
                         </div>
                         <div className="flex gap-2">
                             <dt className="text-muted-foreground w-32 shrink-0">注文者番号（UUID）</dt>
@@ -153,11 +158,11 @@ export default async function OrderDetailPage({
                         )}
                         <div className="flex gap-2">
                             <dt className="text-muted-foreground w-32 shrink-0">氏名</dt>
-                            <dd>{(order.customer_info as any)?.name ?? `${(order.customer_info as any)?.lastName ?? ''} ${(order.customer_info as any)?.firstName ?? ''}`.trim()}</dd>
+                            <dd>{customerInfo?.name ?? `${customerInfo?.lastName ?? ''} ${customerInfo?.firstName ?? ''}`.trim()}</dd>
                         </div>
                         <div className="flex gap-2">
                             <dt className="text-muted-foreground w-32 shrink-0">メールアドレス</dt>
-                            <dd className="text-blue-700">{(order.customer_info as any)?.email ?? '—'}</dd>
+                            <dd className="text-blue-700">{customerInfo?.email ?? '—'}</dd>
                         </div>
                     </dl>
                 </div>
@@ -223,7 +228,7 @@ export default async function OrderDetailPage({
                         <input type="hidden" name="orderId" value={order.id} />
                         <textarea
                             name="note"
-                            defaultValue={(order as any).admin_notes ?? ''}
+                            defaultValue={typedOrder.admin_notes ?? ''}
                             rows={3}
                             placeholder="対応履歴、社内連絡事項など..."
                             className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background resize-none"
@@ -237,7 +242,7 @@ export default async function OrderDetailPage({
                         <input type="hidden" name="orderId" value={order.id} />
                         <textarea
                             name="note"
-                            defaultValue={(order as any).factory_note ?? ''}
+                            defaultValue={typedOrder.factory_note ?? ''}
                             rows={3}
                             placeholder="特記事項、仕上げ指示、注意点など..."
                             className="w-full text-sm border border-blue-300 rounded-lg px-3 py-2 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -250,7 +255,7 @@ export default async function OrderDetailPage({
             {/* Cancel Order */}
             <CancelOrderForm
                 orderId={order.id}
-                orderNumber={(order as any).order_number ?? order.id}
+                orderNumber={typedOrder.order_number ?? order.id}
                 status={order.status}
                 totalPrice={order.total_price}
             />
@@ -281,7 +286,7 @@ export default async function OrderDetailPage({
                                     </div>
                                     {item.options?.length > 0 && (
                                         <p className="text-sm text-muted-foreground">
-                                            オプション: {(item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(', ')}
+                                            オプション: {(item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(', ')}
                                         </p>
                                     )}
                                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
@@ -295,10 +300,10 @@ export default async function OrderDetailPage({
                                     }`}>
                                         {ITEM_STATUS_LABELS[item.status as string] ?? item.status}
                                     </span>
-                                    {isSafeStorageUrl((item as any).delivery_pdf_url) && (
+                                    {isSafeStorageUrl(item.delivery_pdf_url) && (
                                         <div>
                                             <a
-                                                href={(item as any).delivery_pdf_url}
+                                                href={item.delivery_pdf_url!}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-xs text-green-700 font-semibold underline"
@@ -310,7 +315,7 @@ export default async function OrderDetailPage({
                                     {isSafeStorageUrl(item.converted_design_url) && (
                                         <div>
                                             <a
-                                                href={item.converted_design_url}
+                                                href={item.converted_design_url!}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-xs text-primary underline"

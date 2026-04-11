@@ -242,8 +242,9 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'), request.url))
         }
 
-        const role = profile.role as string
-        const isActive = (profile as any).is_active !== false
+        const typedProfile = profile as { role: string; is_active: boolean }
+        const role = typedProfile.role as string
+        const isActive = typedProfile.is_active !== false
 
         // Block deactivated accounts
         if (!isActive) {

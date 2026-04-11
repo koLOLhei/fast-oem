@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { isValidUUID, MAX_ADDRESSEE_LENGTH } from '@/lib/validation'
+import type { OrderRow, OrderItemRow, OrderItemOption } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -54,6 +56,8 @@ export async function GET(
         return new NextResponse('Order not found', { status: 404 })
     }
 
+    const typedOrder = order as unknown as OrderRow & { order_items: OrderItemRow[] }
+
     // Read company info from DB (falls back to env vars then hardcoded defaults)
     const { data: settingRows } = await supabase
         .from('site_settings')
@@ -67,7 +71,7 @@ export async function GET(
     const INVOICE_NUMBER  = process.env.INVOICE_QUALIFIED_NUMBER ?? s.invoice_number ?? 'T9020001159981'
     const TAX_RATE = 0.1
 
-    const addr = order.shipping_address as any
+    const addr: ShippingAddress = typedOrder.shipping_address
     const registeredName = `${addr?.lastName ?? ''} ${addr?.firstName ?? ''}`.trim()
     // Priority: explicit query param > saved receiptAddressee > full name
     const addressee = addresseeParam.trim()
@@ -77,9 +81,9 @@ export async function GET(
     const department: string  = addr?.department?.trim()  ?? ''
     const poNumber: string    = addr?.poNumber?.trim()    ?? ''
 
-    const orderItems = (order.order_items as any[]) ?? []
-    const orderTotal: number = (order as any).total_price ?? 0
-    const shippingFee: number = (order as any).shipping_fee ?? 0
+    const orderItems: OrderItemRow[] = typedOrder.order_items ?? []
+    const orderTotal: number = typedOrder.total_price ?? 0
+    const shippingFee: number = typedOrder.shipping_fee ?? 0
 
     // Tax calculation: derive ex-tax from the authoritative total to avoid
     // rounding errors from summing individually-rounded line items.
@@ -174,7 +178,7 @@ export async function GET(
     }
     drawText(`${addressee} 様`, 40, y, 13, true)
     y -= 22
-    const orderNumber = (order as any).order_number ?? order.id
+    const orderNumber = typedOrder.order_number ?? typedOrder.id
     drawText(`注文番号: ${orderNumber}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
     y -= 16
     if (poNumber) {
@@ -200,7 +204,7 @@ export async function GET(
     for (const item of orderItems) {
         // Each item needs at least 16px; options/fees add up to 46px more
         const optLines = (item.options?.length > 0 ? 14 : 0)
-        const feeLines = (item.mold_fee > 0 ? 16 : 0) + (item.express_delivery_fee > 0 ? 16 : 0)
+        const feeLines = ((item.mold_fee ?? 0) > 0 ? 16 : 0) + ((item.express_delivery_fee ?? 0) > 0 ? 16 : 0)
         y = ensureSpace(16 + optLines + feeLines)
 
         const itemPriceExTax = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
@@ -209,7 +213,7 @@ export async function GET(
         drawText(`¥${itemPriceExTax.toLocaleString('ja-JP')}`, 440, y, 9)
         y -= 16
         if (item.options?.length > 0) {
-            const optText = (item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')
+            const optText = (item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(' / ')
             drawText(optText.slice(0, 58), 50, y, 7, false, rgb(0.5, 0.5, 0.5))
             y -= 14
         }

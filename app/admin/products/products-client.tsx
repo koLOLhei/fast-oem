@@ -119,8 +119,8 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     quantityPresets: draft.quantityPresets,
                     priceTiers: draft.priceTiers,
                     options: draft.options,
-                    notificationEmail: (draft as any).notificationEmail ?? '',
-                    defaultFactoryId: (draft as any).defaultFactoryId ?? null,
+                    notificationEmail: draft.notificationEmail ?? '',
+                    defaultFactoryId: draft.defaultFactoryId ?? undefined,
                     moldFeeRules: draft.moldFeeRules ?? [],
                     is3d: draft.is3d ?? false,
                     imageViews: draft.imageViews ?? [],
@@ -188,7 +188,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                     isActive: true,
                 }
                 await createProduct(newProduct)
-                const created = { ...newProduct, isActive: true } as any
+                const created: Product = { ...newProduct, isActive: true }
                 setProducts((prev) => [created, ...prev])
                 setNewName('')
                 setNewSlug('')
@@ -273,12 +273,12 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                             <div className="flex items-center justify-between gap-1 mb-0.5">
                                 <p className="text-sm font-medium truncate flex-1">{p.name}</p>
                                 <span
-                                    className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${(p as any).isActive !== false
+                                    className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${p.isActive !== false
                                         ? 'bg-green-100 text-green-700'
                                         : 'bg-gray-100 text-gray-500'
                                         }`}
                                 >
-                                    {(p as any).isActive !== false ? '公開中' : '非表示'}
+                                    {p.isActive !== false ? '公開中' : '非表示'}
                                 </span>
                             </div>
                             <p className="text-xs text-muted-foreground">
@@ -289,7 +289,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                 onClick={(e) => { e.stopPropagation(); handleToggleActive(p) }}
                                 className="mt-1.5 text-[10px] text-muted-foreground hover:text-foreground underline"
                             >
-                                {(p as any).isActive !== false ? '非表示にする' : '公開する'}
+                                {p.isActive !== false ? '非表示にする' : '公開する'}
                             </button>
                         </button>
                     ))}
@@ -316,8 +316,8 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-xl font-bold">{draft.name}</h2>
-                                    <span className={`text-xs px-2 py-1 rounded-full font-semibold ${(draft as any).isActive !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                        {(draft as any).isActive !== false ? '公開中' : '非表示'}
+                                    <span className={`text-xs px-2 py-1 rounded-full font-semibold ${draft.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {draft.isActive !== false ? '公開中' : '非表示'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -331,7 +331,7 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
                                         disabled={saving}
                                         className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted transition disabled:opacity-60"
                                     >
-                                        {(selected as any)?.isActive !== false ? '非表示にする' : '公開する'}
+                                        {selected?.isActive !== false ? '非表示にする' : '公開する'}
                                     </button>
                                     <button
                                         onClick={handleSave}
@@ -773,7 +773,7 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
                         type="checkbox"
                         className="w-4 h-4 accent-primary"
                         checked={!!draft.fixedUnitPrice}
-                        onChange={(e) => set('fixedUnitPrice' as any, e.target.checked)}
+                        onChange={(e) => set('fixedUnitPrice', e.target.checked)}
                     />
                     <div>
                         <p className="text-sm font-medium">オプションによる単価変動を無効にする</p>
@@ -803,8 +803,8 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
                 <Field label="担当工場">
                     <select
                         className={inputCls}
-                        value={(draft as any).defaultFactoryId ?? ''}
-                        onChange={(e) => set('defaultFactoryId' as any, e.target.value || null)}
+                        value={draft.defaultFactoryId ?? ''}
+                        onChange={(e) => set('defaultFactoryId', e.target.value || null)}
                     >
                         <option value="">— 未設定（手動割り当て）</option>
                         {factories.map((f) => (
@@ -812,11 +812,11 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
                         ))}
                     </select>
                 </Field>
-                {(draft as any).defaultFactoryId && (() => {
-                    const f = factories.find(f => f.id === (draft as any).defaultFactoryId)
+                {draft.defaultFactoryId && (() => {
+                    const f = factories.find(f => f.id === draft.defaultFactoryId)
                     return f ? (
                         <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
-                            ✓ 発注メール送信先: <strong>{(f as any).contact_email || '未設定'}</strong>（工場管理で登録済みのメールアドレス）
+                            ✓ 発注メール送信先: <strong>{f?.contact_email || '未設定'}</strong>（工場管理で登録済みのメールアドレス）
                         </p>
                     ) : null
                 })()}
@@ -825,9 +825,9 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
                         <input
                             type="text"
                             className={inputCls}
-                            value={(draft as any).notificationEmail ?? ''}
+                            value={draft.notificationEmail ?? ''}
                             placeholder="空欄なら工場の登録メールに送信"
-                            onChange={(e) => set('notificationEmail' as any, e.target.value)}
+                            onChange={(e) => set('notificationEmail', e.target.value)}
                         />
                     </Field>
                     <p className="text-[10px] text-muted-foreground mt-1">
@@ -1279,7 +1279,7 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                             }
                             if (field === 'previewOverlayUrl') {
                                 if (!value) return { ...v, previewOverlay: undefined }
-                                return { ...v, previewOverlay: { ...v.previewOverlay, imageUrl: value, position: v.previewOverlay?.position ?? 'top' } as any }
+                                return { ...v, previewOverlay: { ...(v.previewOverlay ?? {}), imageUrl: value, position: v.previewOverlay?.position ?? 'top' } }
                             }
                             if (field === 'previewOverlayPosition') {
                                 if (!v.previewOverlay) return v
@@ -1313,7 +1313,7 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                             className="text-xs border border-border rounded px-2 py-1 bg-background"
                             value={opt.type}
                             onChange={(e) => {
-                                const newType = e.target.value as any
+                                const newType = e.target.value as ProductOption['type']
                                 updateOption(opt.id, 'type', newType)
                                 if (newType === 'checkbox') updateOption(opt.id, 'multiSelect', true)
                                 if (newType === 'number') updateOption(opt.id, 'values', [])

@@ -1,6 +1,25 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/lib/status-labels'
 import Link from 'next/link'
+import type { OrderRow, OrderItemRow, CustomerInfo, FactoryRow } from '@/lib/database.types'
+
+/** Pipeline item: order_items joined with orders + factories */
+type PipelineItem = Pick<OrderItemRow, 'id' | 'status' | 'factory_id'> & {
+    orders: Pick<OrderRow, 'id' | 'order_number' | 'status' | 'created_at'> | null
+    factories: Pick<FactoryRow, 'id' | 'name'> | null
+}
+
+/** Stuck item: order_items joined with orders */
+type StuckItem = Pick<OrderItemRow, 'id' | 'product_name' | 'converted_design_url'> & {
+    orders: Pick<OrderRow, 'id' | 'order_number' | 'status' | 'created_at'> | null
+}
+
+/** Paged order: orders joined with order_items + factories */
+type PagedOrder = Pick<OrderRow, 'id' | 'order_number' | 'customer_info' | 'customer_email' | 'total_price' | 'status' | 'created_at'> & {
+    order_items: (Pick<OrderItemRow, 'id' | 'status' | 'factory_id'> & {
+        factories: Pick<FactoryRow, 'name'> | null
+    })[]
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -119,7 +138,7 @@ export default async function AdminPage({
         : null
 
     // Pipeline item counts from pipelineItems
-    const allItems = pipelineItems ?? []
+    const allItems = (pipelineItems ?? []) as unknown as PipelineItem[]
 
     // Single-pass pipeline item counting (replaces 5 separate filter passes)
     const itemCounts = { unassigned: 0, assigned: 0, manufacturing: 0, ready_to_ship: 0, shipped: 0 }
@@ -134,9 +153,9 @@ export default async function AdminPage({
     // Delay alerts (paid orders only)
     const THRESHOLDS = { unassigned: 3, assigned: 7, manufacturing: 14 }
     const delayedItems = allItems.filter((item) => {
-        const order = item.orders as any
+        const order = (item as PipelineItem).orders
         const activeOrderStatuses = ['paid', 'processing', 'partially_shipped']
-        if (!activeOrderStatuses.includes(order?.status)) return false
+        if (!order || !activeOrderStatuses.includes(order.status)) return false
         const days = daysSince(order.created_at)
         if (item.status === 'unassigned' && days > THRESHOLDS.unassigned) return true
         if (item.status === 'assigned' && days > THRESHOLDS.assigned) return true
@@ -180,10 +199,10 @@ export default async function AdminPage({
     const completionRate = effectiveTotal > 0 ? Math.round((itemCounts.shipped / effectiveTotal) * 100) : 0
 
     // Stuck items: already filtered to paid orders in the DB query
-    const stuckPaidItems = stuckItems ?? []
+    const stuckPaidItems = (stuckItems ?? []) as unknown as StuckItem[]
     // Set of order IDs with stuck design processing — used to annotate the order list
     const stuckOrderIds = new Set(
-        stuckPaidItems.map((item) => (item.orders as any)?.id).filter(Boolean) as string[]
+        stuckPaidItems.map((item) => (item as StuckItem).orders?.id).filter(Boolean) as string[]
     )
 
     const statusColors = ORDER_STATUS_COLORS
@@ -310,13 +329,14 @@ export default async function AdminPage({
                             </thead>
                             <tbody>
                                 {delayedItems.map((item) => {
-                                    const order = item.orders as any
-                                    const days = daysSince(order.created_at)
+                                    const typedItem = item as PipelineItem
+                                    const order = typedItem.orders
+                                    const days = order ? daysSince(order.created_at) : 0
                                     const isCritical = item.status === 'unassigned'
                                     return (
                                         <tr key={item.id} className={`border-b last:border-0 ${isCritical ? 'bg-red-50' : 'bg-orange-50/30'}`}>
                                             <td className="px-4 py-3 font-mono text-xs font-semibold">
-                                                {order.order_number ?? '—'}
+                                                {order?.order_number ?? '—'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isCritical ? 'bg-red-200 text-red-800' : 'bg-orange-200 text-orange-800'}`}>
@@ -324,7 +344,7 @@ export default async function AdminPage({
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-muted-foreground">
-                                                {(item.factories as any)?.name ?? <span className="text-red-500 font-semibold">未割当</span>}
+                                                {typedItem.factories?.name ?? <span className="text-red-500 font-semibold">未割当</span>}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <span className={`font-bold text-sm ${days > 14 ? 'text-red-600' : 'text-orange-500'}`}>
@@ -333,7 +353,7 @@ export default async function AdminPage({
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <Link
-                                                    href={`/admin/orders/${order.id}`}
+                                                    href={`/admin/orders/${order?.id}`}
                                                     className="text-xs text-primary hover:underline whitespace-nowrap"
                                                 >
                                                     対応する →
@@ -367,7 +387,7 @@ export default async function AdminPage({
                             </thead>
                             <tbody>
                                 {stuckPaidItems.map((item) => {
-                                    const order = item.orders as any
+                                    const order = (item as StuckItem).orders
                                     return (
                                         <tr key={item.id} className="border-b last:border-0 bg-amber-50/30">
                                             <td className="px-4 py-3 font-mono text-xs font-semibold">
@@ -545,8 +565,9 @@ export default async function AdminPage({
                         </thead>
                         <tbody>
                             {(pagedOrders ?? []).length > 0 ? (pagedOrders ?? []).map((order) => {
-                                const info = order.customer_info as any
-                                const items = (order.order_items as any[]) ?? []
+                                const typedOrder = order as unknown as PagedOrder
+                                const info = typedOrder.customer_info as CustomerInfo
+                                const items = typedOrder.order_items ?? []
                                 const allShipped = items.length > 0 && items.every((i) => i.status === 'shipped')
                                 const hasUnassigned = items.some((i) => i.status === 'unassigned')
                                 const days = daysSince(order.created_at)

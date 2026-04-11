@@ -1,6 +1,7 @@
 'use server'
 
 import { createServiceClient } from '@/lib/supabase/service'
+import type { OrderRow, OrderItemRow, CustomerInfo } from '@/lib/database.types'
 
 interface MoldReuseResult {
     valid: boolean
@@ -71,7 +72,7 @@ export async function checkMoldReuse(
     if (reuseMonths > 0) {
         const cutoff = new Date()
         cutoff.setMonth(cutoff.getMonth() - reuseMonths)
-        if (new Date((order as any).created_at) < cutoff) {
+        if (new Date((order as Pick<OrderRow, 'created_at'>).created_at) < cutoff) {
             return {
                 valid: false,
                 reason: `ご注文から${reuseMonths}ヶ月以上経過しているため、型の再利用ができません。`,
@@ -80,13 +81,13 @@ export async function checkMoldReuse(
     }
 
     // Verify ownership via email
-    const customerEmail = (order.customer_info as any)?.email as string | undefined
+    const customerEmail = (order.customer_info as CustomerInfo)?.email as string | undefined
     if (!customerEmail || customerEmail.toLowerCase() !== email.trim().toLowerCase()) {
         return { valid: false, reason: 'この注文番号とメールアドレスの組み合わせが一致しません。' }
     }
 
     // Find the order_item for the same product
-    const matchedItem = (order.order_items as any[]).find(
+    const matchedItem = (order.order_items as Pick<OrderItemRow, 'product_id' | 'mold_fee' | 'options'>[]).find(
         (item) => item.product_id === productId
     )
 

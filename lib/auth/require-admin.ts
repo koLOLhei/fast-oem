@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { ProfileRow } from '@/lib/database.types'
 
 export interface AdminContext {
     /** The authenticated user's ID */
@@ -34,14 +35,15 @@ export async function requireAdmin(): Promise<AdminContext> {
     }
     if (!profile) throw new Error('アカウント情報が見つかりません。管理者にお問い合わせください。')
 
-    if ((profile as any)?.is_active === false) {
+    const typedProfile = profile as Pick<ProfileRow, 'role' | 'is_active'>
+    if (typedProfile.is_active === false) {
         throw new Error('このアカウントは無効化されています')
     }
-    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+    if (typedProfile.role !== 'admin' && typedProfile.role !== 'super_admin') {
         throw new Error('管理者権限が必要です')
     }
 
-    return { adminId: user.id, isSuperAdmin: profile.role === 'super_admin' }
+    return { adminId: user.id, isSuperAdmin: typedProfile.role === 'super_admin' }
 }
 
 export interface FactoryContext {
@@ -68,12 +70,13 @@ export async function requireFactory(): Promise<FactoryContext> {
     }
     if (!profile) throw new Error('アカウント情報が見つかりません。管理者にお問い合わせください。')
 
-    if ((profile as any)?.is_active === false) {
+    const typedFactoryProfile = profile as Pick<ProfileRow, 'role' | 'is_active' | 'factory_id'>
+    if (typedFactoryProfile.is_active === false) {
         throw new Error('このアカウントは無効化されています')
     }
-    if (profile?.role !== 'factory') {
+    if (typedFactoryProfile.role !== 'factory') {
         throw new Error('工場権限が必要です')
     }
 
-    return { factoryId: profile.factory_id as string | null }
+    return { factoryId: typedFactoryProfile.factory_id }
 }

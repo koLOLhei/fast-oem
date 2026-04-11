@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/service'
 import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress, generateOrderId } from '@/lib/order'
+import type { CustomerInfo } from '@/lib/database.types'
 import { sendSlackMessage } from '@/lib/slack'
 import { type Product, calculateMoldFee, calculateShippingModifier, checkComplexityRestriction } from '@/lib/products'
 import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
@@ -153,8 +154,8 @@ async function validateAndRepricItems(
       .in('id', claimedMoldIds)
 
     for (const mo of moldOrders ?? []) {
-      const moEmail = ((mo.customer_info as any)?.email ?? '').toLowerCase()
-      const moProductIds = new Set(((mo as any).order_items ?? []).map((oi: any) => oi.product_id as string))
+      const moEmail = ((mo.customer_info as CustomerInfo)?.email ?? '').toLowerCase()
+      const moProductIds = new Set((mo.order_items ?? []).map((oi: { product_id: string }) => oi.product_id))
       const withinOneYear = Date.now() - new Date(mo.created_at).getTime() < ONE_YEAR_MS
       const sameCustomer = moEmail === customerEmail.toLowerCase()
       // Mark this mold order as valid for each item's product it contains

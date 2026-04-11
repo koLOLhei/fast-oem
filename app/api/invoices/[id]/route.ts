@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { isValidUUID, MAX_ADDRESSEE_LENGTH } from '@/lib/validation'
+import type { OrderRow, OrderItemRow, OrderItemOption } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -47,6 +49,8 @@ export async function GET(
         return new NextResponse('Order not found', { status: 404 })
     }
 
+    const typedOrder = order as unknown as OrderRow & { order_items: OrderItemRow[] }
+
     // Company info from site_settings (env > DB > hardcoded)
     const { data: settingRows } = await supabase
         .from('site_settings')
@@ -60,7 +64,7 @@ export async function GET(
     const INVOICE_NUMBER  = process.env.INVOICE_QUALIFIED_NUMBER ?? s.invoice_number ?? 'T9020001159981'
     const TAX_RATE = 0.1
 
-    const addr         = order.shipping_address as any
+    const addr: ShippingAddress = typedOrder.shipping_address
     const personName   = `${addr?.lastName ?? ''} ${addr?.firstName ?? ''}`.trim()
     const companyName  = addr?.companyName?.trim()  ?? ''
     const department   = addr?.department?.trim()   ?? ''
@@ -71,10 +75,10 @@ export async function GET(
         || addr?.receiptAddressee?.trim()
         || (companyName || personName)
 
-    const orderItems   = order.order_items as any[]
-    const orderTotal   = (order as any).total_price   ?? 0
-    const shippingFee  = (order as any).shipping_fee  ?? 0
-    const orderNumber  = (order as any).order_number  ?? id
+    const orderItems: OrderItemRow[]  = typedOrder.order_items ?? []
+    const orderTotal: number   = typedOrder.total_price   ?? 0
+    const shippingFee: number  = typedOrder.shipping_fee  ?? 0
+    const orderNumber          = typedOrder.order_number  ?? id
 
     // Tax calculation: derive ex-tax from the authoritative total to avoid
     // rounding errors from summing individually-rounded line items.
@@ -144,7 +148,7 @@ export async function GET(
     // ── Invoice metadata ───────────────────────────────────────────
     const invoiceNo = `INV-${orderNumber}`
     const issueDate = new Date().toLocaleDateString('ja-JP')
-    const paidDate  = new Date((order as any).created_at).toLocaleDateString('ja-JP')
+    const paidDate  = new Date(typedOrder.created_at).toLocaleDateString('ja-JP')
 
     drawText(`請求書番号: ${invoiceNo}`, 40, y, 9, false, rgb(0.4, 0.4, 0.4))
     y -= 14
@@ -180,7 +184,7 @@ export async function GET(
         drawText(`¥${lineExTax.toLocaleString('ja-JP')}`, 470, y, 9)
         y -= 16
         if (item.options?.length > 0) {
-            const optText = (item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')
+            const optText = (item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(' / ')
             drawText(optText.slice(0, 58), 50, y, 7, false, rgb(0.5, 0.5, 0.5))
             y -= 14
         }

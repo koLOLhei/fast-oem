@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import type { ReportOrder, ReportOrderItem } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,7 +79,7 @@ export default async function ReportsPage() {
     const productRevenue: Record<string, number> = {}
     const productCount: Record<string, number> = {}
     for (const o of allOrders) {
-        for (const item of (o.order_items as any[]) ?? []) {
+        for (const item of (o as unknown as ReportOrder).order_items ?? []) {
             const name = item.product_name ?? '不明'
             productRevenue[name] = (productRevenue[name] ?? 0) + (item.total_price ?? 0)
             productCount[name] = (productCount[name] ?? 0) + 1
@@ -96,10 +97,11 @@ export default async function ReportsPage() {
 
     for (const item of activeItems ?? []) {
         const fId = item.factory_id as string
-        const fName = (item.factories as any)?.name ?? fId
+        const typedItem = item as unknown as ReportOrderItem
+        const fName = typedItem.factories?.name ?? fId
         if (!factoryStats[fId]) factoryStats[fId] = { name: fName, total: 0, delayed: 0, shipped: 0 }
         factoryStats[fId].total++
-        const orderCreatedAt = (item.orders as any)?.created_at
+        const orderCreatedAt = typedItem.orders?.created_at
         if (orderCreatedAt) {
             const daysOld = Math.floor((now - new Date(orderCreatedAt).getTime()) / 86400000)
             if (daysOld > DELAY_DAYS) factoryStats[fId].delayed++
@@ -108,7 +110,7 @@ export default async function ReportsPage() {
 
     for (const item of shippedItems ?? []) {
         const fId = item.factory_id as string
-        const fName = (item.factories as any)?.name ?? fId
+        const fName = (item as unknown as ReportOrderItem).factories?.name ?? fId
         if (!factoryStats[fId]) factoryStats[fId] = { name: fName, total: 0, delayed: 0, shipped: 0 }
         factoryStats[fId].shipped++
     }

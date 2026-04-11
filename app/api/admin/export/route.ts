@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import type { OrderRow, OrderItemRow, CustomerInfo, FactoryRow, ProfileRow, OrderItemOption } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
 
 /**
  * GET /api/admin/export?type=orders|items
@@ -19,8 +21,9 @@ export async function GET(req: NextRequest) {
         .select('role, is_active')
         .eq('id', user.id)
         .single()
-    if ((profile as any)?.is_active === false) return new NextResponse('Account disabled', { status: 403 })
-    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') return new NextResponse('Forbidden', { status: 403 })
+    const typedProfile = profile as ProfileRow | null
+    if (typedProfile?.is_active === false) return new NextResponse('Account disabled', { status: 403 })
+    if (typedProfile?.role !== 'admin' && typedProfile?.role !== 'super_admin') return new NextResponse('Forbidden', { status: 403 })
 
     const typeParam = req.nextUrl.searchParams.get('type') ?? 'orders'
     if (typeParam !== 'orders' && typeParam !== 'items') {
@@ -91,13 +94,19 @@ export async function GET(req: NextRequest) {
             'ステータス', '工場名', '追跡番号', 'オプション',
         ]
 
-        const rows = (items ?? []).map((item: any) => {
-            const order = item.orders as any
-            const info = order?.customer_info as any
-            const addr = order?.shipping_address as any
+        type ExportItemRow = OrderItemRow & {
+            orders: Pick<OrderRow, 'order_number' | 'created_at' | 'customer_info' | 'shipping_address' | 'status'> | null
+            factories: Pick<FactoryRow, 'name'> | null
+        }
+
+        const rows = (items ?? []).map((item: unknown) => {
+            const typedItem = item as ExportItemRow
+            const order = typedItem.orders
+            const info: CustomerInfo | undefined = order?.customer_info
+            const addr: ShippingAddress | undefined = order?.shipping_address
             const name = info?.name ?? `${info?.lastName ?? ''} ${info?.firstName ?? ''}`.trim()
-            const opts = Array.isArray(item.options)
-                ? item.options.map((o: any) => `${o.name}:${o.value}`).join(' / ')
+            const opts = Array.isArray(typedItem.options)
+                ? typedItem.options.map((o: OrderItemOption) => `${o.name}:${o.value}`).join(' / ')
                 : ''
             return [
                 order?.order_number ?? '',
@@ -105,15 +114,15 @@ export async function GET(req: NextRequest) {
                 name,
                 info?.email ?? '',
                 addr?.companyName ?? '',
-                item.product_name ?? '',
-                item.quantity ?? '',
-                item.unit_price ?? '',
-                item.total_price ?? '',
-                item.mold_fee ?? 0,
-                item.express_delivery_fee ?? 0,
-                item.status ?? '',
-                (item.factories as any)?.name ?? '',
-                item.tracking_number ?? '',
+                typedItem.product_name ?? '',
+                typedItem.quantity ?? '',
+                typedItem.unit_price ?? '',
+                typedItem.total_price ?? '',
+                typedItem.mold_fee ?? 0,
+                typedItem.express_delivery_fee ?? 0,
+                typedItem.status ?? '',
+                typedItem.factories?.name ?? '',
+                typedItem.tracking_number ?? '',
                 opts,
             ]
         })
@@ -163,18 +172,23 @@ export async function GET(req: NextRequest) {
 
     const TAX_RATE = 0.1
 
-    const rows = (orders ?? []).map((o: any) => {
-        const info = o.customer_info as any
-        const addr = o.shipping_address as any
+    type ExportOrderRow = OrderRow & {
+        order_items: Pick<OrderItemRow, 'id' | 'product_name' | 'quantity' | 'unit_price' | 'total_price' | 'mold_fee' | 'express_delivery_fee' | 'status' | 'tracking_number'>[]
+    }
+
+    const rows = (orders ?? []).map((o: unknown) => {
+        const typedO = o as ExportOrderRow
+        const info: CustomerInfo = typedO.customer_info
+        const addr: ShippingAddress = typedO.shipping_address
         const name = info?.name ?? `${info?.lastName ?? ''} ${info?.firstName ?? ''}`.trim()
-        const items = (o.order_items as any[]) ?? []
-        const shippedCount = items.filter((i: any) => i.status === 'shipped').length
-        const total = o.total_price ?? 0
+        const items: ExportOrderRow['order_items'] = typedO.order_items ?? []
+        const shippedCount = items.filter((i) => i.status === 'shipped').length
+        const total = typedO.total_price ?? 0
         const tax = total - Math.round(total / (1 + TAX_RATE))
         return [
-            o.order_number ?? '',
-            o.id ?? '',
-            o.created_at ? new Date(o.created_at).toLocaleString('ja-JP') : '',
+            typedO.order_number ?? '',
+            typedO.id ?? '',
+            typedO.created_at ? new Date(typedO.created_at).toLocaleString('ja-JP') : '',
             name,
             info?.email ?? '',
             addr?.companyName ?? '',
@@ -187,10 +201,10 @@ export async function GET(req: NextRequest) {
             addr?.address2 ?? '',
             addr?.phone ?? '',
             total,
-            o.shipping_fee ?? 0,
+            typedO.shipping_fee ?? 0,
             tax,
-            o.status ?? '',
-            o.stripe_session_id ?? '',
+            typedO.status ?? '',
+            typedO.stripe_session_id ?? '',
             items.length,
             shippedCount,
         ]

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
+import type { ProfileRow } from '@/lib/database.types'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
 
@@ -54,8 +55,9 @@ export async function login(formData: FormData) {
         return redirect('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'))
     }
 
-    const role = profile.role as string
-    const isActive = (profile as any).is_active !== false
+    const typedProfile = profile as Pick<ProfileRow, 'role' | 'is_active'>
+    const role = typedProfile.role as string
+    const isActive = typedProfile.is_active !== false
 
     if (!isActive) {
         await supabase.auth.signOut()

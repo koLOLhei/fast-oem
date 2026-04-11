@@ -8,6 +8,10 @@ import { isValidUUID } from '@/lib/validation'
 import { ReceiptButton } from './receipt-button'
 import { InvoiceButton } from './invoice-button'
 import { StatusPoller } from './status-poller'
+import type { OrderRow, OrderItemRow, CustomerInfo, OrderItemOption } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
+
+type StatusPageItem = OrderItemRow & { _convertedUrl: string | null; _originalUrl: string | null }
 
 export default async function OrderStatusPage({
     params,
@@ -38,7 +42,7 @@ export default async function OrderStatusPage({
     // Generate short-lived signed URLs so the customer can re-download their design files.
     // We do this server-side so the private bucket key never reaches the browser.
     const itemsWithUrls = await Promise.all(
-        ((order.order_items as any[]) ?? []).map(async (item: any) => {
+        ((order.order_items as OrderItemRow[]) ?? []).map(async (item) => {
             let convertedUrl: string | null = item.converted_design_url ?? null
             let originalUrl: string | null = null
 
@@ -57,8 +61,8 @@ export default async function OrderStatusPage({
         })
     )
 
-    const customerInfo = order.customer_info as any
-    const addr = order.shipping_address as any
+    const customerInfo = order.customer_info as CustomerInfo
+    const addr = order.shipping_address as ShippingAddress
     const personName = customerInfo?.name ?? `${customerInfo?.lastName ?? ''} ${customerInfo?.firstName ?? ''}`.trim()
     // For the ReceiptButton default: use saved receiptAddressee, then company name alone
     // (most corporations want "株式会社〇〇" without appending the person's name),
@@ -71,25 +75,26 @@ export default async function OrderStatusPage({
     const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
     const TAX_RATE = 0.1
 
-    const orderTotal: number = (order as any).total_price ?? (order as any).total_amount ?? 0
-    const shippingFee: number = (order as any).shipping_fee ?? 0
+    const typedOrder = order as unknown as OrderRow
+    const orderTotal: number = typedOrder.total_price ?? 0
+    const shippingFee: number = typedOrder.shipping_fee ?? 0
 
     const items = itemsWithUrls
     const itemsTotal = items.reduce(
-        (sum: number, item: any) => sum + (item.total_price ?? (item.unit_price * item.quantity)),
+        (sum: number, item: StatusPageItem) => sum + (item.total_price ?? (item.unit_price * item.quantity)),
         0
     )
-    const moldTotal = items.reduce((sum: number, item: any) => sum + (item.mold_fee ?? 0), 0)
-    const expressTotal = items.reduce((sum: number, item: any) => sum + (item.express_delivery_fee ?? 0), 0)
+    const moldTotal = items.reduce((sum: number, item: StatusPageItem) => sum + (item.mold_fee ?? 0), 0)
+    const expressTotal = items.reduce((sum: number, item: StatusPageItem) => sum + (item.express_delivery_fee ?? 0), 0)
     const priceExTax = Math.round(orderTotal / (1 + TAX_RATE))
     const taxAmount = orderTotal - priceExTax
 
     const statusLabel = ORDER_STATUS_LABELS
     const statusColor = ORDER_STATUS_COLORS
 
-    const allShipped = items.every((item: any) => item.status === 'shipped')
-    const someShipped = !allShipped && items.some((item: any) => item.status === 'shipped')
-    const anyProcessing = items.some((item: any) =>
+    const allShipped = items.every((item: StatusPageItem) => item.status === 'shipped')
+    const someShipped = !allShipped && items.some((item: StatusPageItem) => item.status === 'shipped')
+    const anyProcessing = items.some((item: StatusPageItem) =>
         ['manufacturing', 'ready_to_ship', 'assigned'].includes(item.status)
     )
     // Trust DB status for terminal states. 'completed' and 'shipped' are also
@@ -110,14 +115,14 @@ export default async function OrderStatusPage({
     const orderDate = new Date(new Date(order.created_at).getTime() + JST_OFFSET_MS)
     const moldExpiryDate = new Date(orderDate)
     moldExpiryDate.setFullYear(moldExpiryDate.getFullYear() + 1)
-    const hasMoldItems = items.some((item: any) => (item.mold_fee ?? 0) > 0)
+    const hasMoldItems = items.some((item: StatusPageItem) => (item.mold_fee ?? 0) > 0)
     const now = new Date()
     const moldDaysLeft = Math.ceil((moldExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     const moldExpired = moldDaysLeft <= 0
     const moldExpiringSoon = !moldExpired && moldDaysLeft <= 60  // warn within 60 days
 
     // Estimated delivery (shown when not yet shipped)
-    const hasExpress = items.some((item: any) => (item.express_delivery_fee ?? 0) > 0)
+    const hasExpress = items.some((item: StatusPageItem) => (item.express_delivery_fee ?? 0) > 0)
     const deliveryBusinessDays = hasExpress ? 12 : 15
     const estimatedDeliveryDate = addBusinessDays(orderDate, deliveryBusinessDays)
     const estimatedDeliveryStr = estimatedDeliveryDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })
@@ -157,7 +162,7 @@ export default async function OrderStatusPage({
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs text-muted-foreground">注文番号</p>
-                            <p className="font-mono text-xs mt-0.5">{(order as any).order_number ?? order.stripe_session_id}</p>
+                            <p className="font-mono text-xs mt-0.5">{typedOrder.order_number ?? order.stripe_session_id}</p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColor[displayStatus] ?? 'bg-gray-100 text-gray-700'}`}>
                             {statusLabel[displayStatus] ?? order.status}
@@ -212,7 +217,7 @@ export default async function OrderStatusPage({
                     <div className="px-5 py-4 border-b font-semibold text-sm">ご注文内容</div>
                     <table className="w-full text-sm">
                         <tbody>
-                            {items.map((item: any) => {
+                            {items.map((item: StatusPageItem) => {
                                 // product_id is the slug for legacy products; newer ones use UUID
                                 const productSlug = item.product_id as string | undefined
                                 return (
@@ -223,11 +228,11 @@ export default async function OrderStatusPage({
                                                 <p className="font-medium">{item.product_name}</p>
                                                 {item.options?.length > 0 && (
                                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                                        {(item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')}
+                                                        {(item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(' / ')}
                                                     </p>
                                                 )}
                                                 {(item.mold_fee ?? 0) > 0 && (
-                                                    <p className="text-xs text-orange-600 mt-0.5">+ 型代 {formatPrice(item.mold_fee)}</p>
+                                                    <p className="text-xs text-orange-600 mt-0.5">+ 型代 {formatPrice(item.mold_fee ?? 0)}</p>
                                                 )}
                                             </div>
                                             {productSlug && (
@@ -358,11 +363,11 @@ export default async function OrderStatusPage({
                         <p className="font-semibold text-sm">商品ごとのステータス</p>
                         {someShipped && (
                             <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                                一部発送済み ({items.filter((i: any) => i.status === 'shipped').length}/{items.length})
+                                一部発送済み ({items.filter((i: StatusPageItem) => i.status === 'shipped').length}/{items.length})
                             </span>
                         )}
                     </div>
-                    {items.map((item: any) => {
+                    {items.map((item: StatusPageItem) => {
                         const itemStatusLabel: Record<string, string> = {
                             unassigned: '工場割り当て待ち',
                             assigned: '工場に割り当て済み',
@@ -418,11 +423,11 @@ export default async function OrderStatusPage({
                 )}
 
                 {/* Design file download */}
-                {items.some((item: any) => item._convertedUrl || item._originalUrl) && (
+                {items.some((item: StatusPageItem) => item._convertedUrl || item._originalUrl) && (
                     <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
                         <p className="font-semibold text-sm">入稿データのダウンロード</p>
                         <p className="text-xs text-muted-foreground">変換済みデータ・元データをダウンロードできます（リンクは1時間有効）。</p>
-                        {items.map((item: any) => {
+                        {items.map((item: StatusPageItem) => {
                             if (!item._convertedUrl && !item._originalUrl) return null
                             return (
                                 <div key={item.id} className="space-y-1.5">
@@ -461,7 +466,7 @@ export default async function OrderStatusPage({
                             製造開始前であれば住所を変更できる場合があります。できるだけお早めにご連絡ください。
                         </p>
                         <a
-                            href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`【住所変更依頼】注文番号: ${(order as any).order_number ?? id}`)}&body=${encodeURIComponent(`注文番号: ${(order as any).order_number ?? id}\n\n変更後の住所:\n〒\n都道府県:\n市区町村:\n番地:\nマンション名等:\n\nお名前:\n`)}`}
+                            href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`【住所変更依頼】注文番号: ${typedOrder.order_number ?? id}`)}&body=${encodeURIComponent(`注文番号: ${typedOrder.order_number ?? id}\n\n変更後の住所:\n〒\n都道府県:\n市区町村:\n番地:\nマンション名等:\n\nお名前:\n`)}`}
                             className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition"
                         >
                             📧 住所変更をメールで依頼する

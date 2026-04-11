@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
 import { Fragment } from 'react'
+import type { OrderItemRow, OrderItemOption } from '@/lib/database.types'
+import type { ShippingAddress } from '@/lib/order'
 
 export default async function MyOrderDetailPage({
     params,
@@ -23,11 +25,11 @@ export default async function MyOrderDetailPage({
 
     if (!order) notFound()
 
-    const shippingAddress = order.shipping_address as any
+    const shippingAddress = order.shipping_address as ShippingAddress
     const TAX_RATE = 0.1
 
     // Calculate totals
-    const items = order.order_items as any[]
+    const items = order.order_items as OrderItemRow[]
     const itemsTotal = items.reduce((sum, item) => sum + (item.total_price ?? (item.unit_price * item.quantity)), 0)
     const moldTotal = items.reduce((sum, item) => sum + (item.mold_fee ?? 0), 0)
 
@@ -85,14 +87,14 @@ export default async function MyOrderDetailPage({
                             </tr>
                         </thead>
                         <tbody>
-                            {(order.order_items as any[]).map((item) => (
+                            {(order.order_items as OrderItemRow[]).map((item) => (
                                 <Fragment key={item.id}>
                                     <tr className="border-b">
                                         <td className="p-4">
                                             <p className="font-medium">{item.product_name}</p>
                                             {item.options?.length > 0 && (
                                                 <p className="text-xs text-muted-foreground">
-                                                    {(item.options as any[]).map((o: any) => `${o.name}: ${o.value}`).join(' / ')}
+                                                    {(item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(' / ')}
                                                 </p>
                                             )}
                                             <p className="text-xs text-muted-foreground mt-1">
