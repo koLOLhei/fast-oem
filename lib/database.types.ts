@@ -67,6 +67,7 @@ export interface OrderRow {
   shipping_fee: number | null
   status: OrderStatus
   access_token: string
+  access_token_expires_at: string | null
   payment_intent_id: string | null
   admin_notes: string | null
   factory_note: string | null

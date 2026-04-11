@@ -49,6 +49,11 @@ export async function GET(
         return new NextResponse('Order not found', { status: 404 })
     }
 
+    // C-2: Reject expired access tokens
+    if (order.access_token_expires_at && new Date(order.access_token_expires_at) < new Date()) {
+        return new NextResponse('Access token expired', { status: 403 })
+    }
+
     const typedOrder = order as unknown as OrderRow & { order_items: OrderItemRow[] }
 
     // Company info from site_settings (env > DB > hardcoded)

@@ -39,6 +39,11 @@ export default async function OrderStatusPage({
     }
     if (!order) notFound()
 
+    // C-2: Reject expired access tokens
+    if (order.access_token_expires_at && new Date(order.access_token_expires_at) < new Date()) {
+        notFound()
+    }
+
     // Generate short-lived signed URLs so the customer can re-download their design files.
     // We do this server-side so the private bucket key never reaches the browser.
     const itemsWithUrls = await Promise.all(

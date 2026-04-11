@@ -153,7 +153,8 @@ async function sendWithRetry(
       const sendOptions = idempotencyKey
         ? { headers: { 'Idempotency-Key': idempotencyKey } }
         : undefined
-      await resend.emails.send(payload, sendOptions as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Resend SDK typing mismatch for sendOptions
+      await resend.emails.send(payload, sendOptions as Record<string, unknown>)
       const latencyMs = Date.now() - t0
       metricInc('successes')
       cb.failures = Math.max(0, cb.failures - 1) // partial recovery on success

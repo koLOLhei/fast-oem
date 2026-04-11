@@ -5,6 +5,56 @@ import { processImage } from './process-image.ts'
 import { sendEmails, sendCancellationNotification, sendAdminAlert } from './send-email.ts'
 import { sendSlackMessage } from './slack.ts'
 
+// ── Inline types for Supabase JSONB fields (Edge Functions can't import @/lib) ──
+interface CustomerInfo {
+  name?: string
+  email?: string
+  lastName?: string
+  firstName?: string
+  receiptAddressee?: string
+}
+
+interface ShippingAddress {
+  lastName?: string
+  firstName?: string
+  postalCode?: string
+  prefecture?: string
+  city?: string
+  address1?: string
+  address2?: string
+  phone?: string
+  email?: string
+  companyName?: string
+  department?: string
+  poNumber?: string
+  receiptAddressee?: string
+}
+
+interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  product_name: string
+  quantity: number
+  unit_price: number
+  total_price: number | null
+  options: unknown[]
+  status: string
+  factory_id: string | null
+  design_url: string | null
+  converted_design_url: string | null
+  delivery_pdf_url: string | null
+  design_file_name: string | null
+  mold_fee: number | null
+  mold_order_id: string | null
+  express_delivery: boolean | null
+  express_delivery_fee: number | null
+  tracking_number: string | null
+}
+
+// Deno Edge Runtime global (conditionally available)
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
@@ -29,8 +79,9 @@ serve(async (req: Request) => {
         Deno.env.get('STRIPE_WEBHOOK_SECRET') as string,
         cryptoProvider
       )
-    } catch (err: any) {
-      console.error(`Webhook signature verification failed: ${err.message}`)
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error(`Webhook signature verification failed: ${errMsg}`)
       // Rate-limit Slack alerts for signature failures to 1 per 5 minutes.
       // Without this, a DDoS/spam attack would flood the Slack channel.
       try {
@@ -45,21 +96,21 @@ serve(async (req: Request) => {
           .eq('source', 'webhook_sig_fail')
           .gte('created_at', windowStart)
         if ((count ?? 0) === 0) {
-          await sendSlackMessage(`🔐 *Webhook署名検証失敗*\nエラー: ${err.message}\n※不正なリクエストの可能性があります（5分間に1回のみ通知）`)
+          await sendSlackMessage(`🔐 *Webhook署名検証失敗*\nエラー: ${errMsg}\n※不正なリクエストの可能性があります（5分間に1回のみ通知）`)
           await rateLimitClient.from('admin_alerts').insert({
             subject: 'Webhook署名検証失敗',
-            body: err.message,
+            body: errMsg,
             source: 'webhook_sig_fail',
           })
         }
       } catch (_) { /* rate limit check must never block the 400 response */ }
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 })
+      return new Response(`Webhook Error: ${errMsg}`, { status: 400 })
     }
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as any
+      const session = event.data.object as Stripe.Checkout.Session
 
-      const { orderId } = session.metadata ?? {}
+      const { orderId } = (session.metadata ?? {}) as Record<string, string>
       if (!orderId) throw new Error('No orderId in session metadata')
 
       const supabase = createClient(
@@ -72,9 +123,10 @@ serve(async (req: Request) => {
       // Fallback: by DB UUID from metadata.dbOrderId (handles the rare case where
       // Step 5 of startCheckoutSession failed to update stripe_session_id before
       // the webhook fired, or where the row has the tmp_ placeholder)
+      const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : null
       let { data: order, error: orderError } = await supabase
         .from('orders')
-        .update({ status: 'paid', payment_intent_id: session.payment_intent ?? null })
+        .update({ status: 'paid', payment_intent_id: paymentIntent })
         .eq('stripe_session_id', session.id)
         .eq('status', 'pending')
         .select()
@@ -84,7 +136,7 @@ serve(async (req: Request) => {
         // Primary lookup failed — try fallback via DB UUID and also fix the session ID
         const fallback = await supabase
           .from('orders')
-          .update({ status: 'paid', stripe_session_id: session.id, payment_intent_id: session.payment_intent ?? null })
+          .update({ status: 'paid', stripe_session_id: session.id, payment_intent_id: paymentIntent })
           .eq('id', session.metadata.dbOrderId)
           .eq('status', 'pending')
           .select()
@@ -114,7 +166,7 @@ serve(async (req: Request) => {
       if (itemsError) throw itemsError
 
       // Fetch per-product notification emails
-      const productIds = [...new Set((orderItems ?? []).map((i: any) => i.product_id).filter(Boolean))]
+      const productIds = [...new Set((orderItems ?? []).map((i: OrderItem) => i.product_id).filter(Boolean))]
       const { data: productRows } = productIds.length > 0
         ? await supabase.from('products').select('id, notification_email').in('id', productIds)
         : { data: [] }
@@ -123,11 +175,11 @@ serve(async (req: Request) => {
         if (p.notification_email) productEmailMap[p.id] = p.notification_email
       }
 
-      const customerInfo = order.customer_info as any
+      const customerInfo = order.customer_info as CustomerInfo
 
       // Notify admin on Slack immediately (before heavy background work)
       const adminUrl = `${Deno.env.get('NEXT_PUBLIC_SITE_URL') ?? 'https://fast-oem.soara-mu.jp'}/admin/orders/${order.id}`
-      const itemSummary = (orderItems ?? []).map((i: any) => `• ${i.product_name} ×${i.quantity}`).join('\n')
+      const itemSummary = (orderItems ?? []).map((i: OrderItem) => `• ${i.product_name} ×${i.quantity}`).join('\n')
       await sendSlackMessage(
         `🎉 *新規注文* 注文番号: ${orderId}\n` +
         `顧客: ${customerInfo?.name ?? customerInfo?.email ?? '—'}\n` +
@@ -146,7 +198,7 @@ serve(async (req: Request) => {
           // usage to a single image at a time at the cost of wall-clock time —
           // acceptable here because this runs in the background after the 200
           // response has already been sent to Stripe.
-          const imageItems = (orderItems ?? []).filter((item: any) => item.design_url?.startsWith('data:'))
+          const imageItems = (orderItems ?? []).filter((item: OrderItem) => item.design_url?.startsWith('data:'))
           for (const item of imageItems) {
             try {
               const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
@@ -156,8 +208,8 @@ serve(async (req: Request) => {
                   .update({ converted_design_url: convertedUrl })
                   .eq('id', item.id)
               }
-            } catch (imgErr: any) {
-              console.error(`[${orderId}] Image processing failed for item ${item.id}: ${imgErr.message}`)
+            } catch (imgErr: unknown) {
+              console.error(`[${orderId}] Image processing failed for item ${item.id}: ${imgErr instanceof Error ? imgErr.message : String(imgErr)}`)
               // Continue with remaining items — one bad image must not block others
             }
           }
@@ -171,7 +223,7 @@ serve(async (req: Request) => {
             .eq('order_id', order.id)
 
           const itemsForEmail = await Promise.all(
-            (freshItems ?? orderItems ?? []).map(async (item: any) => {
+            (freshItems ?? orderItems ?? []).map(async (item: OrderItem) => {
               const pdfPath: string | null = item.delivery_pdf_url ?? null
               if (!pdfPath || pdfPath.startsWith('http')) return item
               const { data: signed } = await supabase.storage
@@ -205,9 +257,9 @@ serve(async (req: Request) => {
                 customerEmail: customerInfo?.email ?? '',
                 orderItems: itemsForEmail,
                 totalPrice: order.total_price,
-                shippingFee: (order as any).shipping_fee ?? 0,
-                shippingAddress: order.shipping_address as any,
-                receiptAddressee: (order.shipping_address as any)?.receiptAddressee ?? customerInfo?.receiptAddressee,
+                shippingFee: order.shipping_fee ?? 0,
+                shippingAddress: order.shipping_address as ShippingAddress,
+                receiptAddressee: (order.shipping_address as ShippingAddress)?.receiptAddressee ?? customerInfo?.receiptAddressee,
                 productEmailMap,
               })
               // Clear any prior email error on successful send
@@ -217,14 +269,15 @@ serve(async (req: Request) => {
                 .eq('id', order.id)
                 .neq('email_send_error', null)
                 .then(() => {})
-            } catch (emailErr: any) {
+            } catch (emailErr: unknown) {
               // Risk #3: record failure in DB so admin can see it and manually follow up
-              console.error(`[${orderId}] Confirmation email failed: ${emailErr.message}`)
+              const emailErrMsg = emailErr instanceof Error ? emailErr.message : String(emailErr)
+              console.error(`[${orderId}] Confirmation email failed: ${emailErrMsg}`)
               // Reset the claim so the next Stripe webhook re-delivery can retry the send.
               // Without this reset the timestamp stays set and no retry ever fires.
               await supabase
                 .from('orders')
-                .update({ confirmation_email_sent_at: null, email_send_error: emailErr.message ?? '不明なエラー' })
+                .update({ confirmation_email_sent_at: null, email_send_error: emailErrMsg || '不明なエラー' })
                 .eq('id', order.id)
                 .then(() => {})
               // Re-throw so the outer catch block sends a Slack alert
@@ -237,7 +290,7 @@ serve(async (req: Request) => {
           // Check if the same email placed a previous paid order for the same product —
           // if so, admin should investigate whether a mold reuse discount should have applied.
           const newMoldItems = (freshItems ?? []).filter(
-            (i: any) => (i.mold_fee ?? 0) > 0 && !i.mold_order_id
+            (i: OrderItem) => (i.mold_fee ?? 0) > 0 && !i.mold_order_id
           )
           if (newMoldItems.length > 0 && customerInfo?.email) {
             try {
@@ -252,7 +305,7 @@ serve(async (req: Request) => {
                   .limit(1)
 
                 if (prevOrders && prevOrders.length > 0) {
-                  const prev = (prevOrders[0] as any).order_number ?? prevOrders[0].id
+                  const prev = prevOrders[0].order_number ?? prevOrders[0].id
                   const adminUrl = `${Deno.env.get('NEXT_PUBLIC_SITE_URL') ?? 'https://fast-oem.soara-mu.jp'}/admin/orders/${order.id}`
                   await sendSlackMessage(
                     `🔔 *型代免除の可能性あり*\n` +
@@ -266,14 +319,15 @@ serve(async (req: Request) => {
                   )
                 }
               }
-            } catch (moldCheckErr: any) {
-              console.error(`[${orderId}] Mold check error: ${moldCheckErr.message}`)
+            } catch (moldCheckErr: unknown) {
+              console.error(`[${orderId}] Mold check error: ${moldCheckErr instanceof Error ? moldCheckErr.message : String(moldCheckErr)}`)
             }
           }
-        } catch (bgErr: any) {
-          console.error(`[${orderId}] Background processing error: ${bgErr.message}`)
+        } catch (bgErr: unknown) {
+          const bgErrObj = bgErr instanceof Error ? bgErr : new Error(String(bgErr))
+          console.error(`[${orderId}] Background processing error: ${bgErrObj.message}`)
           const alertSubject = `バックグラウンド処理エラー: ${orderId}`
-          const alertBody = `注文ID: ${order.id}\n注文番号: ${orderId}\nエラー: ${bgErr.message}\n\nStack:\n${bgErr.stack ?? '—'}`
+          const alertBody = `注文ID: ${order.id}\n注文番号: ${orderId}\nエラー: ${bgErrObj.message}\n\nStack:\n${bgErrObj.stack ?? '—'}`
           // sendAdminAlert never throws — both Slack and email are best-effort
           await sendAdminAlert(alertSubject, alertBody)
           // Always write to DB as a tertiary audit trail (independent of Slack/email success)
@@ -284,7 +338,7 @@ serve(async (req: Request) => {
             order_id: order.id,
           }).then(
             () => {},
-            (dbErr: any) => console.error(`[${orderId}] admin_alerts DB write failed: ${dbErr.message}`),
+            (dbErr: unknown) => console.error(`[${orderId}] admin_alerts DB write failed: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`),
           )
         }
       })()
@@ -292,8 +346,8 @@ serve(async (req: Request) => {
       // Keep the Edge Function alive until background work completes.
       // If EdgeRuntime.waitUntil is unavailable (non-Deno env / unit tests),
       // fall back to awaiting inline so the work still runs.
-      if (typeof (globalThis as any).EdgeRuntime !== 'undefined') {
-        ;(globalThis as any).EdgeRuntime.waitUntil(backgroundWork)
+      if (typeof EdgeRuntime !== 'undefined') {
+        EdgeRuntime.waitUntil(backgroundWork)
       } else {
         await backgroundWork
       }
@@ -301,8 +355,8 @@ serve(async (req: Request) => {
 
     // ── Checkout session expired (customer abandoned without paying) ──────
     if (event.type === 'checkout.session.expired') {
-      const session = event.data.object as any
-      const { orderId } = session.metadata ?? {}
+      const session = event.data.object as Stripe.Checkout.Session
+      const { orderId } = (session.metadata ?? {}) as Record<string, string>
 
       if (orderId) {
         const supabase = createClient(
@@ -380,11 +434,11 @@ serve(async (req: Request) => {
             }
           }
 
-          const assignedItems = (orderItems ?? []).filter((i: any) => i.factory_id)
-          const customerInfo = order.customer_info as any
+          const assignedItems = (orderItems ?? []).filter((i: OrderItem) => i.factory_id)
+          const customerInfo = order.customer_info as CustomerInfo
 
           // Fetch per-product notification emails for cancellation
-          const cancelProductIds = [...new Set((orderItems ?? []).map((i: any) => i.product_id).filter(Boolean))]
+          const cancelProductIds = [...new Set((orderItems ?? []).map((i: OrderItem) => i.product_id).filter(Boolean))]
           const { data: cancelProductRows } = cancelProductIds.length > 0
             ? await supabase.from('products').select('id, notification_email').in('id', cancelProductIds)
             : { data: [] }
@@ -411,10 +465,10 @@ serve(async (req: Request) => {
               totalPrice: order.total_price,
               cancelledAt: new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }) + ' (JST)',
               productEmailMap: cancelEmailMap,
-            }).catch((e: any) => console.error(`[${orderId}] Cancellation email failed: ${e.message}`))
+            }).catch((e: unknown) => console.error(`[${orderId}] Cancellation email failed: ${e instanceof Error ? e.message : String(e)}`))
 
-            if (typeof (globalThis as any).EdgeRuntime !== 'undefined') {
-              ;(globalThis as any).EdgeRuntime.waitUntil(bgTask)
+            if (typeof EdgeRuntime !== 'undefined') {
+              EdgeRuntime.waitUntil(bgTask)
             } else {
               await bgTask
             }
@@ -429,8 +483,8 @@ serve(async (req: Request) => {
     // Fires when a refund is created in Stripe (admin-initiated or chargeback).
     // Lookup: payment_intent_id stored when the order was paid.
     if (event.type === 'charge.refunded') {
-      const charge = event.data.object as any
-      const paymentIntentId: string | null = charge.payment_intent ?? null
+      const charge = event.data.object as Stripe.Charge
+      const paymentIntentId: string | null = typeof charge.payment_intent === 'string' ? charge.payment_intent : null
       const refundedAmount: number = charge.amount_refunded ?? 0
       const isFullRefund: boolean = charge.refunded === true
 
@@ -479,8 +533,8 @@ serve(async (req: Request) => {
     // We only alert admins; if the session later expires without payment,
     // checkout.session.expired handles the cancellation.
     if (event.type === 'charge.failed') {
-      const charge = event.data.object as any
-      const paymentIntentId: string | null = charge.payment_intent ?? null
+      const charge = event.data.object as Stripe.Charge
+      const paymentIntentId: string | null = typeof charge.payment_intent === 'string' ? charge.payment_intent : null
       const failureCode: string = charge.failure_code ?? 'unknown'
       const failureMsg: string = charge.failure_message ?? ''
 
@@ -512,11 +566,12 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' },
     })
-  } catch (err: any) {
-    console.error(`Edge Function Error: ${err.message}`)
+  } catch (err: unknown) {
+    const fatalErr = err instanceof Error ? err : new Error(String(err))
+    console.error(`Edge Function Error: ${fatalErr.message}`)
     await sendSlackMessage(
-      `🔴 *Edge Function 致命的エラー*\nエラー: ${err.message}\n\nStack:\n${(err.stack ?? '—').slice(0, 500)}`
+      `🔴 *Edge Function 致命的エラー*\nエラー: ${fatalErr.message}\n\nStack:\n${(fatalErr.stack ?? '—').slice(0, 500)}`
     )
-    return new Response(`Error: ${err.message}`, { status: 500 })
+    return new Response(`Error: ${fatalErr.message}`, { status: 500 })
   }
 })
