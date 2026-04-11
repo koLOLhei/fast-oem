@@ -114,8 +114,12 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
 
   const lookupPostalCode = async (digits: string) => {
     setIsLookingUpAddress(true)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
     try {
-      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${digits}`)
+      const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${digits}`, {
+        signal: controller.signal,
+      })
       const json = await res.json()
       if (json.results && json.results.length > 0) {
         const result = json.results[0]
@@ -139,8 +143,9 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
         })
       }
     } catch {
-      // 住所自動入力に失敗した場合は何もしない
+      // 住所自動入力に失敗した場合は何もしない（タイムアウト含む）
     } finally {
+      clearTimeout(timeoutId)
       setIsLookingUpAddress(false)
     }
   }
@@ -185,8 +190,13 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
     setIsSubmitting(true)
 
     // Store shipping data in sessionStorage for use in payment page
-    sessionStorage.setItem('shipping-address', JSON.stringify(formData))
-    sessionStorage.setItem('shipping-fee', String(shippingFee))
+    try {
+      sessionStorage.setItem('shipping-address', JSON.stringify(formData))
+      sessionStorage.setItem('shipping-fee', String(shippingFee))
+    } catch {
+      // Private browsing or quota exceeded — data will be unavailable on payment
+      // page, but the server action re-validates everything anyway.
+    }
 
     router.push('/checkout/payment')
   }

@@ -22,11 +22,17 @@ export async function requireAdmin(): Promise<AdminContext> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
 
-    const { data: profile } = await createServiceClient()
+    const { data: profile, error: profileError } = await createServiceClient()
         .from('profiles')
         .select('role, is_active')
         .eq('id', user.id)
         .single()
+
+    if (profileError) {
+        console.error('[requireAdmin] Profile lookup failed:', profileError.message)
+        throw new Error('アカウント情報の取得に失敗しました。しばらくしてからお試しください。')
+    }
+    if (!profile) throw new Error('アカウント情報が見つかりません。管理者にお問い合わせください。')
 
     if ((profile as any)?.is_active === false) {
         throw new Error('このアカウントは無効化されています')
@@ -50,11 +56,17 @@ export async function requireFactory(): Promise<FactoryContext> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('認証が必要です')
 
-    const { data: profile } = await createServiceClient()
+    const { data: profile, error: profileError } = await createServiceClient()
         .from('profiles')
         .select('role, factory_id, is_active')
         .eq('id', user.id)
         .single()
+
+    if (profileError) {
+        console.error('[requireFactory] Profile lookup failed:', profileError.message)
+        throw new Error('アカウント情報の取得に失敗しました。しばらくしてからお試しください。')
+    }
+    if (!profile) throw new Error('アカウント情報が見つかりません。管理者にお問い合わせください。')
 
     if ((profile as any)?.is_active === false) {
         throw new Error('このアカウントは無効化されています')

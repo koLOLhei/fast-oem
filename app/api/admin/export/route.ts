@@ -30,6 +30,15 @@ export async function GET(req: NextRequest) {
     const statusFilter = req.nextUrl.searchParams.get('status') // optional: paid|pending|cancelled
     const fromDate = req.nextUrl.searchParams.get('from')       // optional: YYYY-MM-DD
     const toDate = req.nextUrl.searchParams.get('to')           // optional: YYYY-MM-DD
+
+    // Validate date format to prevent malformed queries
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+    if (fromDate && !DATE_RE.test(fromDate)) {
+        return new NextResponse('Invalid "from" date format (expected YYYY-MM-DD)', { status: 400 })
+    }
+    if (toDate && !DATE_RE.test(toDate)) {
+        return new NextResponse('Invalid "to" date format (expected YYYY-MM-DD)', { status: 400 })
+    }
     const service = createServiceClient()
 
     const EXPORT_MAX_ROWS = 10_000
@@ -138,7 +147,10 @@ export async function GET(req: NextRequest) {
 
     const { data: orders, error } = await ordersQuery
 
-    if (error) return new NextResponse('DB Error: ' + error.message, { status: 500 })
+    if (error) {
+        console.error('[export] DB error:', error.message)
+        return new NextResponse('データの取得に失敗しました', { status: 500 })
+    }
 
     const truncated = (orders?.length ?? 0) >= EXPORT_MAX_ROWS
 

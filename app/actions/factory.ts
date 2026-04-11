@@ -100,17 +100,59 @@ export async function revertItemStatus(itemId: string) {
 
 const VALID_ORDER_STATUSES = ['pending', 'paid', 'processing', 'partially_shipped', 'shipped', 'completed', 'cancelled', 'refunded'] as const
 
+/**
+ * Allowed order status transitions. Keys are the current status,
+ * values are the statuses that the order may transition to.
+ * This prevents nonsensical jumps (e.g. pending → shipped).
+ */
+const ALLOWED_ORDER_TRANSITIONS: Record<string, readonly string[]> = {
+    pending: ['paid', 'cancelled'],
+    paid: ['processing', 'cancelled', 'refunded'],
+    processing: ['partially_shipped', 'shipped', 'cancelled', 'refunded'],
+    partially_shipped: ['shipped', 'cancelled', 'refunded'],
+    shipped: ['completed', 'refunded'],
+    completed: ['refunded'],
+    cancelled: [],   // terminal
+    refunded: [],    // terminal
+}
+
 export async function updateOrderStatus(orderId: string, status: string) {
     if (!(VALID_ORDER_STATUSES as readonly string[]).includes(status)) {
         throw new Error(`無効なステータスです: ${status}`)
     }
     await requireAdmin()
-    const { error } = await createServiceClient()
+
+    const service = createServiceClient()
+
+    // Fetch current status to validate the transition
+    const { data: current, error: fetchError } = await service
+        .from('orders')
+        .select('status')
+        .eq('id', orderId)
+        .single()
+
+    if (fetchError || !current) throw new Error('注文が見つかりません')
+
+    const allowed = ALLOWED_ORDER_TRANSITIONS[current.status] ?? []
+    if (!allowed.includes(status)) {
+        throw new Error(
+            `ステータスを「${current.status}」から「${status}」に変更することはできません`
+        )
+    }
+
+    // Optimistic lock: only update if status hasn't changed since we read it
+    const { data: updated, error } = await service
         .from('orders')
         .update({ status })
         .eq('id', orderId)
+        .eq('status', current.status)
+        .select('id')
 
     if (error) throw new Error(error.message)
+    if (!updated || updated.length === 0) {
+        throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
+    }
+
     revalidatePath('/admin')
     revalidatePath(`/admin/orders/${orderId}`)
 }
@@ -442,7 +484,7 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
             await sendSlackMessage(
                 `❌ *返金失敗（要手動対応）*\n注文番号: ${(order as any).order_number ?? orderId}\n` +
                 `エラー: ${stripeErr.message}\n手動でStripeダッシュボードから返金してください。`,
-            )
+            ).catch(() => {})
         }
     }
 

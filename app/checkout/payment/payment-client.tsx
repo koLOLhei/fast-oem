@@ -69,21 +69,30 @@ export function PaymentClient() {
 
     // Store order data for the complete page
     // Notifications are sent by the Stripe webhook — no duplicate calls here
-    sessionStorage.setItem(
-      'completed-order',
-      JSON.stringify({
-        orderId,
-        sessionId,
-        items: cart.items,
-        shippingAddress,
-        shippingFee,
-        totalPrice: cart.totalPrice + shippingFee,
-      })
-    )
+    try {
+      sessionStorage.setItem(
+        'completed-order',
+        JSON.stringify({
+          orderId,
+          sessionId,
+          items: cart.items,
+          shippingAddress,
+          shippingFee,
+          totalPrice: cart.totalPrice + shippingFee,
+        })
+      )
+    } catch {
+      // Private browsing or quota exceeded — complete page will show a minimal
+      // confirmation. The order is already paid, so this is cosmetic only.
+    }
 
     clearCart()
-    sessionStorage.removeItem('shipping-address')
-    sessionStorage.removeItem('shipping-fee')
+    try {
+      sessionStorage.removeItem('shipping-address')
+      sessionStorage.removeItem('shipping-fee')
+    } catch {
+      // Safe to ignore — cleanup only
+    }
     router.push('/checkout/complete')
   }, [cart, shippingAddress, orderId, sessionId, clearCart, router])
 
