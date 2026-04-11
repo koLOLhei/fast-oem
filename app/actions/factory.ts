@@ -36,6 +36,7 @@ export async function assignFactory(itemId: string, factoryId: string) {
 const VALID_ITEM_STATUSES = ['unassigned', 'assigned', 'manufacturing', 'ready_to_ship', 'shipped', 'cancelled'] as const
 
 export async function updateItemStatus(itemId: string, status: string) {
+    if (!isValidUUID(itemId)) throw new Error('無効なアイテムIDです')
     if (!(VALID_ITEM_STATUSES as readonly string[]).includes(status)) {
         throw new Error(`無効なステータスです: ${status}`)
     }
@@ -52,7 +53,10 @@ export async function updateItemStatus(itemId: string, status: string) {
         .eq('id', itemId)
         .eq('factory_id', factoryId)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[updateItemStatus] DB error:', error.message)
+        throw new Error('ステータスの更新に失敗しました')
+    }
     revalidatePath('/admin')
     revalidatePath('/factory')
     revalidatePath('/admin/orders/[id]', 'page')
@@ -64,6 +68,7 @@ export async function updateItemStatus(itemId: string, status: string) {
  * Useful when a factory mistakenly pressed "start manufacturing".
  */
 export async function revertItemStatus(itemId: string) {
+    if (!isValidUUID(itemId)) throw new Error('無効なアイテムIDです')
     const { factoryId } = await requireFactory()
     if (!factoryId) throw new Error('工場が割り当てられていません。管理者に連絡してください。')
 
@@ -92,7 +97,10 @@ export async function revertItemStatus(itemId: string) {
         .eq('status', item.status)
         .select('id')
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[revertItemStatus] DB error:', error.message)
+        throw new Error('ステータスの変更に失敗しました')
+    }
     if (!updated || updated.length === 0) {
         throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
     }
@@ -121,6 +129,7 @@ const ALLOWED_ORDER_TRANSITIONS: Record<string, readonly string[]> = {
 }
 
 export async function updateOrderStatus(orderId: string, status: string) {
+    if (!isValidUUID(orderId)) throw new Error('無効な注文IDです')
     if (!(VALID_ORDER_STATUSES as readonly string[]).includes(status)) {
         throw new Error(`無効なステータスです: ${status}`)
     }
@@ -152,7 +161,10 @@ export async function updateOrderStatus(orderId: string, status: string) {
         .eq('status', current.status)
         .select('id')
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[updateOrderStatus] DB error:', error.message)
+        throw new Error('ステータスの更新に失敗しました')
+    }
     if (!updated || updated.length === 0) {
         throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
     }
@@ -167,6 +179,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
  * then sends a shipping notification email to the customer.
  */
 export async function submitTrackingNumber(itemId: string, trackingNumber: string) {
+    if (!isValidUUID(itemId)) throw new Error('無効なアイテムIDです')
     const tracking = trackingNumber.trim()
     if (!tracking) throw new Error('追跡番号を入力してください')
     if (tracking.length < 5) throw new Error('追跡番号が短すぎます（5文字以上）')
@@ -227,8 +240,8 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
         .eq('id', itemId)
 
     if (updateError) {
-        console.error('[submitTrackingNumber] Failed to update item:', { itemId, error: updateError })
-        throw new Error(updateError.message)
+        console.error('[submitTrackingNumber] Failed to update item:', { itemId, error: updateError.message })
+        throw new Error('追跡番号の保存に失敗しました')
     }
 
     // Update order-level status based on how many items are now shipped
@@ -335,6 +348,7 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
 }
 
 export async function updateOrderNote(orderId: string, note: string) {
+    if (!isValidUUID(orderId)) throw new Error('無効な注文IDです')
     await requireAdmin()
     // Use service client to bypass RLS — same pattern as adminCancelOrder
     const service = createServiceClient()
@@ -342,7 +356,10 @@ export async function updateOrderNote(orderId: string, note: string) {
     if (!trimmed) {
         // Allow clearing: just save empty
         const { error } = await service.from('orders').update({ admin_notes: '' }).eq('id', orderId)
-        if (error) throw new Error(error.message)
+        if (error) {
+            console.error('[updateOrderNote] DB error:', error.message)
+            throw new Error('メモの更新に失敗しました')
+        }
         revalidatePath(`/admin/orders/${orderId}`)
         return
     }
@@ -356,11 +373,15 @@ export async function updateOrderNote(orderId: string, note: string) {
 
     const { error } = await service
         .from('orders').update({ admin_notes: newNotes }).eq('id', orderId)
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[updateOrderNote] DB error:', error.message)
+        throw new Error('メモの更新に失敗しました')
+    }
     revalidatePath(`/admin/orders/${orderId}`)
 }
 
 export async function updateFactoryNote(orderId: string, note: string) {
+    if (!isValidUUID(orderId)) throw new Error('無効な注文IDです')
     await requireAdmin()
     // Use service client to bypass RLS — same pattern as adminCancelOrder
     const { error } = await createServiceClient()
@@ -368,11 +389,15 @@ export async function updateFactoryNote(orderId: string, note: string) {
         .update({ factory_note: note.slice(0, 1000) })
         .eq('id', orderId)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[updateFactoryNote] DB error:', error.message)
+        throw new Error('工場メモの更新に失敗しました')
+    }
     revalidatePath(`/admin/orders/${orderId}`)
 }
 
 export async function bulkAssignFactory(orderId: string, factoryId: string) {
+    if (!isValidUUID(orderId) || !isValidUUID(factoryId)) throw new Error('無効なIDが指定されました')
     await requireAdmin()
     const service = createServiceClient()
 
@@ -384,8 +409,8 @@ export async function bulkAssignFactory(orderId: string, factoryId: string) {
         .eq('status', 'unassigned')
 
     if (fetchErr) {
-        console.error('[bulkAssignFactory] Fetch error:', { orderId, factoryId, error: fetchErr })
-        throw new Error(fetchErr.message)
+        console.error('[bulkAssignFactory] Fetch error:', fetchErr.message)
+        throw new Error('アイテム情報の取得に失敗しました')
     }
     if (!unassigned || unassigned.length === 0) {
         throw new Error('割り当て可能なアイテムがありません')
@@ -400,8 +425,8 @@ export async function bulkAssignFactory(orderId: string, factoryId: string) {
         .select('id')
 
     if (error) {
-        console.error('[bulkAssignFactory] DB error:', { orderId, factoryId, error })
-        throw new Error(error.message)
+        console.error('[bulkAssignFactory] DB error:', error.message)
+        throw new Error('工場の一括割り当てに失敗しました')
     }
     if ((updated?.length ?? 0) < unassigned.length) {
         console.warn(`[bulkAssignFactory] Partial assignment: ${updated?.length}/${unassigned.length} items (concurrent modification)`)
@@ -421,6 +446,7 @@ export async function bulkAssignFactory(orderId: string, factoryId: string) {
  * Cancellable statuses: pending, paid, processing, partially_shipped
  */
 export async function adminCancelOrder(orderId: string, reason: string, cancellationFee?: number): Promise<void> {
+    if (!isValidUUID(orderId)) throw new Error('無効な注文IDです')
     await requireAdmin()
 
     if (!reason.trim()) throw new Error('キャンセル理由を入力してください')
@@ -658,12 +684,16 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
 
 // Assign a Supabase Auth user to a factory (factory role)
 export async function linkUserToFactory(userId: string, factoryId: string) {
+    if (!isValidUUID(userId) || !isValidUUID(factoryId)) throw new Error('無効なIDが指定されました')
     await requireAdmin()
     const { error } = await createServiceClient()
         .from('profiles')
         .update({ factory_id: factoryId, role: 'factory' })
         .eq('id', userId)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[linkUserToFactory] DB error:', error.message)
+        throw new Error('ユーザーの工場割り当てに失敗しました')
+    }
     revalidatePath('/admin')
 }

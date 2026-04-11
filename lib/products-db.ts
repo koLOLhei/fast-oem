@@ -138,6 +138,9 @@ export async function getAllProductsForAdmin() {
         .from('products')
         .select('*')
         .order('created_at')
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[getAllProductsForAdmin] DB error:', error.message)
+        throw new Error('商品データの取得に失敗しました')
+    }
     return (data ?? []).map(rowToProduct)
 }

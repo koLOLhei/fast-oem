@@ -77,7 +77,10 @@ export async function updateProduct(id: string, updates: Partial<Product> & { is
         .from('products')
         .update(productToRow(updates))
         .eq('id', id)
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[updateProduct] DB error:', error.message)
+        throw new Error('商品の更新に失敗しました')
+    }
 
     // Best-effort deletion — don't fail the whole operation if cleanup fails
     if (oldImagePath) {
@@ -103,7 +106,8 @@ export async function createProduct(product: Omit<Product, 'id'> & { id: string 
         if (error.code === '23505' && error.message.includes('slug')) {
             throw new Error(`スラッグ「${row.slug}」は既に使用されています。商品名を変更してください。`)
         }
-        throw new Error(error.message)
+        console.error('[createProduct] DB error:', error.message)
+        throw new Error('商品の作成に失敗しました')
     }
     revalidateTag('products', 'max')
     revalidatePath('/admin/products')
@@ -118,7 +122,10 @@ export async function toggleProductActive(id: string, isActive: boolean) {
         .from('products')
         .update({ is_active: isActive })
         .eq('id', id)
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[toggleProductActive] DB error:', error.message)
+        throw new Error('商品の状態変更に失敗しました')
+    }
     revalidateTag('products', 'max')
     revalidatePath('/admin/products')
     revalidatePath('/products')
@@ -135,7 +142,10 @@ export async function applyGlobalPriceAdjustment(percent: number) {
     if (percent <= 0 || !Number.isFinite(percent)) throw new Error('率は0より大きい値を指定してください')
     const supabase = createServiceClient()
     const { data: products, error } = await supabase.from('products').select('id, price_tiers')
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[applyGlobalPriceAdjustment] DB error:', error.message)
+        throw new Error('商品データの取得に失敗しました')
+    }
     const multiplier = percent / 100
     const list = products ?? []
     const updates = list.map((p: any) => {
@@ -181,7 +191,10 @@ export async function uploadProductImage(formData: FormData): Promise<string> {
     const { error } = await supabase.storage
         .from('product-images')
         .upload(path, bytes, { contentType: file.type, upsert: false })
-    if (error) throw new Error(error.message)
+    if (error) {
+        console.error('[uploadProductImage] Storage error:', error.message)
+        throw new Error('画像のアップロードに失敗しました')
+    }
     const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path)
     return publicUrl
 }
