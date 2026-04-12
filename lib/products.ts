@@ -184,7 +184,6 @@ export const PRODUCTS: Product[] = [
       { minQuantity: 10001, maxQuantity: 20000, unitPrice: 47, discountPercent: 32 },
       { minQuantity: 20001, maxQuantity: 50000, unitPrice: 45, discountPercent: 35 },
       { minQuantity: 50001, maxQuantity: 100000, unitPrice: 43, discountPercent: 38 },
-      { minQuantity: 100001, maxQuantity: 200000, unitPrice: 40, discountPercent: 42 },
     ],
     options: [
       {
@@ -320,7 +319,6 @@ export const PRODUCTS: Product[] = [
       { minQuantity: 10001, maxQuantity: 20000, unitPrice: 47, discountPercent: 22 },
       { minQuantity: 20001, maxQuantity: 50000, unitPrice: 47, discountPercent: 22 },
       { minQuantity: 50001, maxQuantity: 100000, unitPrice: 46, discountPercent: 23 },
-      { minQuantity: 100001, maxQuantity: 200000, unitPrice: 44, discountPercent: 27 },
     ],
     options: [
       {
@@ -382,7 +380,6 @@ export const PRODUCTS: Product[] = [
       { minQuantity: 10001, maxQuantity: 20000, unitPrice: 45, discountPercent: 33 },
       { minQuantity: 20001, maxQuantity: 50000, unitPrice: 43, discountPercent: 36 },
       { minQuantity: 50001, maxQuantity: 100000, unitPrice: 40, discountPercent: 40 },
-      { minQuantity: 100001, maxQuantity: 200000, unitPrice: 38, discountPercent: 43 },
     ],
     options: [
       {

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCart } from '@/components/cart-provider'
 import { formatPrice, getProductById } from '@/lib/products'
-import { calculateShippingByQuantity } from '@/lib/shipping'
+import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
 import { calculateTotalQuantity } from '@/lib/cart'
 
 export function CartClient() {
@@ -19,7 +19,7 @@ export function CartClient() {
   const totalQuantity = calculateTotalQuantity(cart.items)
   const shippingFee = calculateShippingByQuantity(totalQuantity)
   const hasExpress = cart.items.some((item) => item.expressDelivery)
-  const displayShippingFee = hasExpress ? shippingFee * 2 : shippingFee
+  const displayShippingFee = hasExpress ? calculateExpressShipping(shippingFee) : shippingFee
 
   if (isLoading) {
     return (

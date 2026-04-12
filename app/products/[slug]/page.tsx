@@ -58,11 +58,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const relatedProducts = await getRelatedProducts(slug, 3)
 
-  const minPriceExTax = product.priceTiers.length > 0
+  // priceTiers の unitPrice は税込価格
+  const minPrice = product.priceTiers.length > 0
     ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
     : undefined
-  // Schema.org price should reflect the tax-inclusive price shown to consumers
-  const minPrice = minPriceExTax !== undefined ? Math.round(minPriceExTax * 1.1) : undefined
 
   const jsonLd = {
     '@context': 'https://schema.org',

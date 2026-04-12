@@ -15,6 +15,8 @@ import { useCart } from '@/components/cart-provider'
 import { startCheckoutSession } from '@/app/actions/stripe'
 import { type ShippingAddress } from '@/lib/order'
 import { formatPrice } from '@/lib/products'
+import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
+import { calculateTotalQuantity } from '@/lib/cart'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -22,7 +24,7 @@ export function PaymentClient() {
   const router = useRouter()
   const { cart, clearCart, isLoading: cartLoading } = useCart()
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null)
-  const [shippingFee, setShippingFee] = useState(0)
+  const [shippingFeeFromSession, setShippingFeeFromSession] = useState(0)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,7 +38,7 @@ export function PaymentClient() {
       if (savedAddress) {
         try {
           setShippingAddress(JSON.parse(savedAddress))
-          setShippingFee(savedFee ? parseInt(savedFee, 10) : 0)
+          setShippingFeeFromSession(savedFee ? parseInt(savedFee, 10) : 0)
         } catch {
           setError('配送先情報の読み込みに失敗しました')
         }
@@ -50,6 +52,14 @@ export function PaymentClient() {
     }
     setIsLoading(false)
   }, [router])
+
+  // カートから送料をライブ再計算（sessionStorage のステール化を防止）
+  const totalQuantity = calculateTotalQuantity(cart.items)
+  const baseShippingFee = calculateShippingByQuantity(totalQuantity)
+  const hasExpress = cart.items.some((item) => item.expressDelivery)
+  const liveShippingFee = hasExpress ? calculateExpressShipping(baseShippingFee) : baseShippingFee
+  // カートに商品がある場合はライブ計算を優先、空の場合はsessionStorageのフォールバック
+  const shippingFee = cart.items.length > 0 ? liveShippingFee : shippingFeeFromSession
 
   const fetchClientSecret = useCallback(async () => {
     if (!shippingAddress || cart.items.length === 0) {
@@ -257,7 +267,9 @@ export function PaymentClient() {
                     <span>{formatPrice(cart.totalPrice)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">送料</span>
+                    <span className="text-muted-foreground">
+                      {hasExpress ? '送料（特急便 ×2）' : '送料'}
+                    </span>
                     <span className="text-foreground font-medium">
                       {shippingFee > 0 ? formatPrice(shippingFee) : '計算中...'}
                     </span>

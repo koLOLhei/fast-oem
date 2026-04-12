@@ -94,7 +94,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     numberOfItems: filteredProducts.length,
     itemListElement: filteredProducts.map((product, index) => {
       const minPrice = product.priceTiers.length > 0
-        ? Math.round(Math.min(...product.priceTiers.map((t) => t.unitPrice)) * 1.1)
+        ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
         : undefined
       return {
         '@type': 'ListItem',
