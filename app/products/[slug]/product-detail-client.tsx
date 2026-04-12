@@ -135,6 +135,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const formatPriceModifier = (modifier?: { type: 'add' | 'multiply'; value: number }) => {
     if (!modifier || product.fixedUnitPrice) return ''
     if (modifier.type === 'add') {
+      if (modifier.value < 0) return formatPrice(modifier.value)
       return `+${formatPrice(modifier.value)}`
     } else if (modifier.type === 'multiply') {
       const percent = Math.round((modifier.value - 1) * 100)

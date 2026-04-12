@@ -212,6 +212,17 @@ export const PRODUCTS: Product[] = [
         ],
       },
       {
+        id: 'shape',
+        name: '外枠の形',
+        type: 'list',
+        required: true,
+        values: [
+          { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
+          { id: 'round', label: '丸型' },
+          { id: 'rounded-rect', label: '角丸四角' },
+        ],
+      },
+      {
         id: 'white_back',
         name: 'ホワイト（白バック）',
         type: 'list',
@@ -264,8 +275,8 @@ export const PRODUCTS: Product[] = [
     id: 'can-badge',
     slug: 'can-badge',
     name: '缶バッジ',
-    description: 'イベントや販促に最適な缶バッジ。安全ピンタイプで衣類に簡単に取り付けられます。',
-    shortDescription: '定番の缶バッジでオリジナルグッズ',
+    description: 'イベントや販促に最適な丸型缶バッジ。安全ピンタイプで衣類に簡単に取り付けられます。形状は丸型のみとなります。',
+    shortDescription: '丸型の定番缶バッジでオリジナルグッズ',
     category: 'badge',
     requiresMold: false,
     isActive: true,
@@ -319,7 +330,7 @@ export const PRODUCTS: Product[] = [
     minQuantity: 100,
     maxQuantity: 200000,
     imageUrl: '/images/can-badge.jpg',
-    features: ['高品質印刷', '安全ピン仕様', '丸型', '大ロット対応（最大20万個）'],
+    features: ['高品質印刷', '安全ピン仕様', '丸型のみ（型抜き不可）', '大ロット対応（最大20万個）'],
     quantityPresets: [100, 200, 300, 500, 1000, 3000, 5000, 10000],
   },
   {
@@ -363,6 +374,19 @@ export const PRODUCTS: Product[] = [
           { id: '60mm', label: '60mm', priceModifier: { type: 'add', value: 48 } },
           { id: '70mm', label: '70mm', priceModifier: { type: 'add', value: 72 } },
           { id: '80mm', label: '80mm', priceModifier: { type: 'add', value: 96 } },
+        ],
+      },
+      {
+        id: 'shape',
+        name: '外枠の形',
+        type: 'list',
+        required: true,
+        values: [
+          { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
+          { id: 'round', label: '丸型' },
+          { id: 'rounded-rect', label: '角丸四角' },
+          { id: 'heart', label: 'ハート型' },
+          { id: 'star', label: '星型' },
         ],
       },
       {
@@ -450,6 +474,17 @@ export const PRODUCTS: Product[] = [
           { id: 'ball-chain', label: 'ボールチェーン' },
           { id: 'lobster', label: 'カニカン' },
           { id: 'strap', label: 'ストラップ' },
+        ],
+      },
+      {
+        id: 'shape',
+        name: '外枠の形',
+        type: 'list',
+        required: true,
+        values: [
+          { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
+          { id: 'round', label: '丸型' },
+          { id: 'rounded-rect', label: '角丸四角' },
         ],
       },
       {
