@@ -9,7 +9,7 @@ import { Ratelimit } from '@upstash/ratelimit'
 // ---------------------------------------------------------------------------
 
 /** Routes subject to rate limiting. Stripe webhooks are intentionally excluded. */
-const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices'] as const
+const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices', '/api/orders', '/login', '/signup', '/reset-password'] as const
 
 /**
  * Pre-parsed IP allowlist entries from ADMIN_ALLOWED_IPS env var.

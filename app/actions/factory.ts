@@ -2,7 +2,7 @@
 
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
-import { sendShippingNotification, sendAllShippedNotification } from '@/app/actions/order'
+import { sendShippingNotification, sendAllShippedNotification } from '@/lib/order-emails'
 import { stripe } from '@/lib/stripe'
 import { sendSlackMessage } from '@/lib/slack'
 import { requireAdmin, requireFactory } from '@/lib/auth/require-admin'

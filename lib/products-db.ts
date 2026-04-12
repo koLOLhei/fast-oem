@@ -7,6 +7,7 @@
  * The Supabase round-trip is fast enough (~50ms) and avoids all cache
  * invalidation bugs that caused new products to 404.
  */
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 import { type Product, PRODUCTS } from './products'
 

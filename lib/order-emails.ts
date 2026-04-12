@@ -1,7 +1,12 @@
-'use server'
+import 'server-only'
 
 /**
  * Email notifications for order lifecycle events.
+ *
+ * IMPORTANT: This module is intentionally NOT a Server Action ('use server').
+ * These functions are called internally from authenticated server actions
+ * (e.g. factory.ts → submitTrackingNumber) and must NOT be directly
+ * callable from the client.
  *
  * NOTE: Order confirmation emails (customer + factory) are handled by the
  * Supabase Edge Function (supabase/functions/stripe-webhook/send-email.ts).

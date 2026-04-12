@@ -6,9 +6,12 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RETENTION_DAYS = 90
 
 Deno.serve(async (req) => {
-  // Auth check
+  // Auth check — fail-closed: reject if secret is not configured
+  if (!CLEANUP_SECRET) {
+    return new Response('CLEANUP_SECRET not configured', { status: 503 })
+  }
   const auth = req.headers.get('Authorization')
-  if (CLEANUP_SECRET && auth !== `Bearer ${CLEANUP_SECRET}`) {
+  if (auth !== `Bearer ${CLEANUP_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
   }
 
@@ -28,7 +31,6 @@ Deno.serve(async (req) => {
     let deletedOrders = 0
 
     for (const order of oldOrders ?? []) {
-      const prefix = `${order.id}/`
       const { data: files } = await supabase.storage
         .from('designs')
         .list(order.id, { limit: 100 })
@@ -45,6 +47,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ ok: true, deletedOrders, deletedFiles, cutoff })
   } catch (err: any) {
-    return Response.json({ ok: false, error: err.message }, { status: 500 })
+    console.error('cleanup-storage error:', err.message)
+    return Response.json({ ok: false, error: 'Internal error' }, { status: 500 })
   }
 })

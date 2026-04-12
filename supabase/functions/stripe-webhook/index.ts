@@ -104,7 +104,7 @@ serve(async (req: Request) => {
           })
         }
       } catch (_) { /* rate limit check must never block the 400 response */ }
-      return new Response(`Webhook Error: ${errMsg}`, { status: 400 })
+      return new Response('Invalid signature', { status: 400 })
     }
 
     if (event.type === 'checkout.session.completed') {
@@ -628,6 +628,6 @@ serve(async (req: Request) => {
     await sendSlackMessage(
       `🔴 *Edge Function 致命的エラー*\nエラー: ${fatalErr.message}\n\nStack:\n${(fatalErr.stack ?? '—').slice(0, 500)}`
     )
-    return new Response(`Error: ${fatalErr.message}`, { status: 500 })
+    return new Response('Internal server error', { status: 500 })
   }
 })
