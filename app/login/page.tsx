@@ -28,17 +28,6 @@ export default async function LoginPage(
                 <p className="text-sm text-muted-foreground mt-2">
                     管理者・工場スタッフ・マイページ共通のログインです。
                 </p>
-                <div className="flex justify-center gap-4 mt-3">
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                        管理者 → /admin
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium">
-                        工場 → /factory
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">
-                        一般 → /mypage
-                    </span>
-                </div>
             </div>
 
             <form className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground mb-8">
