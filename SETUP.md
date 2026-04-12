@@ -19,11 +19,11 @@ COMPANY_NAME=FAST OEM株式会社
 COMPANY_ADDRESS=東京都〇〇区〇〇1-2-3
 INVOICE_QUALIFIED_NUMBER=T0000000000000
 
-# Email（オプション - 注文通知用）
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
+# Email（Resend）
+RESEND_API_KEY=your_resend_api_key
+
+# Slack通知（オプション）
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
 ```
 
 ## Stripe Webhookの設定
@@ -74,11 +74,30 @@ supabase secrets list
 
 ### 3. Stripe DashboardでWebhookを設定
 
+**Webhook処理は二層構成です：**
+- **Supabase Edge Function (primary)**: DB更新、画像処理、メール送信、アラート
+- **Next.js API Route (secondary)**: Next.jsキャッシュの無効化のみ（`revalidatePath`）
+
+#### 3a. Edge Function用Webhookエンドポイント（必須）
+
 1. Stripe Dashboardで新しいWebhookエンドポイントを作成：
    - URL: `https://your-project-ref.supabase.co/functions/v1/stripe-webhook`
-   - イベント: `checkout.session.completed`
+   - イベント: `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`, `charge.failed`, `charge.dispute.created`
+2. Webhook署名シークレットをコピーして設定：
+   ```bash
+   supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+   ```
 
-2. Webhook署名シークレットは不要です（Supabase Edge Functionが処理します）
+#### 3b. Next.js用Webhookエンドポイント（任意・推奨）
+
+1. Stripe Dashboardで2つ目のWebhookエンドポイントを作成：
+   - URL: `https://your-domain.com/api/webhooks/stripe`
+   - イベント: 3aと同一
+2. Webhook署名シークレットを`.env.local`に設定：
+   ```
+   STRIPE_WEBHOOK_SECRET=whsec_yyyyy
+   ```
+   ※ Edge FunctionとNext.jsは異なるシークレットを使用します
 
 ### 4. メール通知の設定
 
@@ -228,7 +247,7 @@ npm run dev
 ### メール通知が送信されない
 - `RESEND_API_KEY`がSupabase Secretsに設定されているか確認
 - Resendで送信元ドメインが認証されているか確認
-- `send-email.ts`の送信先メールアドレス（factory@example.com）を実際のアドレスに変更
+- 工場通知メール先は管理画面の商品設定（`notification_email`）または工場設定（`contact_email`）で管理
 - Edge Functionのログでエラーを確認：
   ```bash
   supabase functions logs stripe-webhook --tail
@@ -266,15 +285,20 @@ npm run dev
 本番環境にデプロイした後は以下を確認：
 
 1. **環境変数の設定**
-   - Next.js（Vercel等）: `.env.local`の内容を本番環境変数に設定
+   - Next.js（Vercel等）: `.env.example`に記載の全変数を本番環境変数に設定
    - Supabase: `supabase secrets set`コマンドで全ての秘密情報を設定
 
-2. **Webhook URL**
-   - Stripe DashboardのWebhook URLを本番のSupabase Edge Function URLに変更
+2. **Stripe Webhook（二層構成）**
+   - **Edge Function（必須）**: Stripe Dashboard → Webhook URL = `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`
+     - イベント: `checkout.session.completed`, `checkout.session.expired`, `charge.refunded`, `charge.failed`, `charge.dispute.created`
+     - シークレットは `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxx` で設定
+   - **Next.js（任意）**: Stripe Dashboard → 2つ目のWebhook URL = `https://<your-domain>/api/webhooks/stripe`
+     - Edge Functionと同じイベントを設定（キャッシュ無効化のみ実行）
+     - シークレットは `.env.local` の `STRIPE_WEBHOOK_SECRET` に設定
 
 3. **メール送信**
    - Resendで本番ドメインを認証
-   - `send-email.ts`の送信元ドメインを本番ドメインに変更
+   - `FROM_EMAIL`, `CONTACT_EMAIL` を Supabase Secrets に設定
 
 4. **データベースマイグレーション**
    - 本番データベースにマイグレーションを適用：

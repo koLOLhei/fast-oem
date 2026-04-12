@@ -562,6 +562,62 @@ serve(async (req: Request) => {
       }
     }
 
+    // ── charge.dispute.created — log dispute to admin_alerts + Slack ────────
+    // Disputes require manual resolution in the Stripe dashboard.
+    // We record the dispute in admin_alerts so admins are aware immediately.
+    if (event.type === 'charge.dispute.created') {
+      const dispute = event.data.object as Stripe.Dispute
+      const chargeId: string = typeof dispute.charge === 'string' ? dispute.charge : (dispute.charge as Stripe.Charge)?.id ?? '—'
+      const paymentIntentId: string | null = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : null
+      const amount: number = dispute.amount ?? 0
+      const reason: string = dispute.reason ?? 'unknown'
+      const currency: string = dispute.currency ?? 'jpy'
+
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') as string,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
+      )
+
+      // Try to find the associated order for context
+      let orderLabel = chargeId
+      let orderId: string | null = null
+      if (paymentIntentId) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, order_number')
+          .eq('payment_intent_id', paymentIntentId)
+          .maybeSingle()
+        if (order) {
+          orderLabel = order.order_number ?? order.id
+          orderId = order.id
+        }
+      }
+
+      // Always insert an alert — with or without order match
+      await supabase.from('admin_alerts').insert({
+        subject: `チャージバック発生: ${orderLabel}`,
+        body: [
+          orderId ? `注文: ${orderLabel}` : `注文との紐付けができませんでした`,
+          `Charge: ${chargeId}`,
+          `金額: ${currency.toUpperCase()} ${amount}`,
+          `理由: ${reason}`,
+          '',
+          'Stripe Dashboardで対応が必要です。',
+        ].join('\n'),
+        source: 'dispute_created',
+        ...(orderId ? { order_id: orderId } : {}),
+      })
+
+      await sendSlackMessage(
+        `🚨 *チャージバック発生*\n` +
+        `注文: ${orderLabel}\n` +
+        `金額: ${currency.toUpperCase()} ${amount.toLocaleString('en')}\n` +
+        `理由: ${reason}\n` +
+        `Charge ID: ${chargeId}\n\n` +
+        `Stripe Dashboardで対応が必要です。`
+      )
+    }
+
     // Return 200 immediately — Stripe doesn't need to wait for images/emails
     return new Response(JSON.stringify({ received: true }), {
       headers: { 'Content-Type': 'application/json' },
