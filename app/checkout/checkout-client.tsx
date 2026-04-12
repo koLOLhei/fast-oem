@@ -18,10 +18,12 @@ import {
 import { useCart } from '@/components/cart-provider'
 import { formatPrice } from '@/lib/products'
 import { type ShippingAddress, PREFECTURES } from '@/lib/order'
-import { calculateShippingFee, SHIPPING_ZONE_LABELS, getShippingZone, SHIPPING_FEES, type ShippingZone } from '@/lib/shipping'
+import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
+import { calculateTotalQuantity } from '@/lib/cart'
 
 interface CheckoutClientProps {
-  shippingFees?: Record<ShippingZone, number>
+  /* shippingFees prop kept for signature compatibility but no longer used */
+  shippingFees?: Record<string, number>
 }
 
 /** ひらがな → カタカナ変換（カナ入力欄で自動変換） */
@@ -31,17 +33,21 @@ function toKatakana(str: string): string {
   )
 }
 
-export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientProps) {
+export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientProps) {
   const router = useRouter()
   const { cart, isLoading } = useCart()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isLookingUpAddress, setIsLookingUpAddress] = useState(false)
-  const [shippingFee, setShippingFee] = useState(0)
-  const [shippingZoneLabel, setShippingZoneLabel] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [agreedToCancel, setAgreedToCancel] = useState(false)
   const [agreedToCopyright, setAgreedToCopyright] = useState(false)
+
+  // ── Quantity-based shipping fee (computed from cart) ────────────────────────
+  const totalQuantity = calculateTotalQuantity(cart.items)
+  const baseShippingFee = calculateShippingByQuantity(totalQuantity)
+  const hasExpress = cart.items.some((item) => item.expressDelivery)
+  const shippingFee = hasExpress ? calculateExpressShipping(baseShippingFee) : baseShippingFee
 
   // Debounce timer ref for postal code lookup
   const postalCodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -79,20 +85,7 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
     if (field === 'lastNameKana' || field === 'firstNameKana') {
       value = toKatakana(value)
     }
-    setFormData((prev) => {
-      const updated = { ...prev, [field]: value }
-      // Recalculate shipping fee whenever postalCode or prefecture changes
-      if (field === 'postalCode' || field === 'prefecture') {
-        const pc = field === 'postalCode' ? value : prev.postalCode
-        const pref = field === 'prefecture' ? value : prev.prefecture
-        if (pc && pref) {
-          const fee = calculateShippingFee(pc, pref, shippingFees)
-          setShippingFee(fee)
-          setShippingZoneLabel(fee > 0 ? SHIPPING_ZONE_LABELS[getShippingZone(pc, pref)] : '')
-        }
-      }
-      return updated
-    })
+    setFormData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) {
       setErrors((prev) => {
         const newErrors = { ...prev }
@@ -125,16 +118,7 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
         const result = json.results[0]
         const prefecture = result.address1 ?? ''
         const city = `${result.address2 ?? ''}${result.address3 ?? ''}`
-        setFormData((prev) => {
-          // Recalculate shipping fee with the auto-filled prefecture
-          if (prefecture) {
-            const fee = calculateShippingFee(digits, prefecture, shippingFees)
-            setShippingFee(fee)
-            setShippingZoneLabel(fee > 0 ? SHIPPING_ZONE_LABELS[getShippingZone(digits, prefecture)] : '')
-          }
-          // Preserve any street address the user already typed
-          return { ...prev, prefecture, city }
-        })
+        setFormData((prev) => ({ ...prev, prefecture, city }))
         setErrors((prev) => {
           const next = { ...prev }
           delete next.prefecture
@@ -693,21 +677,17 @@ export function CheckoutClient({ shippingFees = SHIPPING_FEES }: CheckoutClientP
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">送料</span>
-                    {shippingFee > 0 ? (
-                      <span className="text-foreground font-medium">
-                        {formatPrice(shippingFee)}
-                        <span className="text-xs text-orange-600 ml-1">({shippingZoneLabel})</span>
-                      </span>
-                    ) : (
-                      <span className="text-green-600 font-medium">無料</span>
-                    )}
+                    <span className="text-muted-foreground">
+                      送料{hasExpress ? '（特急便）' : ''}
+                    </span>
+                    <span className="text-foreground font-medium">
+                      {formatPrice(shippingFee)}
+                    </span>
                   </div>
-                  {shippingFee > 0 && (
-                    <p className="text-xs text-orange-600 bg-orange-50 rounded p-2">
-                      ご入力の住所は離島・遠隔地のため、別途送料が発生します。
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    合計数量: {totalQuantity}個
+                    {hasExpress && ' / 特急便: 送料×2'}
+                  </p>
                   <div className="flex justify-between pt-2 border-t border-border">
                     <span className="font-semibold text-foreground">合計</span>
                     <span className="text-xl font-bold text-accent">

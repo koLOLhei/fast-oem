@@ -7,7 +7,8 @@ import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import type { CustomerInfo } from '@/lib/database.types'
 import { sendSlackMessage } from '@/lib/slack'
 import { type Product, calculateMoldFee, calculateShippingModifier, checkComplexityRestriction } from '@/lib/products'
-import { calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
+import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
+import { calculateTotalQuantity } from '@/lib/cart'
 import { MAX_UNIT_PRICE_JPY, MAX_CHECKBOX_VALUES } from '@/lib/validation'
 
 interface CheckoutSessionData {
@@ -339,28 +340,19 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   const supabase = createServiceClient()
 
   // ── SECURITY: Server-side shipping fee recalculation ─────────────────────────
-  // Never trust the client-supplied shipping fee. Recalculate from postal code
-  // and prefecture using the same logic as the frontend, with DB-configured rates.
-  const { data: shippingSettings } = await supabase
-    .from('site_settings')
-    .select('key, value')
-    .in('key', ['shipping_fee_okinawa', 'shipping_fee_remote_island'])
-  const feeConfig = { ...SHIPPING_FEES }
-  for (const row of shippingSettings ?? []) {
-    const val = parseInt(row.value, 10)
-    if (!isNaN(val)) {
-      if (row.key === 'shipping_fee_okinawa') feeConfig.okinawa = val
-      if (row.key === 'shipping_fee_remote_island') feeConfig.remote_island = val
-    }
-  }
-  const shippingFee = calculateShippingFee(shippingAddress.postalCode, shippingAddress.prefecture, feeConfig)
+  // Never trust the client-supplied shipping fee. Recalculate from total
+  // quantity using the quantity-based tier system.
+  const totalQuantity = calculateTotalQuantity(rawItems)
+  const baseShippingFee = calculateShippingByQuantity(totalQuantity)
+  const hasExpress = rawItems.some((item) => item.expressDelivery)
+  const shippingFee = hasExpress ? calculateExpressShipping(baseShippingFee) : baseShippingFee
   if (clientShippingFee !== shippingFee) {
     console.warn(JSON.stringify({
       evt: 'security.shipping_fee_mismatch',
       clientShippingFee,
       serverShippingFee: shippingFee,
-      postalCode: shippingAddress.postalCode,
-      prefecture: shippingAddress.prefecture,
+      totalQuantity,
+      hasExpress,
       customerEmail: shippingAddress.email,
     }))
   }
@@ -585,8 +577,8 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
       price_data: {
         currency: 'jpy',
         product_data: {
-          name: '送料（離島・遠隔地）',
-          description: '離島・沖縄・一部遠隔地への送料',
+          name: hasExpress ? '送料（特急便）' : '送料',
+          description: `合計数量: ${totalQuantity}個${hasExpress ? ' / 特急便: 送料×2' : ''}`,
         },
         unit_amount: shippingFee,
       },

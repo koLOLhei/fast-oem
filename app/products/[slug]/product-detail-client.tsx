@@ -68,6 +68,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [backDesignImage, setBackDesignImage] = useState<string | null>(null)
+  const [backDesignFileName, setBackDesignFileName] = useState<string | null>(null)
+  const [backDeliveryPdfUrl, setBackDeliveryPdfUrl] = useState<string | null>(null)
+  const [backPreviewImage, setBackPreviewImage] = useState<string | null>(null)
   const [designImages, setDesignImages] = useState<DesignImageEntry[]>([])
   const [allRequiredDone, setAllRequiredDone] = useState(false)
   const [viewPreviews, setViewPreviews] = useState<Record<string, string>>({})
@@ -77,6 +81,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }, [])
   const handleViewPreviewChange = useCallback((viewId: string, dataUrl: string) => {
     setViewPreviews((prev) => ({ ...prev, [viewId]: dataUrl }))
+  }, [])
+  const handleBackPreviewChange = useCallback((dataUrl: string) => {
+    setBackPreviewImage(dataUrl)
   }, [])
   const isAddedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -143,6 +150,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     if (!imageData) setPreviewImage(null)
   }
 
+  const handleBackImageSelect = (imageData: string | null, fileName: string | null, pdfUrl?: string | null) => {
+    setBackDesignImage(imageData)
+    setBackDesignFileName(fileName)
+    setBackDeliveryPdfUrl(pdfUrl ?? null)
+    if (!imageData) setBackPreviewImage(null)
+  }
+
+  // Determine if this product needs a second (back) design upload
+  const needsBackDesign = selectedOptions['double_sided'] === 'double' && selectedOptions['second_design'] === 'different'
+
   const handleOptionChange = (optionId: string, valueId: string) => {
     setSelectedOptions((prev) => {
       const next = { ...prev, [optionId]: valueId }
@@ -206,6 +223,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
         return false
       }
+      if (needsBackDesign) {
+        if (!backDesignImage) {
+          alert('裏面のデザイン画像をアップロードしてください')
+          return false
+        }
+        if (!backDeliveryPdfUrl) {
+          alert('裏面の「納品データを確定（PDF生成）」ボタンを押してから追加してください')
+          return false
+        }
+      }
     }
 
     // Check that all visible required options have been selected
@@ -262,6 +289,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       expressDeliveryFee: expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? product.expressDeliveryFee : undefined,
       deliveryPdfUrl: is3d ? designImages[0]?.deliveryPdfUrl ?? null : deliveryPdfUrl,
       ...(is3d ? { designImages } : {}),
+      ...(needsBackDesign ? {
+        backDesignImage,
+        backDesignPreviewDataUrl: backPreviewImage,
+        backDesignFileName,
+      } : {}),
       shippingModifier: shippingExtra > 0 ? shippingExtra : undefined,
     })
 
@@ -432,8 +464,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { step: 1, label: 'オプション・数量を選択', done: true },
-              { step: 2, label: 'デザインをアップロード', done: is3d ? designImages.length > 0 : !!designImage },
-              { step: 3, label: '「納品データを確定」を押す', done: is3d ? allRequiredDone : !!deliveryPdfUrl },
+              { step: 2, label: 'デザインをアップロード', done: is3d ? designImages.length > 0 : (needsBackDesign ? !!designImage && !!backDesignImage : !!designImage) },
+              { step: 3, label: '「納品データを確定」を押す', done: is3d ? allRequiredDone : (needsBackDesign ? !!deliveryPdfUrl && !!backDeliveryPdfUrl : !!deliveryPdfUrl) },
               { step: 4, label: 'カートに追加して購入', done: false },
             ].map(({ step, label, done }) => (
               <div key={step} className={`flex items-start gap-3 rounded-lg p-3 text-xs transition-colors ${done ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-background text-muted-foreground border border-border'}`}>
@@ -452,7 +484,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <Card className="border-2 border-dashed border-border hover:border-primary/50 transition-colors">
             <CardContent className="p-6">
               <h3 className="font-semibold text-foreground text-lg mb-4 flex items-center gap-2">
-                デザインをアップロード
+                {needsBackDesign ? '表面デザインをアップロード' : 'デザインをアップロード'}
                 <Info className="w-4 h-4 text-muted-foreground" />
               </h3>
               {is3d ? (
@@ -482,6 +514,23 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   }}
                 />
               )}
+
+              {/* Back design uploader for double-sided + different design */}
+              {needsBackDesign && (
+                <div className="mt-6 pt-6 border-t border-border">
+                  <h3 className="font-semibold text-foreground text-lg mb-4 flex items-center gap-2">
+                    裏面デザインをアップロード
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                  </h3>
+                  <ImageUploader
+                    onImageSelect={handleBackImageSelect}
+                    currentImage={backDesignImage}
+                    currentFileName={backDesignFileName}
+                    selectedShape={selectedOptions['shape'] || 'die-cut'}
+                    onPreviewChange={handleBackPreviewChange}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -489,22 +538,47 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <Card>
             <CardContent className="p-6">
               <h3 className="font-semibold text-foreground text-lg mb-4">プレビュー</h3>
-              <ProductPreview
-                product={product}
-                designImage={previewImage}
-                selectedOptions={selectedOptions}
-                isCanvasComposite={!!previewImage}
-                hasDesign={!!designImage}
-                designImages={
-                  is3d && product.imageViews
-                    ? product.imageViews.map((v) => ({
-                        viewId: v.id,
-                        viewLabel: v.label,
-                        previewDataUrl: viewPreviews[v.id],
-                      }))
-                    : undefined
-                }
-              />
+              {needsBackDesign && backPreviewImage ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2 text-center">表面</p>
+                    <ProductPreview
+                      product={product}
+                      designImage={previewImage}
+                      selectedOptions={selectedOptions}
+                      isCanvasComposite={!!previewImage}
+                      hasDesign={!!designImage}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2 text-center">裏面</p>
+                    <ProductPreview
+                      product={product}
+                      designImage={backPreviewImage}
+                      selectedOptions={selectedOptions}
+                      isCanvasComposite={!!backPreviewImage}
+                      hasDesign={!!backDesignImage}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <ProductPreview
+                  product={product}
+                  designImage={previewImage}
+                  selectedOptions={selectedOptions}
+                  isCanvasComposite={!!previewImage}
+                  hasDesign={!!designImage}
+                  designImages={
+                    is3d && product.imageViews
+                      ? product.imageViews.map((v) => ({
+                          viewId: v.id,
+                          viewLabel: v.label,
+                          previewDataUrl: viewPreviews[v.id],
+                        }))
+                      : undefined
+                  }
+                />
+              )}
             </CardContent>
           </Card>
         </div>

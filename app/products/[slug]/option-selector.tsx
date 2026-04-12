@@ -9,6 +9,7 @@ import {
   type PriceModifier,
   formatPrice,
 } from '@/lib/products'
+import { ColorPicker } from '@/components/color-picker'
 
 export interface OptionSelectorProps {
   product: Product
@@ -290,6 +291,31 @@ function ShapeTypeColumn({
                 </span>
               )}
             </div>
+          </div>
+        ))}
+
+      {/* Color Options */}
+      {product.options
+        .filter(
+          (o) => o.type === 'color' && isOptionVisible(o, selectedOptions),
+        )
+        .map((option) => (
+          <div
+            key={option.id}
+            className={
+              option.parentId
+                ? 'border-l-2 border-primary/30 pl-4 ml-2'
+                : ''
+            }
+          >
+            <h3 className="font-semibold text-foreground mb-3">
+              {option.name}
+              <RequiredMark required={option.required} />
+            </h3>
+            <ColorPicker
+              value={selectedOptions[option.id] || ''}
+              onChange={(hex) => onOptionChange(option.id, hex)}
+            />
           </div>
         ))}
     </div>

@@ -29,6 +29,9 @@ export interface CartItem {
   expressDeliveryFee?: number
   deliveryPdfUrl?: string | null
   designImages?: DesignImageEntry[]  // multi-view for 3D products
+  backDesignImage?: string | null       // storage path for back design (double-sided)
+  backDesignPreviewDataUrl?: string | null  // preview data URL for back design
+  backDesignFileName?: string | null
   shippingModifier?: number          // extra shipping from options
 }
 
@@ -51,6 +54,10 @@ export function calculateCartTotals(items: CartItem[]): { totalItems: number; to
     totalItems: items.reduce((sum, item) => sum + item.quantity, 0),
     totalPrice: items.reduce((sum, item) => sum + item.totalPrice + (item.moldFee || 0) + (item.expressDeliveryFee || 0) + (item.shippingModifier || 0), 0),
   }
+}
+
+export function calculateTotalQuantity(items: CartItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity, 0)
 }
 
 export function generateCartItemId(): string {
