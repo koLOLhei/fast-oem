@@ -11,10 +11,10 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: 'OEMグッズ製作 商品一覧 | アクリルキーホルダー・缶バッジ・ピンバッジ',
   description:
-    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ビニール袋のOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作に最適。',
+    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作に最適。',
   keywords: [
     'アクリルキーホルダー製作', '缶バッジ製作', 'ピンバッジ製作',
-    'ラバーキーホルダー製作', 'ビニール袋製作', 'OEMグッズ',
+    'ラバーキーホルダー製作', 'OEMグッズ',
     'オリジナルグッズ一覧', '小ロット製作', '同人グッズ',
   ],
   openGraph: {
@@ -30,7 +30,6 @@ const categories = [
   { id: 'all', name: 'すべて', icon: Sparkles },
   { id: 'keychain', name: 'キーホルダー', icon: Package },
   { id: 'badge', name: 'バッジ', icon: Package },
-  { id: 'packaging', name: 'パッケージ', icon: Package },
 ]
 
 export const revalidate = 60

@@ -286,7 +286,6 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       moldFee: moldFee > 0 ? moldFee : undefined,
       moldOrderId: moldReuseValid && moldOrderId ? moldOrderId : undefined,
       expressDelivery: expressDelivery || undefined,
-      expressDeliveryFee: expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? product.expressDeliveryFee : undefined,
       deliveryPdfUrl: is3d ? designImages[0]?.deliveryPdfUrl ?? null : deliveryPdfUrl,
       ...(is3d ? { designImages } : {}),
       ...(needsBackDesign ? {
@@ -312,7 +311,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const totalPriceItems = calculateTotalPrice(product, quantity, selectedOptions)
   const moldInfo = calculateMoldFee(product, selectedOptions, quantity)
   const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
-  const expressFeeCost = expressDelivery && (product.expressDeliveryFee ?? 0) > 0 ? (product.expressDeliveryFee ?? 0) : 0
+  const expressFeeCost = 0 // Express surcharge is now applied to shipping at checkout, not per-product
   const shippingExtra = calculateShippingModifier(product, selectedOptions)
   const totalPrice = totalPriceItems + moldFee + expressFeeCost + shippingExtra
   const baseTier = product.priceTiers[0]
@@ -627,25 +626,23 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               </button>
 
               {/* Express */}
-              {(product.expressDeliveryFee ?? 0) > 0 && (
-                <button
-                  onClick={() => setExpressDelivery(true)}
-                  className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                    expressDelivery
-                      ? 'border-orange-400 bg-orange-50'
-                      : 'border-border hover:border-orange-300 bg-card'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">⚡ 特急納期</span>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${expressDelivery ? 'border-orange-500 bg-orange-500' : 'border-border'}`}>
-                      {expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
+              <button
+                onClick={() => setExpressDelivery(true)}
+                className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                  expressDelivery
+                    ? 'border-orange-400 bg-orange-50'
+                    : 'border-border hover:border-orange-300 bg-card'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">⚡ 特急納期</span>
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${expressDelivery ? 'border-orange-500 bg-orange-500' : 'border-border'}`}>
+                    {expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                   </div>
-                  <span className="text-xs text-muted-foreground">約10日以内（目安）</span>
-                  <span className="text-sm font-bold text-orange-600">+{formatPrice(product.expressDeliveryFee ?? 0)}</span>
-                </button>
-              )}
+                </div>
+                <span className="text-xs text-muted-foreground">約2週間（目安）</span>
+                <span className="text-sm font-bold text-orange-600">送料 ×2</span>
+              </button>
             </div>
             {expressDelivery && (
               <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2 mt-3">

@@ -8,22 +8,31 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: '配送・納期について | OEMグッズの送料・特急対応',
   description:
-    'FAST OEMの配送・納期について。標準納期14〜30営業日・特急約10営業日対応。日本国内送料無料（離島・沖縄・一部遠隔地は別途）。ヤマト運輸・佐川急便にて発送。',
+    'FAST OEMの配送・納期について。標準納期約1ヶ月・特急約2週間対応。送料は注文数量に応じた料金体系。ヤマト運輸・佐川急便にて発送。',
   keywords: ['OEM 納期', 'グッズ製作 納期', 'OEM 送料', 'グッズ 特急', 'OEM 配送'],
   openGraph: {
     title: '配送・納期について | FAST OEM',
-    description: 'OEMグッズの配送・納期情報。標準14〜30営業日・特急約10営業日。日本国内送料無料。',
+    description: 'OEMグッズの配送・納期情報。標準約1ヶ月・特急約2週間。数量ベースの送料体系。',
     url: `${BASE_URL}/shipping`,
   },
   alternates: { canonical: `${BASE_URL}/shipping` },
 }
 
 const deliveryProducts = [
-  { name: 'アクリルキーホルダー', standard: '14〜21営業日', express: '約10営業日', expressAvailable: true },
-  { name: '缶バッジ', standard: '14〜21営業日', express: '約10営業日', expressAvailable: true },
-  { name: 'ピンバッジ', standard: '21〜30営業日', express: '約10営業日', expressAvailable: true },
-  { name: 'ラバーキーホルダー', standard: '21〜30営業日', express: '約10営業日', expressAvailable: true },
-  { name: 'レジ袋', standard: '21〜30営業日', express: '約10営業日', expressAvailable: true },
+  { name: 'アクリルキーホルダー', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
+  { name: '缶バッジ', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
+  { name: 'ピンバッジ', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
+  { name: 'ラバーキーホルダー', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
+]
+
+const shippingTiers = [
+  { range: '1〜300個', fee: '¥5,000' },
+  { range: '301〜500個', fee: '¥8,000' },
+  { range: '501〜1,000個', fee: '¥11,000' },
+  { range: '1,001〜2,000個', fee: '¥16,000' },
+  { range: '2,001〜3,000個', fee: '¥18,000' },
+  { range: '3,001〜4,000個', fee: '¥20,000' },
+  { range: '4,001個〜', fee: '¥20,000＋1,000個ごとに¥2,000' },
 ]
 
 export default function ShippingPage() {
@@ -107,7 +116,7 @@ export default function ShippingPage() {
             <div className="text-sm">
               <p className="font-bold text-foreground">特急オプションについて</p>
               <p className="text-muted-foreground mt-1">
-                商品詳細ページで「特急配送」を選択すると、別途特急料金が加算されます。
+                商品詳細ページで「特急配送」を選択すると、<strong className="text-foreground">送料が2倍</strong>になります。
                 デザインデータの確認・修正期間を含むため、ご入稿は迅速にお願いします。
                 特急オプションの可否は工場の空き状況により変動する場合があります。
               </p>
@@ -119,30 +128,40 @@ export default function ShippingPage() {
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
             <span className="w-1.5 h-6 bg-[#ffe135] rounded-full" />
-            送料
+            送料（数量ベース）
           </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="p-5 bg-[#7ed957]/10 border border-[#7ed957]/30 rounded-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-5 w-5 text-[#7ed957]" />
-                <span className="font-bold text-foreground">全国（標準地域）</span>
-              </div>
-              <p className="text-2xl font-black text-[#7ed957]">無料</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                本州・北海道・四国・九州（一部地域を除く）
-              </p>
-            </div>
-            <div className="p-5 bg-muted/50 border border-border rounded-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-5 w-5 text-muted-foreground" />
-                <span className="font-bold text-foreground">離島・沖縄・一部遠隔地</span>
-              </div>
-              <p className="text-sm font-bold text-foreground">別途送料あり</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                チェックアウト時に配送先住所を入力すると自動計算されます。
+          <p className="text-sm text-muted-foreground mb-4">
+            送料はカート内の全商品の合計数量に応じて決まります。
+          </p>
+          <div className="overflow-x-auto rounded-2xl border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="text-left px-5 py-3 font-bold text-foreground">注文数量</th>
+                  <th className="px-5 py-3 font-bold text-foreground text-right">送料（税込）</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {shippingTiers.map((t) => (
+                  <tr key={t.range} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-5 py-3 font-medium text-foreground">{t.range}</td>
+                    <td className="px-5 py-3 text-right font-bold text-foreground">{t.fee}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 flex items-start gap-3 p-4 bg-[#ff7b54]/5 border border-[#ff7b54]/20 rounded-xl">
+            <Zap className="h-5 w-5 text-[#ff7b54] shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-bold text-foreground">特急便の送料</p>
+              <p className="text-muted-foreground mt-1">
+                特急配送を選択した場合、送料は上記の<strong className="text-foreground">2倍</strong>になります。
               </p>
             </div>
           </div>
+
           <p className="text-xs text-muted-foreground mt-3">
             ※ 海外への配送は現在対応しておりません。
           </p>

@@ -1324,6 +1324,7 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                             <option value="dropdown">ドロップダウン (dropdown)</option>
                             <option value="checkbox">チェックボックス（複数選択）</option>
                             <option value="number">数値入力</option>
+                            <option value="color">カラーピッカー</option>
                         </select>
                         <label className="flex items-center gap-1 text-[10px]">
                             <input

@@ -92,16 +92,8 @@ function ShapeTypeColumn({
               {option.name}
               <RequiredMark required={option.required} />
             </h3>
-            {product.id === 'plastic-bag' && option.id === 'shape' && (
-              <p className="text-xs text-muted-foreground mb-2">
-                ビニール袋は袋型のみ対応しています
-              </p>
-            )}
             <div className="space-y-1">
-              {(product.id === 'plastic-bag' && option.id === 'shape'
-                ? option.values.filter((v) => v.id === 'plastic-bag')
-                : option.values
-              ).map((value) => {
+              {option.values.map((value) => {
                 const priceLabel = formatPriceModifier(value.priceModifier)
                 return (
                   <button
