@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, ArrowRight, Shield } from 'lucide-react'
+import { Mail, ArrowRight, Shield, Lock, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getProductsFromDb } from '@/lib/products-db'
 
@@ -145,6 +145,12 @@ export async function Footer() {
               >
                 配送について
               </Link>
+              <Link
+                href="/about"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+              >
+                会社概要
+              </Link>
             </nav>
           </div>
 
@@ -175,6 +181,40 @@ export async function Footer() {
                 </div>
                 プライバシーポリシー
               </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment & Security Badges */}
+      <div className="border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div className="flex items-center gap-2 text-white/50">
+              <Lock className="h-4 w-4" />
+              <span className="text-xs font-medium">SSL暗号化通信</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70">
+                <CreditCard className="h-4 w-4" />
+                <span className="text-xs font-bold">VISA</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70">
+                <CreditCard className="h-4 w-4" />
+                <span className="text-xs font-bold">Mastercard</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70">
+                <CreditCard className="h-4 w-4" />
+                <span className="text-xs font-bold">AMEX</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-white/70">
+                <CreditCard className="h-4 w-4" />
+                <span className="text-xs font-bold">JCB</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-white/50">
+              <Shield className="h-4 w-4" />
+              <span className="text-xs font-medium">Stripe安全決済</span>
             </div>
           </div>
         </div>

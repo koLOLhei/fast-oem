@@ -1,3 +1,17 @@
+export interface BlogAuthor {
+  name: string
+  role: string
+  bio: string
+}
+
+export const AUTHORS: Record<string, BlogAuthor> = {
+  editorial: {
+    name: 'FAST OEM 編集部',
+    role: 'コンテンツ制作チーム',
+    bio: 'グッズ製作の専門知識を持つスタッフが、入稿のコツ・素材選び・デザインのポイントなど、ものづくりに役立つ情報を発信しています。',
+  },
+}
+
 export interface BlogArticle {
   slug: string
   title: string
@@ -6,6 +20,7 @@ export interface BlogArticle {
   date: string
   readTime: string
   content: string
+  authorId: keyof typeof AUTHORS
 }
 
 export const articles: BlogArticle[] = [
@@ -16,6 +31,7 @@ export const articles: BlogArticle[] = [
     category: 'デザインのコツ',
     date: '2026-04-01',
     readTime: '5分',
+    authorId: 'editorial',
     content: `## 1. 解像度は300dpi以上で作成する
 
 アクリルキーホルダーの印刷品質を左右する最も重要な要素が**解像度**です。Web用の画像（72dpi）をそのまま使うと、仕上がりがぼやけてしまいます。
@@ -56,6 +72,7 @@ FAST OEMではRGBカラーでの入稿に対応しています。ただし、印
     category: '同人グッズ',
     date: '2026-03-25',
     readTime: '8分',
+    authorId: 'editorial',
     content: `## 同人グッズ製作の基本
 
 コミケや即売会で頒布するオリジナルグッズ。初めて作る場合、何から始めればいいのか迷いますよね。この記事では、同人グッズ製作の流れを一から解説します。
@@ -102,6 +119,7 @@ PNG・JPG・SVGなどの画像形式で入稿できます。解像度300dpi以�
     category: '企業ノベルティ',
     date: '2026-03-18',
     readTime: '6分',
+    authorId: 'editorial',
     content: `## ノベルティは「もらって嬉しい」が大前提
 
 展示会やイベントでのノベルティ配布は、企業の認知度向上やブランディングに効果的です。しかし、ただ配るだけでは効果は限定的。**もらった人が実際に使いたくなる**ノベルティを選ぶことが重要です。
@@ -145,6 +163,7 @@ FAST OEMでは注文完了後に領収書PDFをダウンロードいただけま
     category: '推し活',
     date: '2026-03-10',
     readTime: '7分',
+    authorId: 'editorial',
     content: `## 推し活をもっと楽しくするグッズ製作
 
 推しの写真やイラストを使ったオリジナルグッズ。ライブやイベントの参戦グッズとしてはもちろん、日常的に推しを感じられるアイテムとしても大人気です。
@@ -187,6 +206,7 @@ FAST OEMでは注文完了後に領収書PDFをダウンロードいただけま
     category: 'デザインのコツ',
     date: '2026-03-05',
     readTime: '4分',
+    authorId: 'editorial',
     content: `## なぜ解像度が重要なのか？
 
 グッズ製作で最も多い失敗が**解像度不足**です。画面では綺麗に見えても、印刷するとぼやけてしまうことがあります。
@@ -237,6 +257,7 @@ FAST OEMでは注文完了後に領収書PDFをダウンロードいただけま
     category: '商品比較',
     date: '2026-02-28',
     readTime: '5分',
+    authorId: 'editorial',
     content: `## 缶バッジとピンバッジ、何が違う？
 
 どちらも服やバッグに付けるアクセサリーですが、素材・製法・仕上がり・価格帯が大きく異なります。

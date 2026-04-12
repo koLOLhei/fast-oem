@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Calendar, Clock } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
-import { articles, categoryColors, getArticleBySlug } from '@/lib/blog-articles'
+import { articles, categoryColors, getArticleBySlug, AUTHORS } from '@/lib/blog-articles'
+import { User } from 'lucide-react'
 
 /** Render markdown-style **bold** text as safe React nodes (no dangerouslySetInnerHTML). */
 function renderBoldText(text: string): React.ReactNode {
@@ -60,6 +61,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     { name: article.title },
   ])
 
+  const author = AUTHORS[article.authorId]
+
   const articleJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -108,6 +111,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <p className="mt-4 text-muted-foreground leading-relaxed">
               {article.excerpt}
             </p>
+          </div>
+
+          {/* Author Byline */}
+          <div className="flex items-center gap-4 mb-8 p-4 rounded-xl bg-muted/50 border border-border">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <User className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm">{author.name}</p>
+              <p className="text-xs text-muted-foreground">{author.role}</p>
+            </div>
           </div>
 
           <hr className="border-border mb-8" />
@@ -176,7 +190,21 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             })}
           </div>
 
-          <hr className="border-border mt-12 mb-8" />
+          {/* Author Bio */}
+          <div className="mt-12 p-6 rounded-2xl bg-muted/30 border border-border">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">{author.name}</p>
+                <p className="text-xs text-primary font-medium">{author.role}</p>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{author.bio}</p>
+              </div>
+            </div>
+          </div>
+
+          <hr className="border-border mt-8 mb-8" />
 
           {/* Prev / Next */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
