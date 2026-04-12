@@ -57,7 +57,7 @@ const cases = [
     product: '缶バッジ',
     quantity: '30個',
     description: '推しアイドルのライブに向けて、自作イラストで缶バッジを製作。メンバーカラーに合わせた5種類のデザインを各6個ずつ作成。',
-    feedback: '10個から作れるので、友達と分け合うのにちょうどいい数で助かります。痛バッグにつけてライブに持っていったら、周りのファンにも「どこで作ったの？」と聞かれました！',
+    feedback: '少量から作れるので、友達と分け合うのにちょうどいい数で助かります。痛バッグにつけてライブに持っていったら、周りのファンにも「どこで作ったの？」と聞かれました！',
     person: '推し活ファン C様',
   },
   {
@@ -154,7 +154,7 @@ export default function CasesPage() {
             <div className="inline-block p-8 bg-gradient-to-br from-[#ff7b54]/5 to-[#00c8c8]/5 rounded-3xl border border-primary/20">
               <h3 className="text-xl font-bold text-foreground mb-2">あなたもオリジナルグッズを作りませんか？</h3>
               <p className="text-muted-foreground text-sm mb-6">
-                商品を選んでデザインをアップロードするだけ。小ロット10個〜対応。
+                商品を選んでデザインをアップロードするだけ。小ロット50個〜対応。
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link

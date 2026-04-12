@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo } from 'react'
 import Image from 'next/image'
 import { Check, ChevronDown } from 'lucide-react'
 import {
@@ -62,8 +61,8 @@ function RequiredMark({ required }: { required?: boolean }) {
   return <span className="text-xs text-muted-foreground ml-2">（任意）</span>
 }
 
-/* ── Shape / Type column (list-style options) ── */
-function ShapeTypeColumn({
+/* ── List options column (shape, type, chain_type, white_back, etc.) ── */
+function OptionsColumn({
   product,
   selectedOptions,
   onOptionChange,
@@ -72,11 +71,13 @@ function ShapeTypeColumn({
 }: OptionSelectorProps) {
   return (
     <div className="lg:col-span-2 space-y-6">
-      {/* Shape / Type list options */}
+      {/* List-type options (shape, type, chain_type, white_back, etc.) */}
       {product.options
         .filter(
           (o) =>
-            (o.id === 'shape' || o.id === 'type') &&
+            (!o.type || o.type === 'list') &&
+            o.id !== 'material' &&
+            o.id !== 'size' &&
             isOptionVisible(o, selectedOptions),
         )
         .map((option) => (
@@ -482,7 +483,7 @@ function SizeColumn({
 export function OptionSelector(props: OptionSelectorProps) {
   return (
     <>
-      <ShapeTypeColumn {...props} />
+      <OptionsColumn {...props} />
       <MaterialColumn {...props} />
       <SizeColumn {...props} />
     </>

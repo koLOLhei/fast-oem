@@ -10,7 +10,7 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: '推し活グッズ製作・推しグッズ作成 | 小ロット対応・オリジナル推し活グッズ',
   description:
-    '推し活グッズの製作ならFAST OEM。推しの写真やイラストでアクリルキーホルダー・缶バッジ・ピンバッジを作成。小ロット10個〜対応。ライブ・イベント・布教用に。高品質フルカラー印刷。',
+    '推し活グッズの製作ならFAST OEM。推しの写真やイラストでアクリルキーホルダー・缶バッジ・ピンバッジを作成。小ロット50個〜対応。ライブ・イベント・布教用に。高品質フルカラー印刷。',
   keywords: [
     '推し活グッズ', '推し活グッズ 製作', '推し活グッズ 作成', '推し活グッズ 作り方',
     '推しグッズ', '推しグッズ 自作', '推しグッズ オリジナル',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: '推し活グッズ製作 | FAST OEM',
-    description: '推し活グッズの製作ならFAST OEM。推しの写真やイラストでオリジナルグッズを作成。小ロット10個〜。',
+    description: '推し活グッズの製作ならFAST OEM。推しの写真やイラストでオリジナルグッズを作成。小ロット50個〜。',
     url: `${BASE_URL}/use-cases/oshikatsu`,
     images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 const benefits = [
   { icon: Heart, title: '推しへの愛をカタチに', description: '推しの写真やイラストを高品質フルカラーでグッズ化。発色鮮やかで推しの魅力を再現。' },
-  { icon: Package, title: '小ロット10個〜OK', description: '友達と分け合うぶんだけ作れる。在庫を抱える心配なし。' },
+  { icon: Package, title: '小ロット50個〜OK', description: '友達と分け合うぶんだけ作れる。在庫を抱える心配なし。' },
   { icon: Palette, title: 'かんたんデザイン入稿', description: '画像をアップロードするだけ。デザインソフト不要で簡単に作成できます。' },
   { icon: Zap, title: '最短10日でお届け', description: 'ライブやイベントに間に合う特急オプション対応。通常でも2〜3週間で届きます。' },
 ]
@@ -56,7 +56,7 @@ export default async function OshikatsuPage() {
     '@context': 'https://schema.org',
     '@type': 'Service',
     name: '推し活グッズ製作サービス',
-    description: '推し活向けオリジナルグッズのOEM製作。アクリルキーホルダー・缶バッジ・ラバーキーホルダーを小ロット10個から。',
+    description: '推し活向けオリジナルグッズのOEM製作。アクリルキーホルダー・缶バッジ・ラバーキーホルダーを小ロット50個から。',
     provider: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
     areaServed: { '@type': 'Country', name: 'Japan' },
     serviceType: '推し活グッズOEM製作',
@@ -85,7 +85,7 @@ export default async function OshikatsuPage() {
               </h1>
               <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 推しの写真やイラストを使って、世界にひとつだけのオリジナルグッズを作りませんか？
-                アクリルキーホルダー・缶バッジ・ラバーキーホルダーが小ロット10個から作れます。
+                アクリルキーホルダー・缶バッジ・ラバーキーホルダーが小ロット50個から作れます。
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
@@ -172,7 +172,7 @@ export default async function OshikatsuPage() {
                 ライブやイベントでの応援グッズ、痛バッグのデコレーション、ファン仲間への布教グッズなど、推し活を盛り上げるアイテムとして人気が高まっています。
               </p>
               <p>
-                FAST OEMでは、推しの写真やイラストを使ったアクリルキーホルダー・缶バッジ・ラバーキーホルダーを、小ロット10個から製作できます。
+                FAST OEMでは、推しの写真やイラストを使ったアクリルキーホルダー・缶バッジ・ラバーキーホルダーを、小ロット50個から製作できます。
                 フルカラー印刷で発色が鮮やかなので、推しの魅力をしっかり再現できます。
                 デザインデータ（PNG・JPG等）をアップロードするだけで簡単に注文でき、会員登録なしでもご利用いただけます。
               </p>

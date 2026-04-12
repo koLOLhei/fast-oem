@@ -72,7 +72,10 @@ function computeUnitPrice(
     // number type: input value × pricePerUnit
     if (option.type === 'number' && option.pricePerUnit) {
       const num = parseFloat(valueIdOrLabel)
-      if (!isNaN(num) && isFinite(num) && Math.abs(num) <= 100_000) {
+      // Enforce option's min/max bounds; reject negative values unless explicitly allowed
+      const min = option.numberMin ?? 0
+      const max = option.numberMax ?? 100_000
+      if (!isNaN(num) && isFinite(num) && num >= min && num <= max) {
         price += Math.round(num * option.pricePerUnit)
       }
       if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
@@ -85,8 +88,8 @@ function computeUnitPrice(
     if (option.type === 'checkbox' || option.multiSelect) {
       const ids = valueIdOrLabel.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)
       for (const id of ids) {
-        // Cart stores option value LABELS (not IDs), so match by label first, then ID
-        const val = option.values.find((v) => v.label === id || v.id === id)
+        // Match by ID first, then label — same order as client (lib/products.ts)
+        const val = option.values.find((v) => v.id === id || v.label === id)
         const mod = val?.priceModifier
         if (!mod) continue
         if (mod.type === 'add') price += mod.value
@@ -99,8 +102,8 @@ function computeUnitPrice(
     }
 
     // Standard single-select
-    // Cart stores option value LABELS (not IDs), so match by label first, then ID
-    const value = option.values.find((v) => v.label === valueIdOrLabel || v.id === valueIdOrLabel)
+    // Match by ID first, then label — same order as client (lib/products.ts)
+    const value = option.values.find((v) => v.id === valueIdOrLabel || v.label === valueIdOrLabel)
     const mod = value?.priceModifier
     if (!mod) continue
     if (mod.type === 'add') price += mod.value
@@ -144,34 +147,57 @@ async function validateAndRepricItems(
   // ── Validate moldOrderId claims in one batch query ──────────────────────────
   // A client could supply any string as moldOrderId to falsely claim a mold fee
   // exemption.  We verify each claimed order: it must exist, belong to the same
-  // customer email, be less than 1 year old, and contain the same product.
-  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000
+  // customer email, be within expiration, contain the same product, and have
+  // actually paid a mold fee (prevents chain-of-exemption bypass).
+  // Only paid/fulfilled orders qualify (matches mold.ts VALID_STATUSES).
+  const VALID_MOLD_STATUSES = ['paid', 'processing', 'partially_shipped', 'shipped', 'completed']
+
+  // Use configurable expiration from site_settings (consistent with mold.ts)
+  let moldReuseMs: number
+  try {
+    const { data: settingRow } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'mold_reuse_months')
+      .single()
+    const parsed = parseInt(settingRow?.value ?? '12', 10)
+    const months = isNaN(parsed) ? 12 : parsed
+    moldReuseMs = months <= 0 ? Infinity : months * 30 * 24 * 60 * 60 * 1000
+  } catch {
+    moldReuseMs = 365 * 24 * 60 * 60 * 1000 // fallback: 1 year
+  }
+
   const claimedMoldIds = [...new Set(items.map((i) => i.moldOrderId).filter(Boolean))] as string[]
   const validMoldOrderIds = new Set<string>()
 
   if (claimedMoldIds.length > 0) {
-    const { data: moldOrders } = await supabase
+    const moldQuery = supabase
       .from('orders')
-      .select('id, created_at, customer_info, order_items(product_id)')
+      .select('id, status, created_at, customer_info, order_items(product_id, mold_fee)')
       .in('id', claimedMoldIds)
+    const { data: moldOrders } = await moldQuery
 
     for (const mo of moldOrders ?? []) {
       const moEmail = ((mo.customer_info as CustomerInfo)?.email ?? '').toLowerCase()
-      const moProductIds = new Set((mo.order_items ?? []).map((oi: { product_id: string }) => oi.product_id))
-      const withinOneYear = Date.now() - new Date(mo.created_at).getTime() < ONE_YEAR_MS
+      const withinExpiration = moldReuseMs === Infinity
+        || Date.now() - new Date(mo.created_at).getTime() < moldReuseMs
       const sameCustomer = moEmail === customerEmail.toLowerCase()
-      // Mark this mold order as valid for each item's product it contains
-      if (sameCustomer && withinOneYear) {
-        // Store per-product validity: moldOrderId is valid only for items whose productId it covers
-        for (const pid of moProductIds) {
-          validMoldOrderIds.add(`${mo.id}::${pid}`)
+      const validStatus = VALID_MOLD_STATUSES.includes(mo.status)
+
+      if (sameCustomer && withinExpiration && validStatus) {
+        // Only mark valid for products where the order actually paid a mold fee
+        for (const oi of (mo.order_items ?? []) as { product_id: string; mold_fee: number }[]) {
+          if (oi.mold_fee && oi.mold_fee > 0) {
+            validMoldOrderIds.add(`${mo.id}::${oi.product_id}`)
+          }
         }
       } else {
         console.warn(JSON.stringify({
           evt: 'security.invalid_mold_order_id',
           moldOrderId: mo.id,
           sameCustomer,
-          withinOneYear,
+          withinExpiration,
+          validStatus,
           customerEmail,
         }))
       }
@@ -184,7 +210,10 @@ async function validateAndRepricItems(
       throw new Error(`商品が見つかりません: ${item.productName}（削除または非公開の可能性があります）`)
     }
 
-    // Quantity range validation
+    // Quantity validation: must be a positive integer within range
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+      throw new Error(`${item.productName}: 数量は正の整数で指定してください（現在: ${item.quantity}）`)
+    }
     if (item.quantity < master.min_quantity || item.quantity > master.max_quantity) {
       throw new Error(
         `${item.productName}: 数量は ${master.min_quantity}〜${master.max_quantity} の範囲で指定してください（現在: ${item.quantity}）`,
@@ -470,6 +499,9 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
       design_file_name: item.designFileName || null,
       design_url: item.designImage || null,
       delivery_pdf_url: item.deliveryPdfUrl || null,
+      back_design_url: item.backDesignImage || null,
+      back_design_file_name: item.backDesignFileName || null,
+      back_delivery_pdf_url: item.backDeliveryPdfUrl || null,
       express_delivery: item.expressDelivery || false,
       express_delivery_fee: item.expressDeliveryFee || 0,
       factory_id: defaultFactoryId,

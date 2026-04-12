@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCart } from '@/components/cart-provider'
 import { formatPrice, getProductById } from '@/lib/products'
+import { calculateShippingByQuantity } from '@/lib/shipping'
+import { calculateTotalQuantity } from '@/lib/cart'
 
 export function CartClient() {
   const { cart, updateItemQuantity, removeItem, isLoading } = useCart()
@@ -13,8 +15,11 @@ export function CartClient() {
   // Calculate totals
   const itemsTotal = cart.items.reduce((sum, item) => sum + item.totalPrice, 0)
   const moldTotal = cart.items.reduce((sum, item) => sum + (item.moldFee || 0), 0)
-  const expressTotal = cart.items.reduce((sum, item) => sum + (item.expressDeliveryFee || 0), 0)
   const shippingModifierTotal = cart.items.reduce((sum, item) => sum + (item.shippingModifier || 0), 0)
+  const totalQuantity = calculateTotalQuantity(cart.items)
+  const shippingFee = calculateShippingByQuantity(totalQuantity)
+  const hasExpress = cart.items.some((item) => item.expressDelivery)
+  const displayShippingFee = hasExpress ? shippingFee * 2 : shippingFee
 
   if (isLoading) {
     return (
@@ -177,18 +182,13 @@ export function CartClient() {
                                 {item.moldOrderId && ' (再利用)'}
                               </p>
                             )}
-                            {item.expressDeliveryFee && item.expressDeliveryFee > 0 && (
-                              <p className="text-xs text-blue-600 font-medium mt-1">
-                                + 特急料金 {formatPrice(item.expressDeliveryFee)}
-                              </p>
-                            )}
                             {item.shippingModifier && item.shippingModifier > 0 && (
                               <p className="text-xs text-orange-600 font-medium mt-1">
                                 + 送料加算 {formatPrice(item.shippingModifier)}
                               </p>
                             )}
                             <p className="text-xl font-bold text-foreground">
-                              {formatPrice(item.totalPrice + (item.moldFee || 0) + (item.expressDeliveryFee || 0) + (item.shippingModifier || 0))}
+                              {formatPrice(item.totalPrice + (item.moldFee || 0) + (item.shippingModifier || 0))}
                             </p>
                           </div>
                         </div>
@@ -223,14 +223,6 @@ export function CartClient() {
                       </span>
                     </div>
                   )}
-                  {expressTotal > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">特急料金</span>
-                      <span className="text-foreground font-medium">
-                        {formatPrice(expressTotal)}
-                      </span>
-                    </div>
-                  )}
                   {shippingModifierTotal > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">送料加算</span>
@@ -240,16 +232,25 @@ export function CartClient() {
                     </div>
                   )}
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">送料</span>
-                    <span className="text-primary font-medium">無料</span>
+                    <span className="text-muted-foreground">
+                      送料{hasExpress ? '（特急便 ×2）' : ''}
+                    </span>
+                    <span className="text-foreground font-medium">
+                      {totalQuantity > 0 ? formatPrice(displayShippingFee) : '—'}
+                    </span>
                   </div>
+                  {totalQuantity > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      合計数量: {totalQuantity.toLocaleString()}個
+                    </p>
+                  )}
                   <div className="h-px bg-border" />
                   <div className="flex justify-between items-baseline">
                     <span className="font-bold text-lg text-foreground">
                       合計 (税込)
                     </span>
                     <span className="text-3xl font-bold text-primary">
-                      {formatPrice(cart.totalPrice)}
+                      {formatPrice(cart.totalPrice + displayShippingFee)}
                     </span>
                   </div>
                 </div>
@@ -282,7 +283,7 @@ export function CartClient() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Truck className="h-4 w-4 text-primary" />
-                      <span>送料無料</span>
+                      <span>迅速配送</span>
                     </div>
                   </div>
                 </div>

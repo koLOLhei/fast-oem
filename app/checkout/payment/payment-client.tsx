@@ -258,11 +258,9 @@ export function PaymentClient() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">送料</span>
-                    {shippingFee > 0 ? (
-                      <span className="text-orange-600 font-medium">{formatPrice(shippingFee)}</span>
-                    ) : (
-                      <span className="text-green-600 font-medium">無料</span>
-                    )}
+                    <span className="text-foreground font-medium">
+                      {shippingFee > 0 ? formatPrice(shippingFee) : '計算中...'}
+                    </span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-border">
                     <span className="font-semibold text-foreground">合計</span>

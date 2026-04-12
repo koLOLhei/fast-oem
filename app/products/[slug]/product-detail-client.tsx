@@ -292,6 +292,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         backDesignImage,
         backDesignPreviewDataUrl: backPreviewImage,
         backDesignFileName,
+        backDeliveryPdfUrl,
       } : {}),
       shippingModifier: shippingExtra > 0 ? shippingExtra : undefined,
     })
@@ -311,9 +312,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const totalPriceItems = calculateTotalPrice(product, quantity, selectedOptions)
   const moldInfo = calculateMoldFee(product, selectedOptions, quantity)
   const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
-  const expressFeeCost = 0 // Express surcharge is now applied to shipping at checkout, not per-product
   const shippingExtra = calculateShippingModifier(product, selectedOptions)
-  const totalPrice = totalPriceItems + moldFee + expressFeeCost + shippingExtra
+  const totalPrice = totalPriceItems + moldFee + shippingExtra
   const baseTier = product.priceTiers[0]
   const discountPercent = baseTier.unitPrice > unitPrice
     ? Math.round((1 - unitPrice / baseTier.unitPrice) * 100)
@@ -605,9 +605,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <Truck className="w-5 h-5 text-primary" />
               <h3 className="font-semibold text-foreground">納期を選択</h3>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="納期の選択">
               {/* Standard */}
               <button
+                role="radio"
+                aria-checked={!expressDelivery}
                 onClick={() => setExpressDelivery(false)}
                 className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
                   !expressDelivery
@@ -627,6 +629,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
               {/* Express */}
               <button
+                role="radio"
+                aria-checked={expressDelivery}
                 onClick={() => setExpressDelivery(true)}
                 className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
                   expressDelivery
@@ -659,7 +663,6 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           totalPrice={totalPrice}
           totalPriceItems={totalPriceItems}
           moldFee={moldFee}
-          expressFeeCost={expressFeeCost}
           shippingExtra={shippingExtra}
           discountPercent={discountPercent}
           complexityBlock={complexityBlock}

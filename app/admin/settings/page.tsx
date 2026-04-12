@@ -4,6 +4,7 @@ import { ShippingFeesForm } from './shipping-fees-form'
 
 export const dynamic = 'force-dynamic'
 
+// Legacy keys — kept so the DB filter still works even if rows exist
 const SHIPPING_KEYS: readonly string[] = ['shipping_fee_okinawa', 'shipping_fee_remote_island']
 
 export default async function AdminSettingsPage() {
@@ -40,9 +41,9 @@ export default async function AdminSettingsPage() {
 
             {/* Shipping fees */}
             <div className="rounded-xl border bg-card p-6 shadow-sm">
-                <h2 className="text-base font-semibold mb-1">送料設定</h2>
+                <h2 className="text-base font-semibold mb-1">送料テーブル（数量ベース）</h2>
                 <p className="text-sm text-muted-foreground mb-4">
-                    本州・四国・九州・北海道は無料（¥0固定）。沖縄・離島のみ設定できます。
+                    注文の合計数量に応じた送料が自動で適用されます。
                 </p>
                 <ShippingFeesForm fields={shippingRows} />
             </div>

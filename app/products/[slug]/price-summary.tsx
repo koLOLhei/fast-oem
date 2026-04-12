@@ -11,7 +11,6 @@ export interface PriceSummaryProps {
   totalPrice: number
   totalPriceItems: number
   moldFee: number
-  expressFeeCost: number
   shippingExtra: number
   discountPercent: number
   complexityBlock: string | null
@@ -32,7 +31,6 @@ export function PriceSummary({
   totalPrice,
   totalPriceItems,
   moldFee,
-  expressFeeCost,
   shippingExtra,
   discountPercent,
   complexityBlock,
@@ -89,14 +87,6 @@ export function PriceSummary({
                   </p>
                 </div>
               )}
-              {expressFeeCost > 0 && (
-                <div>
-                  <p className="text-sm text-muted-foreground">⚡ 特急料金</p>
-                  <p className="text-lg font-semibold text-orange-500">
-                    {formatPrice(expressFeeCost)}
-                  </p>
-                </div>
-              )}
               {shippingExtra > 0 && (
                 <div>
                   <p className="text-sm text-muted-foreground">
@@ -115,7 +105,7 @@ export function PriceSummary({
                   </span>
                 </p>
                 <div className="flex flex-col gap-1">
-                  {(moldFee > 0 || expressFeeCost > 0) && (
+                  {moldFee > 0 && (
                     <p className="text-sm text-muted-foreground">
                       商品代: {formatPrice(totalPriceItems)}
                     </p>

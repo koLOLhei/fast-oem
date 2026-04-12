@@ -81,6 +81,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
               key={hex}
               type="button"
               title={name}
+              aria-label={name}
+              aria-pressed={selected}
               onClick={() => {
                 onChange(hex)
                 setCustomHex('')

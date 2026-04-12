@@ -24,7 +24,7 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
   description:
-    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット10個〜対応、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
+    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット50個〜対応、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
   keywords: [
     'OEM製作', 'オリジナルグッズ', 'グッズ製作', 'グッズ制作',
     'アクリルキーホルダー', 'アクリルキーホルダー製作',
@@ -90,7 +90,7 @@ const features = [
   {
     icon: Package,
     title: '小ロットOK',
-    description: '10個から注文可能',
+    description: '50個から注文可能',
     color: 'text-[#ffe135]',
     bg: 'bg-[#ffe135]/20',
   },
@@ -204,7 +204,7 @@ const faqJsonLd = {
       name: 'OEMグッズの最低注文数はいくつですか？',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: '商品により異なりますが、アクリルキーホルダー・缶バッジは10個〜、ラバーキーホルダーは30個〜からご注文いただけます。小ロット対応でご注文しやすい価格を実現しています。',
+        text: '商品により異なりますが、アクリルキーホルダー・ピンバッジ・ラバーキーホルダーは50個〜、缶バッジは100個〜からご注文いただけます。小ロット対応でご注文しやすい価格を実現しています。',
       },
     },
     {
@@ -212,7 +212,7 @@ const faqJsonLd = {
       name: 'OEMグッズの納期はどのくらいですか？',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: '通常2週間〜1ヶ月程度です。特急オプション（約10日）もご用意しております。',
+        text: '通常2週間〜1ヶ月程度です。特急オプション（約2週間・送料2倍）もご用意しております。',
       },
     },
     {
@@ -303,7 +303,7 @@ export default async function HomePage() {
                     <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border-4 border-[#ffe135]">
                       <Image
                         src="/images/acrylic-keychain.jpg"
-                        alt="アクリルキーホルダー OEM製作 - 透明アクリル素材にフルカラー印刷、小ロット10個から対応"
+                        alt="アクリルキーホルダー OEM製作 - 透明アクリル素材にフルカラー印刷、小ロット50個から対応"
                         fill
                         priority
                         sizes="(max-width: 1024px) 0px, 25vw"
@@ -379,7 +379,7 @@ export default async function HomePage() {
             <p className="text-xs opacity-70">取引実績</p>
           </div>
           <div>
-            <p className="text-2xl font-black">10個〜</p>
+            <p className="text-2xl font-black">50個〜</p>
             <p className="text-xs opacity-70">小ロット対応</p>
           </div>
         </div>
@@ -518,7 +518,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Link href="/use-cases/doujin" className="group block p-8 bg-gradient-to-br from-[#ff7b54]/5 to-[#ff7b54]/10 rounded-3xl border-2 border-[#ff7b54]/20 hover:border-[#ff7b54]/50 transition-all hover:-translate-y-1 hover:shadow-lg">
               <h3 className="text-xl font-black text-foreground group-hover:text-[#ff7b54] transition-colors">同人グッズ製作</h3>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">コミケ・即売会の頒布物に。小ロット10個〜対応で個人クリエイターも安心。</p>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">コミケ・即売会の頒布物に。小ロット50個〜対応で個人クリエイターも安心。</p>
               <span className="inline-flex items-center text-sm font-bold text-[#ff7b54] mt-4">
                 詳しく見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </span>

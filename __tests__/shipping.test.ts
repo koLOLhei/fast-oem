@@ -1,76 +1,89 @@
 import { describe, it, expect } from 'vitest'
-import { getShippingZone, calculateShippingFee, SHIPPING_FEES } from '@/lib/shipping'
+import {
+  calculateShippingByQuantity,
+  calculateExpressShipping,
+  SHIPPING_TIERS,
+} from '@/lib/shipping'
 
-describe('getShippingZone', () => {
-  it('returns mainland for standard Tokyo address', () => {
-    expect(getShippingZone('1000001', '東京都')).toBe('mainland')
+describe('SHIPPING_TIERS', () => {
+  it('has 6 fixed tiers', () => {
+    expect(SHIPPING_TIERS).toHaveLength(6)
   })
 
-  it('returns mainland for Osaka', () => {
-    expect(getShippingZone('5300001', '大阪府')).toBe('mainland')
+  it('first tier starts at 1', () => {
+    expect(SHIPPING_TIERS[0].minQuantity).toBe(1)
   })
 
-  it('returns okinawa for Okinawa main island', () => {
-    expect(getShippingZone('9000001', '沖縄県')).toBe('okinawa')
-  })
-
-  it('returns okinawa for 沖縄 without 県', () => {
-    expect(getShippingZone('9000001', '沖縄')).toBe('okinawa')
-  })
-
-  it('returns remote_island for Ogasawara (東京都 remote island)', () => {
-    expect(getShippingZone('1002100', '東京都')).toBe('remote_island')
-  })
-
-  it('returns remote_island for Amami (鹿児島県 remote island)', () => {
-    expect(getShippingZone('8940001', '鹿児島県')).toBe('remote_island')
-  })
-
-  it('returns remote_island for Miyako Islands (沖縄県 remote island)', () => {
-    // Miyako postal prefix 9060 — remote island takes priority over okinawa
-    expect(getShippingZone('9060001', '沖縄県')).toBe('remote_island')
-  })
-
-  it('returns remote_island for Sado Island (新潟県)', () => {
-    expect(getShippingZone('9520001', '新潟県')).toBe('remote_island')
-  })
-
-  it('handles full-width digit postal codes', () => {
-    expect(getShippingZone('１００００１', '東京都')).toBe('mainland')
-  })
-
-  it('handles postal codes with hyphens', () => {
-    expect(getShippingZone('100-0001', '東京都')).toBe('mainland')
-  })
-
-  it('handles postal codes with full-width hyphens', () => {
-    expect(getShippingZone('100－0001', '東京都')).toBe('mainland')
+  it('last tier ends at 4000', () => {
+    expect(SHIPPING_TIERS[SHIPPING_TIERS.length - 1].maxQuantity).toBe(4000)
   })
 })
 
-describe('calculateShippingFee', () => {
-  it('returns 0 for mainland', () => {
-    expect(calculateShippingFee('1000001', '東京都')).toBe(0)
+describe('calculateShippingByQuantity', () => {
+  it('returns 0 for quantity 0', () => {
+    expect(calculateShippingByQuantity(0)).toBe(0)
   })
 
-  it('returns 1500 for Okinawa', () => {
-    expect(calculateShippingFee('9000001', '沖縄県')).toBe(1500)
+  it('returns ¥5,000 for 1 item', () => {
+    expect(calculateShippingByQuantity(1)).toBe(5000)
   })
 
-  it('returns 2000 for remote island', () => {
-    expect(calculateShippingFee('1002100', '東京都')).toBe(2000)
+  it('returns ¥5,000 for 300 items', () => {
+    expect(calculateShippingByQuantity(300)).toBe(5000)
   })
 
-  it('accepts custom fee schedule', () => {
-    const customFees = { mainland: 100, okinawa: 2000, remote_island: 3000 }
-    expect(calculateShippingFee('9000001', '沖縄県', customFees)).toBe(2000)
+  it('returns ¥8,000 for 301 items', () => {
+    expect(calculateShippingByQuantity(301)).toBe(8000)
+  })
+
+  it('returns ¥8,000 for 500 items', () => {
+    expect(calculateShippingByQuantity(500)).toBe(8000)
+  })
+
+  it('returns ¥11,000 for 501 items', () => {
+    expect(calculateShippingByQuantity(501)).toBe(11000)
+  })
+
+  it('returns ¥11,000 for 1000 items', () => {
+    expect(calculateShippingByQuantity(1000)).toBe(11000)
+  })
+
+  it('returns ¥16,000 for 2000 items', () => {
+    expect(calculateShippingByQuantity(2000)).toBe(16000)
+  })
+
+  it('returns ¥18,000 for 3000 items', () => {
+    expect(calculateShippingByQuantity(3000)).toBe(18000)
+  })
+
+  it('returns ¥20,000 for 4000 items', () => {
+    expect(calculateShippingByQuantity(4000)).toBe(20000)
+  })
+
+  // Above 4000: ¥20,000 + ¥2,000 per 1,000-unit block
+  it('returns ¥22,000 for 4001 items (1 excess block)', () => {
+    expect(calculateShippingByQuantity(4001)).toBe(22000)
+  })
+
+  it('returns ¥22,000 for 5000 items (1 excess block)', () => {
+    expect(calculateShippingByQuantity(5000)).toBe(22000)
+  })
+
+  it('returns ¥24,000 for 5001 items (2 excess blocks)', () => {
+    expect(calculateShippingByQuantity(5001)).toBe(24000)
+  })
+
+  it('returns ¥30,000 for 9000 items (5 excess blocks)', () => {
+    expect(calculateShippingByQuantity(9000)).toBe(30000)
   })
 })
 
-describe('SHIPPING_FEES defaults', () => {
-  it('has correct default values', () => {
-    expect(SHIPPING_FEES.mainland).toBe(0)
-    expect(SHIPPING_FEES.okinawa).toBe(1500)
-    expect(SHIPPING_FEES.remote_island).toBe(2000)
+describe('calculateExpressShipping', () => {
+  it('doubles the base fee', () => {
+    expect(calculateExpressShipping(5000)).toBe(10000)
+  })
+
+  it('returns 0 when base is 0', () => {
+    expect(calculateExpressShipping(0)).toBe(0)
   })
 })

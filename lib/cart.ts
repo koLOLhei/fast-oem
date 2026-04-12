@@ -32,6 +32,7 @@ export interface CartItem {
   backDesignImage?: string | null       // storage path for back design (double-sided)
   backDesignPreviewDataUrl?: string | null  // preview data URL for back design
   backDesignFileName?: string | null
+  backDeliveryPdfUrl?: string | null    // delivery PDF URL for back design
   shippingModifier?: number          // extra shipping from options
 }
 
