@@ -129,8 +129,9 @@ async function validateAndRepricItems(
   const productIds = [...new Set(items.map((i) => i.productId))]
   const { data: masterRows, error: masterError } = await supabase
     .from('products')
-    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity, fixed_unit_price, complexity_rules, is_3d')
+    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity, fixed_unit_price, complexity_rules, is_3d, is_active')
     .in('id', productIds)
+    .eq('is_active', true)
 
   if (masterError) {
     console.error('[pricing] Product master lookup failed:', masterError.message)
