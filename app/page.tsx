@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProductCard } from '@/components/product-card'
 import { getProductsFromDb } from '@/lib/products-db'
-import { DecorativeIllustrations, FloatingShapes, DoodleElements } from '@/components/illustrations'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -331,6 +330,7 @@ export default async function HomePage() {
                         src="/images/can-badge.jpg"
                         alt="缶バッジ OEM製作 - フルカラー印刷、同人イベント・推し活に最適"
                         fill
+                        priority
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
@@ -340,6 +340,7 @@ export default async function HomePage() {
                         src="/images/rubber-keychain.jpg"
                         alt="ラバーキーホルダー OEM製作 - PVC素材で立体デザイン対応、キャラクターグッズに最適"
                         fill
+                        priority
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />

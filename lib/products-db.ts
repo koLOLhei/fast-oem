@@ -77,7 +77,10 @@ function filterActive(products: Product[]): Product[] {
 }
 
 /**
- * Fetch all active products. Falls back to static PRODUCTS on DB error.
+ * Fetch all active products. Falls back to static PRODUCTS only on DB error.
+ *
+ * When the DB query succeeds, we trust the result even if it's empty —
+ * the admin may have deactivated all products intentionally.
  */
 export async function getProductsFromDb(): Promise<Product[]> {
     try {
@@ -88,12 +91,11 @@ export async function getProductsFromDb(): Promise<Product[]> {
             .order('created_at')
         if (error) {
             console.error('[getProductsFromDb] Supabase error:', { code: error.code, message: error.message })
-        }
-        if (error || !data || data.length === 0) {
-            console.warn('[getProductsFromDb] Falling back to static PRODUCTS. DB returned:', { error: !!error, count: data?.length ?? 0 })
+            console.warn('[getProductsFromDb] Falling back to static PRODUCTS due to DB error')
             return filterActive(PRODUCTS)
         }
-        return data.map(rowToProduct)
+        // Query succeeded — trust the DB result (even if empty)
+        return (data ?? []).map(rowToProduct)
     } catch (err) {
         console.error('[getProductsFromDb] DB error, falling back to static data:', (err as Error).message)
         return filterActive(PRODUCTS)
@@ -102,6 +104,12 @@ export async function getProductsFromDb(): Promise<Product[]> {
 
 /**
  * Fetch a single product by slug. Returns undefined if not found or inactive.
+ *
+ * IMPORTANT: Static fallback is ONLY used when the DB query itself fails
+ * (network error, Supabase outage, etc.). When the query succeeds but
+ * returns no rows, we trust that result — the product either doesn't exist
+ * or was deactivated by the admin. Falling back to static data in that case
+ * would re-expose products the admin intentionally hid.
  */
 export async function getProductBySlugFromDb(slug: string): Promise<Product | undefined> {
     try {
@@ -113,11 +121,13 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
             .maybeSingle()
         if (error) {
             console.error('[getProductBySlugFromDb] Supabase error:', { slug, code: error.code, message: error.message, details: error.details })
-        }
-        if (!data) {
-            console.warn('[getProductBySlugFromDb] No product found for slug:', slug, error ? '(query error)' : '(not in DB or inactive)')
+            // DB error — fall back to static PRODUCTS as last resort
             const fallback = PRODUCTS.find((p) => p.slug === slug)
             return fallback && fallback.isActive !== false ? fallback : undefined
+        }
+        if (!data) {
+            // Query succeeded but no active product found — trust the DB
+            return undefined
         }
         return rowToProduct(data)
     } catch (err) {
@@ -130,6 +140,7 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | un
 /**
  * Fetch a few related products, excluding the given slug.
  * Much lighter than fetching all products just to pick 3.
+ * Falls back to static PRODUCTS only on DB error.
  */
 export async function getRelatedProducts(excludeSlug: string, limit = 3): Promise<Product[]> {
     try {
@@ -139,10 +150,10 @@ export async function getRelatedProducts(excludeSlug: string, limit = 3): Promis
             .eq('is_active', true)
             .neq('slug', excludeSlug)
             .limit(limit)
-        if (error || !data || data.length === 0) {
+        if (error) {
             return filterActive(PRODUCTS).filter((p) => p.slug !== excludeSlug).slice(0, limit)
         }
-        return data.map(rowToProduct)
+        return (data ?? []).map(rowToProduct)
     } catch {
         return filterActive(PRODUCTS).filter((p) => p.slug !== excludeSlug).slice(0, limit)
     }

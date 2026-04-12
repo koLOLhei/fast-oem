@@ -10,6 +10,7 @@ import './globals.css'
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
+  weight: ['400', '700', '900'],
   display: 'swap',
   variable: '--font-noto-sans-jp',
 })
@@ -92,7 +93,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://utwvalzykfxdeuwnebne.supabase.co" />
-        <link rel="dns-prefetch" href="https://utwvalzykfxdeuwnebne.supabase.co" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
@@ -110,9 +110,9 @@ export default function RootLayout({
         <Analytics />
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-K27ZY9QJDT"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="google-analytics" strategy="afterInteractive">
+        <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
