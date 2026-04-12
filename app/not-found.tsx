@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'ページが見つかりません | FAST OEM',
+  title: 'ページが見つかりません',
   description: 'お探しのページは存在しないか、移動した可能性があります。FAST OEMのトップページまたは商品一覧からお探しの情報をご確認ください。',
   robots: { index: false, follow: true },
 }

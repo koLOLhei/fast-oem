@@ -22,6 +22,24 @@ function createProductsClient() {
     return createClient(url, key)
 }
 
+/** Strip admin-UI placeholder options/values that were never customised */
+function sanitizeOptions(raw: any[]): any[] {
+    return raw
+        .map((opt: any) => ({
+            ...opt,
+            values: (opt.values ?? []).filter(
+                (v: any) => v.label && v.label !== '新しい値',
+            ),
+        }))
+        .filter(
+            (opt: any) =>
+                opt.name &&
+                opt.name !== '新しいオプション' &&
+                // number type options may legitimately have no values list
+                (opt.type === 'number' || (opt.values ?? []).length > 0),
+        )
+}
+
 function rowToProduct(row: any): Product {
     return {
         id: row.id,
@@ -43,7 +61,7 @@ function rowToProduct(row: any): Product {
         features: row.features ?? [],
         quantityPresets: row.quantity_presets ?? [],
         priceTiers: row.price_tiers ?? [],
-        options: row.options ?? [],
+        options: sanitizeOptions(row.options ?? []),
         isActive: row.is_active ?? true,
         is3d: row.is_3d ?? false,
         imageViews: row.image_views ?? [],

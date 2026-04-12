@@ -5,7 +5,7 @@ import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-    title: 'プライバシーポリシー | FAST OEM',
+    title: 'プライバシーポリシー',
     description: 'FAST OEM プライバシーポリシー（個人情報の取り扱いについて）。株式会社SOARAが運営するFAST OEMにおける個人情報の取得・利用目的・第三者提供・安全管理について。',
     openGraph: {
         title: 'プライバシーポリシー | FAST OEM',

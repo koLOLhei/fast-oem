@@ -4,7 +4,7 @@ import { SubmitButton } from '@/components/submit-button'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'パスワードのリセット | FAST OEM',
+    title: 'パスワードのリセット',
     robots: { index: false },
 }
 
