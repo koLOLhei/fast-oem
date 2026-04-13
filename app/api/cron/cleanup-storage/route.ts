@@ -27,24 +27,33 @@ export async function GET(request: Request) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     // Paginate through all files in the bucket (Supabase max 1000 per page)
+    // Scan root and known subdirectories (processed/ for converted images)
     const PAGE_SIZE = 500
+    const SCAN_DIRS = ['', 'processed']
     let allFiles: Array<{ name: string; created_at: string | null }> = []
-    let offset = 0
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { data: page, error: listError } = await supabase
-        .storage
-        .from('designs')
-        .list('', { limit: PAGE_SIZE, offset })
+    for (const dir of SCAN_DIRS) {
+      let offset = 0
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: page, error: listError } = await supabase
+          .storage
+          .from('designs')
+          .list(dir, { limit: PAGE_SIZE, offset })
 
-      if (listError) {
-        console.error('Storage list error:', listError.message)
-        return NextResponse.json({ error: 'Failed to list files' }, { status: 500 })
+        if (listError) {
+          console.error(`Storage list error (dir: ${dir || 'root'}):`, listError.message)
+          break // continue with other directories
+        }
+        if (!page || page.length === 0) break
+        // Prefix with directory path for correct delete/reference matching
+        const prefixed = page.map(f => ({
+          name: dir ? `${dir}/${f.name}` : f.name,
+          created_at: f.created_at,
+        }))
+        allFiles = allFiles.concat(prefixed)
+        if (page.length < PAGE_SIZE) break
+        offset += PAGE_SIZE
       }
-      if (!page || page.length === 0) break
-      allFiles = allFiles.concat(page)
-      if (page.length < PAGE_SIZE) break
-      offset += PAGE_SIZE
     }
 
     const oldFiles = allFiles.filter(file => {
@@ -56,15 +65,24 @@ export async function GET(request: Request) {
       const filePaths = oldFiles.map(f => f.name)
 
       // Cross-reference with DB: only delete files NOT referenced by any order_item.
-      // design_url and converted_design_url store full URLs, so match by filename suffix.
+      // Check all URL columns: design_url, converted_design_url, delivery_pdf_url,
+      // back_design_url, back_delivery_pdf_url
+      const fileNames = filePaths.map(p => p.split('/').pop() || p)
+      const orConditions = fileNames.flatMap(p => [
+        `design_url.ilike.%${p}`,
+        `converted_design_url.ilike.%${p}`,
+        `delivery_pdf_url.ilike.%${p}`,
+        `back_design_url.ilike.%${p}`,
+        `back_delivery_pdf_url.ilike.%${p}`,
+      ])
       const { data: referencedItems } = await supabase
         .from('order_items')
-        .select('design_url, converted_design_url')
-        .or(filePaths.map(p => `design_url.ilike.%${p}`).join(','))
+        .select('design_url, converted_design_url, delivery_pdf_url, back_design_url, back_delivery_pdf_url')
+        .or(orConditions.join(','))
 
       const referencedFiles = new Set<string>()
       for (const item of referencedItems ?? []) {
-        for (const url of [item.design_url, item.converted_design_url]) {
+        for (const url of [item.design_url, item.converted_design_url, item.delivery_pdf_url, item.back_design_url, item.back_delivery_pdf_url]) {
           if (url) {
             // Extract filename from URL (last path segment)
             const filename = url.split('/').pop()
@@ -73,7 +91,11 @@ export async function GET(request: Request) {
         }
       }
 
-      const safeToDelete = filePaths.filter(p => !referencedFiles.has(p))
+      // Match by filename (last segment of path) since DB stores full URLs
+      const safeToDelete = filePaths.filter(p => {
+        const fileName = p.split('/').pop() || p
+        return !referencedFiles.has(fileName)
+      })
       const skipped = filePaths.length - safeToDelete.length
 
       if (skipped > 0) {

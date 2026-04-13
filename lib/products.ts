@@ -645,6 +645,8 @@ export function calculateUnitPrice(
   )
   if (tier) {
     base = tier.unitPrice
+  } else if (product.priceTiers.length === 0) {
+    return 0
   } else if (quantity < product.minQuantity) {
     base = product.priceTiers[0].unitPrice
   } else {
@@ -694,7 +696,7 @@ export function calculateUnitPrice(
     }
   }
 
-  return price
+  return Math.max(1, price)
 }
 
 export function calculateTotalPrice(

@@ -124,7 +124,7 @@ const organizationJsonLd = {
     value: 10,
   },
   email: 'contact@soara-mu.com',
-  priceRange: '¥12〜¥204',
+  priceRange: '¥12〜¥300',
   currenciesAccepted: 'JPY',
   paymentAccepted: 'Credit Card',
   openingHours: 'Mo-Fr 10:00-18:00',

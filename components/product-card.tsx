@@ -62,11 +62,16 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
           {/* Price Display */}
           {lowestPrice != null && (
-            <div className={`mt-4 pt-4 border-t-2 border-dashed ${color.border}/30`} itemProp="offers" itemScope itemType="https://schema.org/Offer">
+            <div className={`mt-4 pt-4 border-t-2 border-dashed ${color.border}/30`} itemProp="offers" itemScope itemType="https://schema.org/AggregateOffer">
               <meta itemProp="priceCurrency" content="JPY" />
+              <meta itemProp="lowPrice" content={String(lowestPrice)} />
+              {product.priceTiers.length > 0 && (
+                <meta itemProp="highPrice" content={String(product.priceTiers[0].unitPrice)} />
+              )}
+              <meta itemProp="offerCount" content={String(product.priceTiers.length)} />
               <meta itemProp="availability" content="https://schema.org/InStock" />
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#ff7b54]" itemProp="price" content={String(lowestPrice)}>
+                <span className="text-3xl font-black text-[#ff7b54]">
                   {formatPrice(lowestPrice)}
                 </span>
                 <span className="text-sm text-muted-foreground font-medium">〜/個</span>

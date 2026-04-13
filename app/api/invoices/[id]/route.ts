@@ -105,13 +105,22 @@ export async function GET(
         font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     }
 
+    let currentPage = page
+
+    const ensureSpace = (neededPx: number): void => {
+        if (y - neededPx < 60) {
+            currentPage = pdfDoc.addPage([595, 842])
+            y = 842 - 60
+        }
+    }
+
     const drawText = (
         text: string, x: number, yPos: number,
         size = 10, _bold = false, color = rgb(0, 0, 0)
-    ) => { page.drawText(text, { x, y: yPos, size, font, color }) }
+    ) => { currentPage.drawText(text, { x, y: yPos, size, font, color }) }
 
     const drawLine = (yPos: number, x1 = 40, x2 = width - 40) => {
-        page.drawLine({
+        currentPage.drawLine({
             start: { x: x1, y: yPos }, end: { x: x2, y: yPos },
             thickness: 0.5, color: rgb(0.8, 0.8, 0.8),
         })
@@ -181,6 +190,7 @@ export async function GET(
 
     // ── Line items ─────────────────────────────────────────────────
     for (const item of orderItems) {
+        ensureSpace(60) // reserve space for item + options + mold + express
         const unitExTax = Math.round(item.unit_price / (1 + TAX_RATE))
         const lineExTax = Math.round((item.unit_price * item.quantity) / (1 + TAX_RATE))
         drawText(item.product_name.slice(0, 36), 40, y, 9)
@@ -189,11 +199,13 @@ export async function GET(
         drawText(`¥${lineExTax.toLocaleString('ja-JP')}`, 470, y, 9)
         y -= 16
         if (item.options?.length > 0) {
+            ensureSpace(14)
             const optText = (item.options as OrderItemOption[]).map((o) => `${o.name}: ${o.value}`).join(' / ')
             drawText(optText.slice(0, 58), 50, y, 7, false, rgb(0.5, 0.5, 0.5))
             y -= 14
         }
         if (item.mold_fee && item.mold_fee > 0) {
+            ensureSpace(16)
             const moldExTax = Math.round(item.mold_fee / (1 + TAX_RATE))
             drawText('型代（初回のみ）', 50, y, 8, false, rgb(0.8, 0.3, 0.2))
             drawText('1', 350, y, 8, false, rgb(0.8, 0.3, 0.2))
@@ -202,6 +214,7 @@ export async function GET(
             y -= 16
         }
         if (item.express_delivery_fee && item.express_delivery_fee > 0) {
+            ensureSpace(16)
             const expressExTax = Math.round(item.express_delivery_fee / (1 + TAX_RATE))
             drawText('⚡ 特急料金', 50, y, 8, false, rgb(0.9, 0.4, 0.1))
             drawText('1', 350, y, 8, false, rgb(0.9, 0.4, 0.1))
@@ -212,6 +225,7 @@ export async function GET(
     }
 
     if (shippingFee > 0) {
+        ensureSpace(16)
         drawText('送料（離島・遠隔地）', 40, y, 8, false, rgb(0.3, 0.3, 0.8))
         drawText('1', 350, y, 8, false, rgb(0.3, 0.3, 0.8))
         drawText(`¥${shippingFeeExTax.toLocaleString('ja-JP')}`, 470, y, 8, false, rgb(0.3, 0.3, 0.8))
@@ -223,6 +237,7 @@ export async function GET(
     y -= 20
 
     // ── Totals ─────────────────────────────────────────────────────
+    ensureSpace(120) // totals + footer need ~120px
     drawText('小計（税抜）', 350, y, 9)
     drawText(`¥${priceExTax.toLocaleString('ja-JP')}`, 470, y, 9)
     y -= 16

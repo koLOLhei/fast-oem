@@ -494,10 +494,23 @@ serve(async (req: Request) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
         )
 
+        // First fetch the current order status to avoid regressing shipped/completed orders
+        const { data: currentOrder } = await supabase
+          .from('orders')
+          .select('id, order_number, total_price, status')
+          .eq('payment_intent_id', paymentIntentId)
+          .single()
+
+        // Determine the new status: full refund → 'refunded', partial refund → keep current status
+        // Never regress from processing/shipped/completed back to 'paid'
+        const newStatus = isFullRefund
+          ? 'refunded'
+          : (currentOrder?.status ?? 'paid') // partial refund preserves current status
+
         const { data: refundedOrder, error: refundErr } = await supabase
           .from('orders')
           .update({
-            status: isFullRefund ? 'refunded' : 'paid', // partial refund stays 'paid'
+            status: newStatus,
             refunded_amount: refundedAmount,
             refunded_at: new Date().toISOString(),
           })

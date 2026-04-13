@@ -19,13 +19,23 @@ export async function GET(req: NextRequest) {
 
     const { data: order } = await supabase
         .from('orders')
-        .select('id, access_token')
+        .select('id, access_token, access_token_expires_at, status')
         .eq('stripe_session_id', sessionId)
         .single()
 
     if (!order) {
         // Webhook hasn't processed yet — caller should retry
         return NextResponse.json({ pending: true }, { status: 404 })
+    }
+
+    // Reject expired access tokens
+    if (order.access_token_expires_at && new Date(order.access_token_expires_at) < new Date()) {
+        return NextResponse.json({ error: 'Access token expired' }, { status: 403 })
+    }
+
+    // Don't expose status URL for cancelled orders
+    if (order.status === 'cancelled') {
+        return NextResponse.json({ error: 'Order cancelled' }, { status: 410 })
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
