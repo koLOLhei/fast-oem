@@ -19,7 +19,9 @@ interface CheckoutSessionData {
 }
 
 const SHIPPING_FIELD_LABELS: Record<string, string> = {
-  lastName: '姓', firstName: '名', postalCode: '郵便番号',
+  lastName: '姓', firstName: '名',
+  lastNameKana: 'セイ（カナ）', firstNameKana: 'メイ（カナ）',
+  postalCode: '郵便番号',
   prefecture: '都道府県', city: '市区町村', address1: '番地・建物名',
   phone: '電話番号', email: 'メールアドレス',
 }
@@ -27,7 +29,7 @@ const SHIPPING_FIELD_LABELS: Record<string, string> = {
 /** Server-side guard: ensures required fields are present before hitting Stripe/DB. */
 function validateShippingAddress(addr: ShippingAddress): void {
   const required: (keyof ShippingAddress)[] = [
-    'lastName', 'firstName', 'postalCode', 'prefecture', 'city', 'address1', 'phone', 'email',
+    'lastName', 'firstName', 'lastNameKana', 'firstNameKana', 'postalCode', 'prefecture', 'city', 'address1', 'phone', 'email',
   ]
   for (const field of required) {
     if (!addr[field]?.trim()) {
@@ -580,7 +582,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
           currency: 'jpy',
           product_data: {
             name: `⚡ 特急料金 - ${item.productName}`,
-            description: '特急納期（約10日以内）オプション',
+            description: '特急納期（約2週間）オプション',
           },
           unit_amount: item.expressDeliveryFee,
         },

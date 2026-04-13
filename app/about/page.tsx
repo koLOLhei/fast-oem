@@ -122,7 +122,7 @@ export default function AboutPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { icon: Clock, label: '最短14営業日', desc: 'スピード納品' },
+                { icon: Clock, label: '最短約2週間', desc: 'スピード納品' },
                 { icon: Users, label: '小ロット対応', desc: '50個から製作OK' },
                 { icon: Globe, label: '全国配送', desc: '日本全国どこでも' },
                 { icon: Shield, label: '品質保証', desc: '検品済みでお届け' },

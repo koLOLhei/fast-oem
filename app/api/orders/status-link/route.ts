@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ pending: true }, { status: 404 })
     }
 
+    if (!order.access_token) {
+        // Order exists but webhook hasn't assigned a token yet — caller should retry
+        return NextResponse.json({ pending: true }, { status: 404 })
+    }
+
     // Reject expired access tokens
     if (order.access_token_expires_at && new Date(order.access_token_expires_at) < new Date()) {
         return NextResponse.json({ error: 'Access token expired' }, { status: 403 })

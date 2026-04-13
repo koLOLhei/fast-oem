@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 
 const benefits = [
   { icon: Package, title: '小ロット50個〜', description: '少量からでも高品質なグッズを製作。在庫リスクなく始められます。' },
-  { icon: Clock, title: '短納期で即売会に間に合う', description: '通常2〜3週間、特急なら約10日で納品。イベント日程に合わせて対応。' },
+  { icon: Clock, title: '短納期で即売会に間に合う', description: '通常約1ヶ月、特急なら約2週間で納品。イベント日程に合わせて対応。' },
   { icon: Sparkles, title: '高品質な仕上がり', description: 'フルカラー印刷で発色鮮やか。手に取ったファンに感動を届けます。' },
   { icon: Users, title: '個人クリエイター歓迎', description: '法人でなくてもOK。個人サークルの方にも多数ご利用いただいています。' },
 ]
@@ -173,8 +173,8 @@ export default async function DoujinPage() {
               </p>
               <p>
                 FAST OEMでは、アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーなどの同人グッズを、小ロット50個から製作できます。
-                デザインデータ（PNG・JPG・SVG等）をアップロードするだけで簡単に注文でき、通常2〜3週間でお届けします。
-                特急オプション（約10日）もあるため、イベント直前でも間に合います。
+                デザインデータ（PNG・JPG・SVG等）をアップロードするだけで簡単に注文でき、通常約1ヶ月でお届けします。
+                特急オプション（約2週間）もあるため、イベント直前でも間に合います。
               </p>
               <p>
                 個人クリエイターの方でも安心してご利用いただけるよう、会員登録なしでの注文にも対応。
@@ -188,7 +188,7 @@ export default async function DoujinPage() {
         <section className="py-16 bg-[#ff7b54]">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <h2 className="text-2xl md:text-4xl font-black text-white mb-4">あなたの作品をグッズにしよう</h2>
-            <p className="text-white/80 mb-8">デザインをアップロードするだけ。最短10日で届きます。</p>
+            <p className="text-white/80 mb-8">デザインをアップロードするだけ。最短約2週間で届きます。</p>
             <Link
               href="/products"
               className="inline-flex items-center gap-2 bg-white text-[#ff7b54] h-14 px-10 text-lg font-black rounded-full shadow-2xl hover:scale-105 transition-all"

@@ -31,7 +31,7 @@ const benefits = [
   { icon: Heart, title: '推しへの愛をカタチに', description: '推しの写真やイラストを高品質フルカラーでグッズ化。発色鮮やかで推しの魅力を再現。' },
   { icon: Package, title: '小ロット50個〜OK', description: '友達と分け合うぶんだけ作れる。在庫を抱える心配なし。' },
   { icon: Palette, title: 'かんたんデザイン入稿', description: '画像をアップロードするだけ。デザインソフト不要で簡単に作成できます。' },
-  { icon: Zap, title: '最短10日でお届け', description: 'ライブやイベントに間に合う特急オプション対応。通常でも2〜3週間で届きます。' },
+  { icon: Zap, title: '最短約2週間でお届け', description: 'ライブやイベントに間に合う特急オプション対応。通常でも約1ヶ月で届きます。' },
 ]
 
 const useCases = [

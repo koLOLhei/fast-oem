@@ -18,7 +18,7 @@ export default async function MyOrderDetailPage({
 
     const { data: order } = await supabase
         .from('orders')
-        .select(`*, order_items(*)`)
+        .select(`*, order_items(*), access_token`)
         .eq('id', id)
         .eq('customer_info->>email', user.email) // Security: only the right customer can see this
         .single()
@@ -45,7 +45,7 @@ export default async function MyOrderDetailPage({
                         <h1 className="text-2xl font-bold mt-2">注文詳細・領収書</h1>
                     </div>
                     <a
-                        href={`/api/receipts/${order.id}`}
+                        href={`/api/receipts/${order.id}?token=${order.access_token}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition"

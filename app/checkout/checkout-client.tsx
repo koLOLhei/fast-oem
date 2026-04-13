@@ -145,17 +145,17 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
       newErrors.firstNameKana = 'メイを入力してください'
     if (!formData.postalCode.trim())
       newErrors.postalCode = '郵便番号を入力してください'
-    if (!/^\d{3}-?\d{4}$/.test(formData.postalCode))
+    else if (!/^\d{3}-?\d{4}$/.test(formData.postalCode))
       newErrors.postalCode = '正しい郵便番号を入力してください'
     if (!formData.prefecture) newErrors.prefecture = '都道府県を選択してください'
     if (!formData.city.trim()) newErrors.city = '市区町村を入力してください'
     if (!formData.address1.trim())
       newErrors.address1 = '番地を入力してください'
     if (!formData.phone.trim()) newErrors.phone = '電話番号を入力してください'
-    if (!/^[\d-]+$/.test(formData.phone) || formData.phone.replace(/-/g, '').length < 10)
+    else if (!/^[\d-]+$/.test(formData.phone) || formData.phone.replace(/-/g, '').length < 10)
       newErrors.phone = '正しい電話番号を入力してください（10桁以上の数字）'
     if (!formData.email.trim()) newErrors.email = 'メールアドレスを入力してください'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = '正しいメールアドレスを入力してください'
 
     if (!agreedToTerms) newErrors.agreedToTerms = '利用規約・プライバシーポリシーへの同意が必要です'

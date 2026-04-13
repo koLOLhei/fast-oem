@@ -56,8 +56,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             item.designImage?.startsWith('data:') && item.designImage.length > MAX_DESIGN_URI_LEN
               ? null
               : item.designImage,
-          // Always strip preview data URL from localStorage — it's only for in-session display
+          // Always strip preview data URLs from localStorage — they're only for in-session display
           designPreviewDataUrl: null,
+          backDesignPreviewDataUrl: null,
         })),
       })
       try {
@@ -72,6 +73,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 ...item,
                 designImage: item.designImage?.startsWith('data:') ? null : item.designImage,
                 designPreviewDataUrl: null,
+                backDesignPreviewDataUrl: null,
               })),
             }
             localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(stripped))
