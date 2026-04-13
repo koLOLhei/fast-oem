@@ -53,7 +53,10 @@ export const metadata: Metadata = {
     canonical: BASE_URL,
   },
   icons: {
-    icon: '/icon.png',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+    ],
     apple: '/apple-icon.png',
   },
 }

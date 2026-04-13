@@ -18,12 +18,20 @@ export default function NotFound() {
                         お探しのページは存在しないか、移動した可能性があります。
                     </p>
                 </div>
-                <Link
-                    href="/"
-                    className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition"
-                >
-                    トップページへ戻る
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Link
+                        href="/"
+                        className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition"
+                    >
+                        トップページへ戻る
+                    </Link>
+                    <Link
+                        href="/products"
+                        className="inline-block px-6 py-2.5 border border-border text-foreground rounded-lg text-sm font-semibold hover:bg-muted/50 transition"
+                    >
+                        商品一覧を見る
+                    </Link>
+                </div>
             </div>
         </div>
     )

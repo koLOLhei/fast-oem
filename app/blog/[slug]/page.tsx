@@ -6,14 +6,32 @@ import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { articles, categoryColors, getArticleBySlug, AUTHORS } from '@/lib/blog-articles'
 import { User } from 'lucide-react'
 
-/** Render markdown-style **bold** text as safe React nodes (no dangerouslySetInnerHTML). */
+/** Render markdown-style [link](/url) as safe React <Link> nodes. */
+function renderLinks(text: string): React.ReactNode {
+  const parts = text.split(/\[([^\]]+)\]\(([^)]+)\)/g)
+  if (parts.length === 1) return text
+  const nodes: React.ReactNode[] = []
+  for (let i = 0; i < parts.length; i += 3) {
+    if (parts[i]) nodes.push(parts[i])
+    if (i + 1 < parts.length) {
+      nodes.push(
+        <Link key={`link-${i}`} href={parts[i + 2]} className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors">
+          {parts[i + 1]}
+        </Link>
+      )
+    }
+  }
+  return nodes
+}
+
+/** Render markdown-style **bold** text and [links](/url) as safe React nodes (no dangerouslySetInnerHTML). */
 function renderBoldText(text: string): React.ReactNode {
   const parts = text.split(/\*\*(.*?)\*\*/g)
-  if (parts.length === 1) return text
+  if (parts.length === 1) return renderLinks(text)
   return parts.map((part, i) =>
     i % 2 === 1
       ? <strong key={i} className="text-foreground">{part}</strong>
-      : part || null
+      : part ? renderLinks(part) : null
   )
 }
 
@@ -132,10 +150,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <article className="prose prose-gray max-w-none prose-headings:font-bold prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:text-foreground/80 prose-li:text-foreground/80 prose-strong:text-foreground prose-table:text-sm">
             {article.content.split('\n\n').map((block, i) => {
               if (block.startsWith('## ')) {
-                return <h2 key={i} className="text-xl font-bold text-foreground mt-10 mb-4">{block.replace('## ', '')}</h2>
+                return <h2 key={i} className="text-xl font-bold text-foreground mt-10 mb-4">{renderBoldText(block.replace('## ', ''))}</h2>
               }
               if (block.startsWith('### ')) {
-                return <h3 key={i} className="text-lg font-bold text-foreground mt-8 mb-3">{block.replace('### ', '')}</h3>
+                return <h3 key={i} className="text-lg font-bold text-foreground mt-8 mb-3">{renderBoldText(block.replace('### ', ''))}</h3>
               }
               if (block.startsWith('| ')) {
                 const rows = block.split('\n').filter((r) => !r.match(/^\|[\s-|]+\|$/))
@@ -157,7 +175,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                         {bodyRows.map((row, ri) => (
                           <tr key={ri} className="hover:bg-muted/30">
                             {row.split('|').filter(Boolean).map((cell, ci) => (
-                              <td key={ci} className="px-4 py-3 text-foreground/80">{cell.trim().replace(/\*\*/g, '')}</td>
+                              <td key={ci} className="px-4 py-3 text-foreground/80">{renderBoldText(cell.trim())}</td>
                             ))}
                           </tr>
                         ))}

@@ -98,7 +98,6 @@ export default function AboutPage() {
               <div className="w-48 h-48 mx-auto md:mx-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-border flex items-center justify-center">
                 <Users className="h-20 w-20 text-primary/40" />
               </div>
-              {/* TODO: 実際の代表写真に差し替え */}
               <p className="mt-4 font-black text-foreground text-lg">小川 公平</p>
               <p className="text-sm text-muted-foreground">代表取締役</p>
               <p className="text-xs text-muted-foreground mt-1">株式会社SOARA</p>
@@ -107,7 +106,6 @@ export default function AboutPage() {
               <span className="text-sm font-bold text-primary tracking-widest uppercase">Message</span>
               <h2 className="mt-2 text-2xl md:text-3xl font-black text-foreground">代表メッセージ</h2>
               <div className="mt-6 space-y-4 text-muted-foreground leading-relaxed">
-                {/* TODO: 代表者の実際のメッセージに差し替え */}
                 <p>
                   私自身がイベントでオリジナルグッズを作りたいと思ったとき、
                   「ロットが大きすぎる」「見積もりに時間がかかる」「品質が分からない」
