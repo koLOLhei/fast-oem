@@ -28,6 +28,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.85,
     },
+    // Use-case hub page
+    {
+      url: `${BASE_URL}/use-cases`,
+      lastModified: siteLastUpdated,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
     // Use-case landing pages (high priority for SEO)
     {
       url: `${BASE_URL}/use-cases/doujin`,
@@ -119,7 +126,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${BASE_URL}/products/${product.slug}`,
-    lastModified: siteLastUpdated,
+    lastModified: (product as any).updatedAt ? new Date((product as any).updatedAt) : siteLastUpdated,
     changeFrequency: 'monthly' as const,
     priority: 0.8,
   }))

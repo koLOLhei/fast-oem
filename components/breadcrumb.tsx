@@ -36,16 +36,30 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
   )
 }
 
-export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
+/**
+ * Generate breadcrumb JSON-LD.
+ * @param items — breadcrumb items. The last item should not have href.
+ * @param currentPath — canonical path for the current (last) page, e.g. '/about'.
+ *                       If provided, the last item gets an `item` URL (recommended by Google).
+ */
+export function breadcrumbJsonLd(items: BreadcrumbItem[], currentPath?: string) {
   const allItems = [{ name: 'トップ', href: '/' }, ...items]
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: allItems.map((item, i) => ({
-      '@type': 'ListItem',
-      position: i + 1,
-      name: item.name,
-      ...(item.href ? { item: `${BASE_URL}${item.href}` } : {}),
-    })),
+    itemListElement: allItems.map((item, i) => {
+      const isLast = i === allItems.length - 1
+      const url = item.href
+        ? `${BASE_URL}${item.href}`
+        : isLast && currentPath
+          ? `${BASE_URL}${currentPath}`
+          : undefined
+      return {
+        '@type': 'ListItem',
+        position: i + 1,
+        name: item.name,
+        ...(url ? { item: url } : {}),
+      }
+    }),
   }
 }

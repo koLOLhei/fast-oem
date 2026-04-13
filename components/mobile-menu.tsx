@@ -49,7 +49,7 @@ export function MobileMenu({ products }: { products: ProductNav[] }) {
 
       {/* Mobile Navigation Panel */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white border-t-2 border-[#00c8c8]/20 absolute left-0 right-0 top-full z-50">
+        <div className="md:hidden bg-white border-t-2 border-[#00c8c8]/20 absolute left-0 right-0 top-full z-50 max-h-[calc(100dvh-4.5rem)] overflow-y-auto">
           <nav className="flex flex-col px-4 py-4 gap-1">
             <div className="py-2 px-3 text-xs font-bold text-[#00c8c8] uppercase tracking-wider">
               商品カテゴリ
@@ -100,6 +100,15 @@ export function MobileMenu({ products }: { products: ProductNav[] }) {
               onClick={() => setIsMenuOpen(false)}
             >
               お問い合わせ
+            </Link>
+            <div className="h-px bg-[#ffe135] my-2" />
+            <Link
+              href="/mypage"
+              className="text-foreground py-3 px-3 hover:bg-[#a78bfa]/20 rounded-xl transition-colors font-medium flex items-center gap-2"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#a78bfa]" />
+              マイページ
             </Link>
           </nav>
         </div>

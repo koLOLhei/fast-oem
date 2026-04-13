@@ -17,14 +17,14 @@ export async function Footer() {
         <div className="flex-1 bg-[#7ed957]" />
       </div>
 
-      {/* Newsletter Section */}
+      {/* CTA Section */}
       <div className="border-b border-white/10 bg-gradient-to-r from-[#00c8c8]/10 to-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
-              <h3 className="text-2xl font-black">お得な情報をお届け</h3>
+              <h3 className="text-2xl font-black">オリジナルグッズを作ろう</h3>
               <p className="text-white/70 mt-1">
-                新商品やキャンペーン情報をいち早くお届けします
+                小ロットから大量発注まで、高品質なOEMグッズを製作
               </p>
             </div>
             <Button
@@ -62,6 +62,15 @@ export async function Footer() {
               高品質なオリジナルグッズを簡単・スピーディーに作成。
               小ロットから大量発注まで対応いたします。
             </p>
+            <a
+              href="https://soara-mu.jp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-white/50 hover:text-[#ffe135] text-xs mt-3 transition-colors"
+            >
+              運営: 株式会社SOARA
+              <ArrowRight className="h-3 w-3" />
+            </a>
             {/* Decorative dots */}
             <div className="flex gap-2 mt-6">
               <div className="w-3 h-3 rounded-full bg-[#ffe135]" />
@@ -119,13 +128,13 @@ export async function Footer() {
                 href="/cases"
                 className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
-                製作事例
+                グッズ活用シーン
               </Link>
               <Link
                 href="/blog"
                 className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
-                コラム
+                グッズ製作コラム
               </Link>
               <Link
                 href="/guide"
@@ -151,6 +160,13 @@ export async function Footer() {
               >
                 会社概要
               </Link>
+              <Link
+                href="/mypage"
+                className="text-white/70 hover:text-[#ffe135] transition-colors text-sm"
+                rel="nofollow"
+              >
+                マイページ
+              </Link>
             </nav>
           </div>
 
@@ -172,7 +188,7 @@ export async function Footer() {
               </Link>
               <a
                 href="mailto:contact@soara-mu.com"
-                className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm ml-13"
+                className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm ml-[3.25rem]"
               >
                 contact@soara-mu.com
               </a>

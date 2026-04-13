@@ -9,7 +9,6 @@ export const metadata: Metadata = {
   title: '配送・納期について | OEMグッズの送料・特急対応',
   description:
     'FAST OEMの配送・納期について。標準納期約1ヶ月・特急約2週間対応。送料は注文数量に応じた料金体系。ヤマト運輸・佐川急便にて発送。',
-  keywords: ['OEM 納期', 'グッズ製作 納期', 'OEM 送料', 'グッズ 特急', 'OEM 配送'],
   openGraph: {
     title: '配送・納期について | FAST OEM',
     description: 'OEMグッズの配送・納期情報。標準約1ヶ月・特急約2週間。数量ベースの送料体系。',
@@ -68,7 +67,7 @@ export default function ShippingPage() {
             商品別 納期の目安
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            ※ 납期はご入金確認後〜発送日までの営業日数です。土日祝・年末年始・工場休業日は含みません。<br />
+            ※ 納期はご入金確認後〜発送日までの営業日数です。土日祝・年末年始・工場休業日は含みません。<br />
             ※ 工場の混雑状況により変動する場合があります。
           </p>
           <div className="overflow-x-auto rounded-2xl border border-border">

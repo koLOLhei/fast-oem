@@ -122,7 +122,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const newItems = prevCart.items.map((item) => {
         if (item.id === itemId) {
           const product = getProductById(item.productId)
-          if (!product) return item
+
+          if (!product) {
+            // DB-only product: recalculate total from existing unit price.
+            // The server re-validates all prices at checkout so this is safe.
+            const totalPrice = item.unitPrice * quantity
+            return { ...item, quantity, totalPrice }
+          }
 
           const selectedOptions: Record<string, string> = {}
           item.options.forEach((opt) => {

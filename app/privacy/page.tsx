@@ -149,7 +149,7 @@ export default function PrivacyPage() {
                             本サービスでは、セッション管理・サービス品質向上のためにCookieを使用しています。
                             ブラウザの設定によりCookieを無効化することができますが、
                             その場合一部機能が正常に動作しない場合があります。
-                            アクセス解析目的のトラッキングCookieは使用していません。
+                            なお、本サービスではGoogle Analyticsを利用してサイトの利用状況を分析しています。Google Analyticsはデータ収集のためにCookieを使用します。詳しくは<a href="https://policies.google.com/technologies/partner-sites" className="text-primary underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">Googleのサービスを使用するサイトやアプリから収集した情報のGoogleによる使用</a>をご確認ください。
                         </p>
                     </section>
 

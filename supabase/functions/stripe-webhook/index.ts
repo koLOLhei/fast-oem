@@ -263,6 +263,19 @@ serve(async (req: Request) => {
                 updates.back_delivery_pdf_url = signed?.signedUrl ?? null
               }
 
+              // Resolve design image storage paths → signed URLs (for factory email download links)
+              const designPath: string | null = (item.converted_design_url ?? item.design_url) ?? null
+              if (designPath && !designPath.startsWith('http')) {
+                const { data: signed } = await supabase.storage
+                  .from('designs')
+                  .createSignedUrl(designPath, 259200) // 72 hours
+                if (item.converted_design_url) {
+                  updates.converted_design_url = signed?.signedUrl ?? item.converted_design_url
+                } else {
+                  updates.design_url = signed?.signedUrl ?? item.design_url
+                }
+              }
+
               return Object.keys(updates).length > 0 ? { ...item, ...updates } : item
             })
           )
@@ -539,45 +552,52 @@ serve(async (req: Request) => {
         )
 
         // First fetch the current order status to avoid regressing shipped/completed orders
+        // and to implement idempotency (skip if already recorded this exact refund amount)
         const { data: currentOrder } = await supabase
           .from('orders')
-          .select('id, order_number, total_price, status')
+          .select('id, order_number, total_price, status, refunded_amount')
           .eq('payment_intent_id', paymentIntentId)
           .single()
 
-        // Determine the new status: full refund → 'refunded', partial refund → keep current status
-        // Never regress from processing/shipped/completed back to 'paid'
-        const newStatus = isFullRefund
-          ? 'refunded'
-          : (currentOrder?.status ?? 'paid') // partial refund preserves current status
-
-        const { data: refundedOrder, error: refundErr } = await supabase
-          .from('orders')
-          .update({
-            status: newStatus,
-            refunded_amount: refundedAmount,
-            refunded_at: new Date().toISOString(),
-          })
-          .eq('payment_intent_id', paymentIntentId)
-          .select('id, order_number, total_price')
-          .single()
-
-        if (refundErr || !refundedOrder) {
-          console.error(`[charge.refunded] Failed to update order for payment_intent ${paymentIntentId}:`, refundErr)
-          await sendAdminAlert(
-            '返金記録失敗',
-            `payment_intent_id: ${paymentIntentId}\n返金額: ¥${refundedAmount.toLocaleString('en')}\n注文が見つからないか更新失敗。手動確認が必要です。`,
-          )
+        // Idempotency guard: if refunded_amount already matches, this is a re-delivery
+        const alreadyRecorded = currentOrder?.refunded_amount === refundedAmount
+        if (alreadyRecorded) {
+          console.log(`[charge.refunded] Duplicate event for payment_intent ${paymentIntentId} — skipping (amount=${refundedAmount})`)
         } else {
-          const orderNumber = refundedOrder.order_number ?? refundedOrder.id
-          const label = isFullRefund ? '全額返金' : '一部返金'
-          console.log(`[${orderNumber}] ${label} 記録: ¥${refundedAmount}`)
-          await sendSlackMessage(
-            `💸 *${label}* 注文番号: ${orderNumber}\n` +
-            `返金額: ¥${refundedAmount.toLocaleString('en-US')}\n` +
-            `合計: ¥${(refundedOrder.total_price ?? 0).toLocaleString('en-US')}\n` +
-            `Stripe charge ID: ${charge.id}`,
-          )
+          // Determine the new status: full refund → 'refunded', partial refund → keep current status
+          // Never regress from processing/shipped/completed back to 'paid'
+          const newStatus = isFullRefund
+            ? 'refunded'
+            : (currentOrder?.status ?? 'paid') // partial refund preserves current status
+
+          const { data: refundedOrder, error: refundErr } = await supabase
+            .from('orders')
+            .update({
+              status: newStatus,
+              refunded_amount: refundedAmount,
+              refunded_at: new Date().toISOString(),
+            })
+            .eq('payment_intent_id', paymentIntentId)
+            .select('id, order_number, total_price')
+            .single()
+
+          if (refundErr || !refundedOrder) {
+            console.error(`[charge.refunded] Failed to update order for payment_intent ${paymentIntentId}:`, refundErr)
+            await sendAdminAlert(
+              '返金記録失敗',
+              `payment_intent_id: ${paymentIntentId}\n返金額: ¥${refundedAmount.toLocaleString('en')}\n注文が見つからないか更新失敗。手動確認が必要です。`,
+            )
+          } else {
+            const orderNumber = refundedOrder.order_number ?? refundedOrder.id
+            const label = isFullRefund ? '全額返金' : '一部返金'
+            console.log(`[${orderNumber}] ${label} 記録: ¥${refundedAmount}`)
+            await sendSlackMessage(
+              `💸 *${label}* 注文番号: ${orderNumber}\n` +
+              `返金額: ¥${refundedAmount.toLocaleString('en-US')}\n` +
+              `合計: ¥${(refundedOrder.total_price ?? 0).toLocaleString('en-US')}\n` +
+              `Stripe charge ID: ${charge.id}`,
+            )
+          }
         }
       } else {
         console.warn(`[charge.refunded] No payment_intent on charge ${charge.id} — skipped`)

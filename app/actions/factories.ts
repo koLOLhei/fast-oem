@@ -64,19 +64,30 @@ export async function updateFactory(factoryId: string, formData: FormData): Prom
     }
     if (!isValidUUID(factoryId)) return { error: '無効な工場IDです' }
 
+    const name = (formData.get('name') as string)?.trim()
+    if (!name) return { error: '工場名は必須です' }
+
     const maxCapacityRaw = formData.get('max_capacity') as string | null
+    let parsedMaxCapacity: number | null = null
+    if (maxCapacityRaw) {
+        parsedMaxCapacity = parseInt(maxCapacityRaw, 10)
+        if (isNaN(parsedMaxCapacity) || parsedMaxCapacity < 1) {
+            return { error: '最大生産能力は1以上の整数で入力してください' }
+        }
+        parsedMaxCapacity = Math.min(parsedMaxCapacity, 1_000_000)
+    }
 
     const supabase = createServiceClient()
     const { error } = await supabase
         .from('factories')
         .update({
-            name: (formData.get('name') as string)?.trim(),
+            name,
             country: (formData.get('country') as string)?.trim() || null,
             contact_email: (formData.get('contact_email') as string)?.trim() || null,
             contact_name: (formData.get('contact_name') as string)?.trim() || null,
             phone: (formData.get('phone') as string)?.trim() || null,
             address: (formData.get('address') as string)?.trim() || null,
-            max_capacity: maxCapacityRaw ? Math.min(parseInt(maxCapacityRaw, 10), 1_000_000) : null,
+            max_capacity: parsedMaxCapacity,
             is_active: formData.get('is_active') === 'true',
         })
         .eq('id', factoryId)

@@ -67,6 +67,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [moldReuseValid, setMoldReuseValid] = useState<boolean | null>(null)
   const [moldReuseMessage, setMoldReuseMessage] = useState('')
   const [checkingMold, setCheckingMold] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const [backDesignImage, setBackDesignImage] = useState<string | null>(null)
   const [backDesignFileName, setBackDesignFileName] = useState<string | null>(null)
@@ -202,35 +203,36 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   const handleAddToCart = (): boolean => {
+    setValidationError(null)
     if (complexityBlock) {
-      alert(complexityBlock)
+      setValidationError(complexityBlock)
       return false
     }
     if (is3d) {
       if (designImages.length === 0) {
-        alert('デザイン画像をアップロードしてください')
+        setValidationError('デザイン画像をアップロードしてください')
         return false
       }
       if (!allRequiredDone) {
-        alert('必須の面すべてで「納品データを確定（PDF生成）」を完了してください')
+        setValidationError('必須の面すべてで「納品データを確定（PDF生成）」を完了してください')
         return false
       }
     } else {
       if (!designImage) {
-        alert('デザイン画像をアップロードしてください')
+        setValidationError('デザイン画像をアップロードしてください')
         return false
       }
       if (!deliveryPdfUrl) {
-        alert('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
+        setValidationError('「納品データを確定（PDF生成）」ボタンを押してから追加してください')
         return false
       }
       if (needsBackDesign) {
         if (!backDesignImage) {
-          alert('裏面のデザイン画像をアップロードしてください')
+          setValidationError('裏面のデザイン画像をアップロードしてください')
           return false
         }
         if (!backDeliveryPdfUrl) {
-          alert('裏面の「納品データを確定（PDF生成）」ボタンを押してから追加してください')
+          setValidationError('裏面の「納品データを確定（PDF生成）」ボタンを押してから追加してください')
           return false
         }
       }
@@ -247,7 +249,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     })
 
     if (missingRequired.length > 0) {
-      alert(`以下の必須項目を選択してください:\n${missingRequired.map((o) => o.name).join('\n')}`)
+      setValidationError(`以下の必須項目を選択してください: ${missingRequired.map((o) => o.name).join('、')}`)
       return false
     }
 
@@ -442,7 +444,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                       type="number"
                       value={customQuantity}
                       onChange={(e) => handleCustomQuantityChange(e.target.value)}
-                      placeholder="枚数を指定"
+                      placeholder="個数を指定"
                       min={product.minQuantity}
                       max={product.maxQuantity}
                       className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -673,6 +675,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           is3d={!!is3d}
           allRequiredDone={allRequiredDone}
           isAdded={isAdded}
+          validationError={validationError}
           onAddToCart={handleAddToCart}
           onBuyNow={handleBuyNow}
           formatPrice={formatPrice}

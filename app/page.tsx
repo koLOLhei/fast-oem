@@ -22,21 +22,11 @@ import { getProductsFromDb } from '@/lib/products-db'
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-  title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作',
+  title: 'オリジナルグッズOEM製作｜小ロット50個〜対応 FAST OEM',
   description:
     'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット50個〜対応、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
-  keywords: [
-    'OEM製作', 'オリジナルグッズ', 'グッズ製作', 'グッズ制作',
-    'アクリルキーホルダー', 'アクリルキーホルダー製作',
-    '缶バッジ', '缶バッジ製作', 'ピンバッジ', 'ピンバッジ製作',
-    'ラバーキーホルダー',
-    '小ロット', '小ロット製作', '格安', 'スピード納品', '短納期',
-    '同人グッズ', '同人グッズ製作', 'ノベルティ', '推しグッズ',
-    'グッズ 作りたい', 'グッズ 作る方法', 'オリジナルグッズ 制作',
-    'グッズ製作 おすすめ', 'グッズ 注文', 'オーダーメイド グッズ',
-  ],
   openGraph: {
-    title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作',
+    title: 'オリジナルグッズOEM製作｜小ロット50個〜 FAST OEM',
     description:
       'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティなら FAST OEM。',
     url: BASE_URL,
@@ -95,9 +85,9 @@ const features = [
     bg: 'bg-[#ffe135]/20',
   },
   {
-    icon: Star,
-    title: '満足度98%',
-    description: '多くのお客様に選ばれています',
+    icon: Zap,
+    title: '特急対応OK',
+    description: '約2週間の特急納品に対応',
     color: 'text-[#7ed957]',
     bg: 'bg-[#7ed957]/10',
   },
@@ -160,6 +150,14 @@ const organizationJsonLd = {
     '@type': 'Country',
     name: 'Japan',
   },
+  sameAs: [
+    'https://soara-mu.jp',
+  ],
+  parentOrganization: {
+    '@type': 'Organization',
+    name: '株式会社SOARA',
+    url: 'https://soara-mu.jp',
+  },
 }
 
 const siteNavigationJsonLd = {
@@ -172,6 +170,7 @@ const siteNavigationJsonLd = {
     { '@type': 'WebPage', name: 'よくある質問', url: `${BASE_URL}/faq` },
     { '@type': 'WebPage', name: 'お問い合わせ', url: `${BASE_URL}/contact` },
     { '@type': 'WebPage', name: '配送について', url: `${BASE_URL}/shipping` },
+    { '@type': 'WebPage', name: '用途別ガイド', url: `${BASE_URL}/use-cases` },
     { '@type': 'WebPage', name: '同人グッズ製作', url: `${BASE_URL}/use-cases/doujin` },
     { '@type': 'WebPage', name: '企業ノベルティ製作', url: `${BASE_URL}/use-cases/novelty` },
     { '@type': 'WebPage', name: '推し活グッズ製作', url: `${BASE_URL}/use-cases/oshikatsu` },
@@ -186,53 +185,14 @@ const websiteJsonLd = {
   '@type': 'WebSite',
   name: 'FAST OEM',
   url: BASE_URL,
-}
-
-const faqJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'OEMグッズの最低注文数はいくつですか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: '商品により異なりますが、アクリルキーホルダー・ピンバッジ・ラバーキーホルダーは50個〜、缶バッジは100個〜からご注文いただけます。小ロット対応でご注文しやすい価格を実現しています。',
-      },
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: {
+      '@type': 'EntryPoint',
+      urlTemplate: `${BASE_URL}/products?q={search_term_string}`,
     },
-    {
-      '@type': 'Question',
-      name: 'OEMグッズの納期はどのくらいですか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: '通常2週間〜1ヶ月程度です。特急オプション（約2週間・送料2倍）もご用意しております。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'デザインファイルはどの形式に対応していますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'PNG・JPG・SVG・AI・PSDなどの主要形式に対応しています。印刷品質確保のため300dpi以上を推奨します。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: '同人グッズ・推しグッズの製作はできますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'はい、多くの同人サークル・個人クリエイターの方にご利用いただいております。著作権はお客様自身が持つデザインに限ります。',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: '支払方法は何が使えますか？',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'クレジットカード（VISA・Mastercard・American Express・JCB）に対応しています。Stripe社の安全な決済システムを使用しております。',
-      },
-    },
-  ],
+    'query-input': 'required name=search_term_string',
+  },
 }
 
 export default async function HomePage() {
@@ -241,7 +201,7 @@ export default async function HomePage() {
     <div className="bg-background overflow-hidden">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, faqJsonLd, siteNavigationJsonLd]) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, siteNavigationJsonLd]) }}
       />
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center bg-[#fdfbf6] overflow-hidden">
@@ -311,7 +271,7 @@ export default async function HomePage() {
                         src="/images/pin-badge.jpg"
                         alt="ピンバッジ OEM製作 - 金属エナメル仕上げ、企業ノベルティに人気"
                         fill
-                        priority
+                        loading="lazy"
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
@@ -323,7 +283,7 @@ export default async function HomePage() {
                         src="/images/can-badge.jpg"
                         alt="缶バッジ OEM製作 - フルカラー印刷、同人イベント・推し活に最適"
                         fill
-                        priority
+                        loading="lazy"
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
@@ -333,7 +293,7 @@ export default async function HomePage() {
                         src="/images/rubber-keychain.jpg"
                         alt="ラバーキーホルダー OEM製作 - PVC素材で立体デザイン対応、キャラクターグッズに最適"
                         fill
-                        priority
+                        loading="lazy"
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />
@@ -356,24 +316,24 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Social Proof Banner */}
+      {/* Value Proposition Banner */}
       <section className="bg-foreground text-background py-4">
         <div className="max-w-7xl mx-auto px-4 flex justify-center gap-8 md:gap-16 text-center">
           <div>
-            <p className="text-2xl font-black">50,000+</p>
-            <p className="text-xs opacity-70">累計製作個数</p>
-          </div>
-          <div>
-            <p className="text-2xl font-black">98%</p>
-            <p className="text-xs opacity-70">顧客満足度</p>
-          </div>
-          <div>
-            <p className="text-2xl font-black">500+</p>
-            <p className="text-xs opacity-70">取引実績</p>
-          </div>
-          <div>
             <p className="text-2xl font-black">50個〜</p>
             <p className="text-xs opacity-70">小ロット対応</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">最短2週間</p>
+            <p className="text-xs opacity-70">特急納期対応</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">簡単3ステップ</p>
+            <p className="text-xs opacity-70">注文〜納品まで</p>
+          </div>
+          <div>
+            <p className="text-2xl font-black">全国配送</p>
+            <p className="text-xs opacity-70">送料明朗会計</p>
           </div>
         </div>
       </section>
@@ -381,6 +341,7 @@ export default async function HomePage() {
       {/* Features Bar */}
       <section className="bg-white py-12 border-b-4 border-dashed border-[#00c8c8]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="sr-only">FAST OEMの特長</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {features.map((feature) => (
               <div key={feature.title} className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-white to-secondary/30 border-2 border-foreground/5 hover:border-primary/30 transition-all hover:shadow-lg">
@@ -558,8 +519,8 @@ export default async function HomePage() {
               href="/cases"
               className="group block p-6 bg-white rounded-2xl border-2 border-[#ff7b54]/20 hover:border-[#ff7b54]/50 transition-all hover:-translate-y-1 hover:shadow-lg"
             >
-              <h3 className="text-lg font-bold text-foreground group-hover:text-[#ff7b54] transition-colors">製作事例</h3>
-              <p className="text-sm text-muted-foreground mt-2">同人・企業・推し活など、実際のお客様の製作事例を紹介。</p>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-[#ff7b54] transition-colors">活用シーン</h3>
+              <p className="text-sm text-muted-foreground mt-2">同人・企業・推し活など、さまざまな活用シーンをご紹介。</p>
               <span className="inline-flex items-center text-sm font-bold text-[#ff7b54] mt-3">
                 事例を見る <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </span>

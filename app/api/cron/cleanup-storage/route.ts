@@ -74,15 +74,32 @@ export async function GET(request: Request) {
         `delivery_pdf_url.ilike.%${p}`,
         `back_design_url.ilike.%${p}`,
         `back_delivery_pdf_url.ilike.%${p}`,
+        `back_converted_design_url.ilike.%${p}`,
       ])
-      const { data: referencedItems } = await supabase
-        .from('order_items')
-        .select('design_url, converted_design_url, delivery_pdf_url, back_design_url, back_delivery_pdf_url')
-        .or(orConditions.join(','))
+
+      // Batch .or() queries to avoid PostgREST query-string length limits
+      const BATCH_SIZE = 100 // 100 files × 6 conditions = 600 OR clauses per batch
+      let referencedItems: Array<Record<string, string | null>> = []
+      for (let i = 0; i < fileNames.length; i += BATCH_SIZE) {
+        const batchNames = fileNames.slice(i, i + BATCH_SIZE)
+        const batchConditions = batchNames.flatMap(p => [
+          `design_url.ilike.%${p}`,
+          `converted_design_url.ilike.%${p}`,
+          `delivery_pdf_url.ilike.%${p}`,
+          `back_design_url.ilike.%${p}`,
+          `back_delivery_pdf_url.ilike.%${p}`,
+          `back_converted_design_url.ilike.%${p}`,
+        ])
+        const { data } = await supabase
+          .from('order_items')
+          .select('design_url, converted_design_url, delivery_pdf_url, back_design_url, back_delivery_pdf_url, back_converted_design_url')
+          .or(batchConditions.join(','))
+        if (data) referencedItems = referencedItems.concat(data)
+      }
 
       const referencedFiles = new Set<string>()
       for (const item of referencedItems ?? []) {
-        for (const url of [item.design_url, item.converted_design_url, item.delivery_pdf_url, item.back_design_url, item.back_delivery_pdf_url]) {
+        for (const url of [item.design_url, item.converted_design_url, item.delivery_pdf_url, item.back_design_url, item.back_delivery_pdf_url, item.back_converted_design_url]) {
           if (url) {
             // Extract filename from URL (last path segment)
             const filename = url.split('/').pop()

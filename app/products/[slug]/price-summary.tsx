@@ -20,6 +20,7 @@ export interface PriceSummaryProps {
   is3d: boolean
   allRequiredDone: boolean
   isAdded: boolean
+  validationError?: string | null
   onAddToCart: () => boolean
   onBuyNow: () => void
   formatPrice: (n: number) => string
@@ -40,6 +41,7 @@ export function PriceSummary({
   is3d,
   allRequiredDone,
   isAdded,
+  validationError,
   onAddToCart,
   onBuyNow,
   formatPrice,
@@ -60,7 +62,7 @@ export function PriceSummary({
         </div>
       )}
 
-      <Card className="lg:sticky lg:bottom-4 shadow-2xl border-2">
+      <Card className="sticky bottom-0 lg:bottom-4 z-40 shadow-2xl border-2">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Price Summary */}
@@ -101,7 +103,7 @@ export function PriceSummary({
                 <p className="text-sm text-muted-foreground">
                   合計金額{' '}
                   <span className="text-xs font-semibold text-green-600">
-                    （税込）
+                    （税込・送料別）
                   </span>
                 </p>
                 <div className="flex flex-col gap-1">
@@ -136,7 +138,7 @@ export function PriceSummary({
               </div>
               <div className="flex items-center gap-1.5">
                 <Star className="w-4 h-4 text-primary" />
-                <span>満足度98%</span>
+                <span>小ロット対応</span>
               </div>
             </div>
 
@@ -170,12 +172,17 @@ export function PriceSummary({
                 onClick={onBuyNow}
                 disabled={hasNoDesign || isAdded || !!complexityBlock}
               >
-                今すぐ購入
+                カートへ進む
               </Button>
             </div>
           </div>
 
-          {hasNoDesign && (
+          {validationError && (
+            <div className="mt-4 py-2 px-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 text-center">
+              {validationError}
+            </div>
+          )}
+          {!validationError && hasNoDesign && (
             <p className="text-sm text-muted-foreground text-center mt-4 py-2 px-4 bg-muted rounded-lg">
               デザイン画像をアップロードすると購入できます
             </p>

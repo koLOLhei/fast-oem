@@ -272,15 +272,38 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
     if (!customerEmail) throw new Error('顧客メールアドレスが見つかりません')
     if (!accessToken) throw new Error('アクセストークンが見つかりません')
 
-    // Update item: save tracking number + mark as shipped
-    const { error: updateError } = await service
+    // Fetch current status to validate transition
+    const { data: currentItem, error: statusFetchError } = await service
+        .from('order_items')
+        .select('status')
+        .eq('id', itemId)
+        .eq('factory_id', factoryId)
+        .single()
+
+    if (statusFetchError || !currentItem) throw new Error('アイテムのステータスを取得できません')
+
+    // Only ready_to_ship items can be shipped via tracking number submission
+    const SHIPPABLE_STATUSES = ['ready_to_ship'] as const
+    if (!(SHIPPABLE_STATUSES as readonly string[]).includes(currentItem.status)) {
+        throw new Error(
+            `このアイテムは現在「${currentItem.status}」のため、発送処理できません。「発送待ち」状態のアイテムのみ追跡番号を入力できます。`
+        )
+    }
+
+    // Update item: save tracking number + mark as shipped (with optimistic lock)
+    const { data: updatedItem, error: updateError } = await service
         .from('order_items')
         .update({ tracking_number: tracking, status: 'shipped' })
         .eq('id', itemId)
+        .eq('status', currentItem.status)
+        .select('id')
 
     if (updateError) {
         console.error('[submitTrackingNumber] Failed to update item:', { itemId, error: updateError.message })
         throw new Error('追跡番号の保存に失敗しました')
+    }
+    if (!updatedItem || updatedItem.length === 0) {
+        throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
     }
 
     // Update order-level status based on how many items are now shipped
@@ -306,7 +329,10 @@ export async function submitTrackingNumber(itemId: string, trackingNumber: strin
                 .select('id')
             isFirstToComplete = (shippedRows?.length ?? 0) > 0
         } else if (anyShipped) {
-            await service.from('orders').update({ status: 'partially_shipped' }).eq('id', orderId)
+            // Guard: don't regress from 'shipped' to 'partially_shipped'
+            await service.from('orders').update({ status: 'partially_shipped' })
+                .eq('id', orderId)
+                .not('status', 'in', '("shipped","completed","refunded","cancelled")')
         }
     }
 

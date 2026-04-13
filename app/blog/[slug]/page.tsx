@@ -129,7 +129,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <hr className="border-border mb-8" />
 
           {/* Article Content */}
-          <div className="prose prose-gray max-w-none prose-headings:font-bold prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:text-foreground/80 prose-li:text-foreground/80 prose-strong:text-foreground prose-table:text-sm">
+          <article className="prose prose-gray max-w-none prose-headings:font-bold prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:text-foreground/80 prose-li:text-foreground/80 prose-strong:text-foreground prose-table:text-sm">
             {article.content.split('\n\n').map((block, i) => {
               if (block.startsWith('## ')) {
                 return <h2 key={i} className="text-xl font-bold text-foreground mt-10 mb-4">{block.replace('## ', '')}</h2>
@@ -190,7 +190,26 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <p key={i} className="text-foreground/80 leading-relaxed my-4">{renderBoldText(block)}</p>
               )
             })}
-          </div>
+          </article>
+
+          {/* Related Articles */}
+          {(() => {
+            const related = articles.filter((a) => a.slug !== slug && a.category === article.category).slice(0, 2)
+            if (related.length === 0) return null
+            return (
+              <div className="mt-12 p-6 rounded-2xl bg-muted/20 border border-border">
+                <h3 className="font-bold text-foreground mb-4">関連記事</h3>
+                <div className="grid gap-3">
+                  {related.map((r) => (
+                    <Link key={r.slug} href={`/blog/${r.slug}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full shrink-0 ${categoryColors[r.category] || 'bg-muted text-muted-foreground'}`}>{r.category}</span>
+                      <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1">{r.title}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Author Bio */}
           <div className="mt-12 p-6 rounded-2xl bg-muted/30 border border-border">

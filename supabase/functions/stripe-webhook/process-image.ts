@@ -57,7 +57,7 @@ export async function processImage(
         // compressionLevel:9 applies maximum lossless compression (PNG quality is always lossless;
         // the `quality` param has no effect on PNG — compressionLevel controls file size).
         const convertedBuffer = await sharp(imageBuffer)
-            .withMetadata(false)
+            .withMetadata({})
             .png({ compressionLevel: 9 })
             .toBuffer()
 

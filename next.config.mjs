@@ -12,8 +12,8 @@ import { withSentryConfig } from '@sentry/nextjs'
 const supabaseHost = 'https://utwvalzykfxdeuwnebne.supabase.co'
 const CSP = [
   "default-src 'self'",
-  // Scripts: self + Stripe (required for fraud detection) + Next.js inline scripts
-  "script-src 'self' https://js.stripe.com 'unsafe-inline'",
+  // Scripts: self + Stripe (fraud detection) + Google Analytics/GTM + Next.js inline scripts
+  "script-src 'self' https://js.stripe.com https://www.googletagmanager.com 'unsafe-inline'",
   // Styles: self + Google Fonts + inline (Tailwind/CSS-in-JS)
   "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
   // Fonts: self + Google Fonts CDN
@@ -23,7 +23,7 @@ const CSP = [
   // Frames: self (admin preview iframe) + Stripe checkout iframe
   "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
   // Fetch/XHR: Supabase, Stripe, Sentry, Upstash
-  `connect-src 'self' ${supabaseHost} wss://utwvalzykfxdeuwnebne.supabase.co https://api.stripe.com https://*.sentry.io https://grand-muskox-79579.upstash.io`,
+  `connect-src 'self' ${supabaseHost} wss://utwvalzykfxdeuwnebne.supabase.co https://api.stripe.com https://*.sentry.io https://grand-muskox-79579.upstash.io https://www.google-analytics.com https://www.googletagmanager.com https://*.analytics.google.com`,
   // Workers: none (blob: for potential future use)
   "worker-src 'none'",
   // Objects/embeds: none
@@ -75,13 +75,14 @@ const nextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // Prevent CDN/edge caching for product pages so new products appear immediately
+      // Product pages use ISR (revalidate = 60). Let the CDN cache for 60s
+      // with stale-while-revalidate so pages are fast AND fresh.
+      // Previously this was no-store which defeated ISR entirely.
       {
         source: '/products/:slug*',
         headers: [
-          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
-          { key: 'CDN-Cache-Control', value: 'no-store' },
-          { key: 'Vercel-CDN-Cache-Control', value: 'no-store' },
+          { key: 'CDN-Cache-Control', value: 's-maxage=60, stale-while-revalidate=300' },
+          { key: 'Vercel-CDN-Cache-Control', value: 's-maxage=60, stale-while-revalidate=300' },
         ],
       },
     ]

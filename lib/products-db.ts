@@ -68,6 +68,7 @@ function rowToProduct(row: any): Product {
         imageViews: row.image_views ?? [],
         fixedUnitPrice: row.fixed_unit_price ?? false,
         complexityRules: row.complexity_rules ?? [],
+        updatedAt: row.updated_at ?? row.created_at ?? undefined,
     }
 }
 

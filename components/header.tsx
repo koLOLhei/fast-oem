@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -95,6 +95,14 @@ export async function Header() {
 
           {/* Cart & CTA */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/mypage"
+              className="hidden md:flex items-center justify-center h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 transition-colors"
+              title="マイページ"
+            >
+              <User className="h-5 w-5 text-foreground" />
+              <span className="sr-only">マイページ</span>
+            </Link>
 
             <CartBadge />
 

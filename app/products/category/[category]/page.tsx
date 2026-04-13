@@ -12,7 +12,6 @@ const categoryConfig: Record<string, {
   name: string
   title: string
   description: string
-  keywords: string[]
   heading: string
   seoText: string
 }> = {
@@ -20,13 +19,6 @@ const categoryConfig: Record<string, {
     name: 'キーホルダー',
     title: 'キーホルダー製作・OEM | アクリルキーホルダー・ラバーキーホルダー',
     description: 'アクリルキーホルダー・ラバーキーホルダーのOEM製作。小ロット50個〜対応、高品質フルカラー印刷。同人グッズ・ノベルティ・推し活グッズに最適。格安・スピード納品。',
-    keywords: [
-      'キーホルダー 製作', 'キーホルダー 作成', 'キーホルダー OEM',
-      'アクリルキーホルダー 製作', 'アクリルキーホルダー 作成', 'アクリルキーホルダー 小ロット',
-      'ラバーキーホルダー 製作', 'ラバーキーホルダー 作成', 'ゴムキーホルダー 製作',
-      'キーホルダー オリジナル', 'キーホルダー 格安', 'キーホルダー 同人',
-      'アクリルキーホルダー 印刷', 'キーホルダー ノベルティ',
-    ],
     heading: 'キーホルダー製作',
     seoText: 'FAST OEMでは、アクリルキーホルダー・ラバーキーホルダーなど各種キーホルダーをOEM製作しています。アクリルキーホルダーは透明感のある素材にフルカラー印刷が可能で、推しグッズや同人グッズの定番アイテムです。ラバーキーホルダーは柔らかいPVC素材で立体的なデザインが表現でき、キャラクターグッズやマスコットに最適です。いずれも小ロット対応で個人クリエイターから企業まで幅広くご利用いただけます。',
   },
@@ -34,13 +26,6 @@ const categoryConfig: Record<string, {
     name: 'バッジ',
     title: 'バッジ製作・OEM | 缶バッジ・ピンバッジ・小ロット対応',
     description: '缶バッジ・ピンバッジのOEM製作。小ロット対応、高品質フルカラー印刷・エナメル仕上げ。同人イベント・企業ノベルティ・推し活に。格安・スピード納品。',
-    keywords: [
-      'バッジ 製作', 'バッジ 作成', 'バッジ OEM',
-      '缶バッジ 製作', '缶バッジ 作成', '缶バッジ 小ロット', '缶バッジ 格安',
-      'ピンバッジ 製作', 'ピンバッジ 作成', 'ピンバッジ オリジナル',
-      '缶バッジ 同人', '缶バッジ ノベルティ', 'ピンバッジ 企業',
-      'バッジ オリジナル', 'バッジ 印刷',
-    ],
     heading: 'バッジ製作',
     seoText: 'FAST OEMでは、缶バッジ・ピンバッジのOEM製作を承っています。缶バッジはフルカラー印刷で鮮やかな発色が特徴。同人イベントでの頒布物やコレクションアイテムとして人気です。ピンバッジは金属の質感が高級感を演出し、企業ノベルティやブランドグッズに最適。エナメル仕上げで美しい発色を実現します。どちらも小ロットから対応しており、個人から法人まで幅広くご利用いただけます。',
   },
@@ -62,7 +47,6 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   return {
     title: config.title,
     description: config.description,
-    keywords: config.keywords,
     openGraph: {
       title: `${config.heading} | FAST OEM`,
       description: config.description,

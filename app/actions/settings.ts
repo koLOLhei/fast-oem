@@ -31,11 +31,15 @@ export async function updateSiteSettings(updates: Record<string, string>) {
     const now = new Date().toISOString()
     const results = await Promise.all(
         Object.entries(updates).map(async ([key, value]) => {
-            const { error } = await service
+            // Update and check that at least one row was matched
+            const { error, data: updated } = await service
                 .from('site_settings')
                 .update({ value, updated_at: now })
                 .eq('key', key)
-            return error ? `${key}: ${error.message}` : null
+                .select('key')
+            if (error) return `${key}: ${error.message}`
+            if (!updated || updated.length === 0) return `${key}: 設定キーが存在しません`
+            return null
         })
     )
     const errors = results.filter(Boolean) as string[]

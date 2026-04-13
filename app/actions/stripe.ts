@@ -114,7 +114,8 @@ function computeUnitPrice(
       throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
     }
   }
-  return price
+  // Floor to ¥1 — matches client-side Math.max(1, price) in lib/products.ts
+  return Math.max(1, price)
 }
 
 /**

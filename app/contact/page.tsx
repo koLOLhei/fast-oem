@@ -3,14 +3,14 @@ import Link from 'next/link'
 import { Mail, Clock, MessageCircle, ArrowRight, HelpCircle, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
+import ContactForm from './contact-form'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
   title: 'お問い合わせ | OEMグッズ製作のご相談・お見積もり',
   description:
-    'FAST OEMへのお問い合わせ。注文・デザインデータ・納期・返品など、OEMグッズ製作に関するご不明な点はメールにてお気軽にお問い合わせください。平日10:00〜18:00対応。',
-  keywords: ['OEM お問い合わせ', 'グッズ製作 相談', 'グッズ製作 見積もり', 'OEM 問い合わせ'],
+    'FAST OEMへのお問い合わせ。注文・デザインデータ・納期・返品など、OEMグッズ製作に関するご不明な点はフォームまたはメールにてお気軽にお問い合わせください。平日10:00〜18:00対応。',
   openGraph: {
     title: 'お問い合わせ | FAST OEM',
     description: 'OEMグッズ製作のご相談・お見積もりはお気軽にお問い合わせください。平日10:00〜18:00対応。',
@@ -27,13 +27,33 @@ const topics = [
   { icon: HelpCircle, label: 'その他のお問い合わせ', example: '商品の品質不良、ご注文後の変更など' },
 ]
 
+const contactPointJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: 'お問い合わせ',
+  url: `${BASE_URL}/contact`,
+  mainEntity: {
+    '@type': 'ContactPoint',
+    email: 'contact@soara-mu.com',
+    contactType: 'customer service',
+    availableLanguage: 'Japanese',
+    areaServed: 'JP',
+    hoursAvailable: {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      opens: '10:00',
+      closes: '18:00',
+    },
+  },
+}
+
 export default function ContactPage() {
-  const bcJsonLd = bcJsonLdFn([{ name: 'お問い合わせ' }])
+  const bcJsonLd = bcJsonLdFn([{ name: 'お問い合わせ' }], '/contact')
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, contactPointJsonLd]) }}
       />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,50 +67,14 @@ export default function ContactPage() {
           </div>
           <h1 className="text-3xl md:text-5xl font-black text-foreground">お問い合わせ</h1>
           <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-            ご不明な点・ご要望はメールにてお気軽にどうぞ。<br className="hidden sm:block" />
+            ご不明な点・ご要望はフォームまたはメールにてお気軽にどうぞ。<br className="hidden sm:block" />
             担当者より順次ご返信いたします。
           </p>
         </div>
 
-        {/* Main contact card */}
-        <div className="bg-gradient-to-br from-[#00c8c8] to-[#0099a0] rounded-3xl p-8 md:p-10 text-white shadow-xl mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Mail className="h-6 w-6" />
-            <span className="text-sm font-bold opacity-80">メールアドレス</span>
-          </div>
-          <a
-            href="mailto:contact@soara-mu.com"
-            className="text-2xl md:text-3xl font-black hover:underline break-all"
-          >
-            contact@soara-mu.com
-          </a>
-
-          <div className="mt-6 pt-6 border-t border-white/20 grid sm:grid-cols-2 gap-4">
-            <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 mt-0.5 opacity-70 shrink-0" />
-              <div>
-                <p className="font-bold text-sm">受付時間</p>
-                <p className="text-sm opacity-80">平日 10:00〜18:00</p>
-                <p className="text-xs opacity-60">土日祝・年末年始を除く</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <MessageCircle className="h-5 w-5 mt-0.5 opacity-70 shrink-0" />
-              <div>
-                <p className="font-bold text-sm">返信目安</p>
-                <p className="text-sm opacity-80">2〜3営業日以内</p>
-                <p className="text-xs opacity-60">お急ぎの場合はその旨をご記載ください</p>
-              </div>
-            </div>
-          </div>
-
-          <a
-            href="mailto:contact@soara-mu.com"
-            className="mt-6 inline-flex items-center gap-2 bg-white text-[#00c8c8] font-bold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors shadow"
-          >
-            <Mail className="h-4 w-4" />
-            メールを送る
-          </a>
+        {/* Contact Form */}
+        <div className="mb-8">
+          <ContactForm />
         </div>
 
         {/* お問い合わせ内容の例 */}
@@ -108,6 +92,39 @@ export default function ContactPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Email fallback card */}
+        <div className="bg-gradient-to-br from-[#00c8c8] to-[#0099a0] rounded-2xl p-6 md:p-8 text-white shadow-lg mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <Mail className="h-5 w-5" />
+            <span className="text-sm font-bold opacity-80">メールでのお問い合わせ</span>
+          </div>
+          <a
+            href="mailto:contact@soara-mu.com"
+            className="text-xl md:text-2xl font-black hover:underline break-all"
+          >
+            contact@soara-mu.com
+          </a>
+
+          <div className="mt-4 pt-4 border-t border-white/20 grid sm:grid-cols-2 gap-4">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 mt-0.5 opacity-70 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">受付時間</p>
+                <p className="text-sm opacity-80">平日 10:00〜18:00</p>
+                <p className="text-xs opacity-60">土日祝・年末年始を除く</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <MessageCircle className="h-5 w-5 mt-0.5 opacity-70 shrink-0" />
+              <div>
+                <p className="font-bold text-sm">返信目安</p>
+                <p className="text-sm opacity-80">2〜3営業日以内</p>
+                <p className="text-xs opacity-60">お急ぎの場合はその旨をご記載ください</p>
+              </div>
+            </div>
           </div>
         </div>
 

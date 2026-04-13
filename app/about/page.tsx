@@ -10,13 +10,6 @@ export const metadata: Metadata = {
   title: '会社概要・私たちについて',
   description:
     'FAST OEMを運営する株式会社SOARAの会社概要。代表メッセージ、事業内容、品質へのこだわり、沿革をご紹介します。',
-  keywords: [
-    'FAST OEM 会社概要',
-    '株式会社SOARA',
-    'OEM グッズ製作会社',
-    'オリジナルグッズ 製造',
-    'グッズ製作 会社',
-  ],
   openGraph: {
     title: '会社概要 | FAST OEM',
     description:
@@ -27,49 +20,8 @@ export const metadata: Metadata = {
 }
 
 /* ---------- structured data ---------- */
-const orgJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': ['Organization', 'LocalBusiness'],
-  name: 'FAST OEM（株式会社SOARA）',
-  legalName: '株式会社SOARA',
-  url: BASE_URL,
-  logo: `${BASE_URL}/logo.png`,
-  image: `${BASE_URL}/opengraph-image.png`,
-  description:
-    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロットから大量生産まで、高品質・低価格・スピード納品を実現。',
-  foundingDate: '2024-10-30',
-  numberOfEmployees: {
-    '@type': 'QuantitativeValue',
-    value: 10,
-  },
-  founder: {
-    '@type': 'Person',
-    name: '小川 公平',
-    jobTitle: '代表取締役',
-    url: `${BASE_URL}/about`,
-  },
-  address: {
-    '@type': 'PostalAddress',
-    streetAddress: '神奈川区金港町5-14 クアドリフォリオ8階',
-    addressLocality: '横浜市',
-    addressRegion: '神奈川県',
-    postalCode: '221-0056',
-    addressCountry: 'JP',
-  },
-  email: 'contact@soara-mu.com',
-  areaServed: { '@type': 'Country', name: 'Japan' },
-  knowsAbout: [
-    'OEM製造',
-    'アクリルキーホルダー製作',
-    '缶バッジ製作',
-    'ピンバッジ製作',
-    'ラバーキーホルダー製作',
-    'グッズ企画',
-    '同人グッズ',
-    '企業ノベルティ',
-  ],
-  sameAs: [],
-}
+// Organization schema is defined on the homepage (app/page.tsx) only.
+// About page only outputs breadcrumb to avoid duplicate entity confusion.
 
 export default function AboutPage() {
   const bcJsonLd = breadcrumbJsonLd([{ name: '会社概要' }])
@@ -78,7 +30,7 @@ export default function AboutPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([orgJsonLd, bcJsonLd]) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
       />
 
       {/* Hero */}
@@ -245,6 +197,16 @@ export default function AboutPage() {
                     <td className="px-6 py-4 text-muted-foreground">{value}</td>
                   </tr>
                 ))}
+                <tr>
+                  <th className="px-6 py-4 text-left font-bold text-foreground bg-muted/30 w-[160px] whitespace-nowrap">
+                    コーポレートサイト
+                  </th>
+                  <td className="px-6 py-4 text-muted-foreground">
+                    <a href="https://soara-mu.jp" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                      https://soara-mu.jp
+                    </a>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

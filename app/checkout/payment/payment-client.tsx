@@ -29,6 +29,7 @@ export function PaymentClient() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [paymentCompleted, setPaymentCompleted] = useState(false)
 
   useEffect(() => {
     // Load shipping address from sessionStorage
@@ -81,6 +82,8 @@ export function PaymentClient() {
 
   const handleComplete = useCallback(async () => {
     if (!shippingAddress || !orderId) return
+
+    setPaymentCompleted(true)
 
     // Store order data for the complete page
     // Notifications are sent by the Stripe webhook — no duplicate calls here
@@ -145,7 +148,7 @@ export function PaymentClient() {
     )
   }
 
-  if (cart.items.length === 0) {
+  if (cart.items.length === 0 && !paymentCompleted) {
     return (
       <div className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -181,26 +184,26 @@ export function PaymentClient() {
         <h1 className="text-3xl font-bold text-foreground mb-8">お支払い</h1>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
+        <div className="flex items-center justify-center mb-8 overflow-x-auto">
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
               1
             </div>
-            <span className="ml-2 text-sm font-medium text-foreground">お届け先</span>
+            <span className="ml-2 text-sm font-medium text-foreground whitespace-nowrap">お届け先</span>
           </div>
-          <div className="w-16 h-0.5 bg-primary mx-4"></div>
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
+          <div className="w-8 sm:w-16 h-0.5 bg-primary mx-2 sm:mx-4 shrink-0"></div>
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
               2
             </div>
-            <span className="ml-2 text-sm font-medium text-foreground">お支払い</span>
+            <span className="ml-2 text-sm font-medium text-foreground whitespace-nowrap">お支払い</span>
           </div>
-          <div className="w-16 h-0.5 bg-border mx-4"></div>
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold">
+          <div className="w-8 sm:w-16 h-0.5 bg-border mx-2 sm:mx-4 shrink-0"></div>
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold text-sm">
               3
             </div>
-            <span className="ml-2 text-sm text-muted-foreground">完了</span>
+            <span className="ml-2 text-sm text-muted-foreground whitespace-nowrap">完了</span>
           </div>
         </div>
 

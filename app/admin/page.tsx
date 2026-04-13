@@ -93,11 +93,12 @@ export default async function AdminPage({
             .from('factories')
             .select('id, name, country'),
         // Stuck items: paid orders > 2 hours old with no converted design
+        // Filter on orders.created_at (not order_items.created_at) via the join
         supabase
             .from('order_items')
             .select('id, product_name, converted_design_url, orders!inner(id, order_number, status, created_at)')
             .is('converted_design_url', null)
-            .lt('created_at', twoHoursAgo)
+            .lt('orders.created_at', twoHoursAgo)
             .eq('orders.status', 'paid'),
         listQuery,
     ])
@@ -500,7 +501,10 @@ export default async function AdminPage({
                             {[
                                 { label: '全て', value: '' },
                                 { label: '支払済', value: 'paid' },
+                                { label: '製造中', value: 'processing' },
+                                { label: '一部発送', value: 'partially_shipped' },
                                 { label: '発送完了', value: 'shipped' },
+                                { label: '完了', value: 'completed' },
                                 { label: '未払い', value: 'pending' },
                                 { label: 'キャンセル', value: 'cancelled' },
                                 { label: '返金済', value: 'refunded' },

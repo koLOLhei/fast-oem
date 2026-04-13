@@ -6,9 +6,16 @@ import { ArrowRight } from 'lucide-react'
 import { getProductBySlugFromDb, getRelatedProducts } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
+import { getProductsFromDb } from '@/lib/products-db'
+
 export const revalidate = 60
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
+
+export async function generateStaticParams() {
+  const products = await getProductsFromDb()
+  return products.map((p) => ({ slug: p.slug }))
+}
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>
@@ -29,18 +36,6 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   return {
     title,
     description,
-    keywords: [
-      `${product.name}製作`,
-      `${product.name}作成`,
-      `${product.name}OEM`,
-      `${product.name}小ロット`,
-      `${product.name}格安`,
-      'オリジナルグッズ製作',
-      'OEM製作',
-      '小ロット',
-      '同人グッズ',
-      'ノベルティ',
-    ],
     openGraph: {
       title: `${product.name}製作 | FAST OEM`,
       description,
@@ -82,7 +77,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             lowPrice: minPrice,
             highPrice: Math.max(...product.priceTiers.map((t) => t.unitPrice)),
             offerCount: product.priceTiers.length,
-            priceValidUntil: '2027-03-31',
+            priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             itemCondition: 'https://schema.org/NewCondition',
             availability: 'https://schema.org/InStock',
             seller: { '@type': 'Organization', name: 'FAST OEM' },

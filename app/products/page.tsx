@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-import { Package, Sparkles } from 'lucide-react'
+import { Package } from 'lucide-react'
 import { ProductCard } from '@/components/product-card'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { getProductsFromDb } from '@/lib/products-db'
@@ -12,11 +12,6 @@ export const metadata: Metadata = {
   title: 'OEMグッズ製作 商品一覧 | アクリルキーホルダー・缶バッジ・ピンバッジ',
   description:
     'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作に最適。',
-  keywords: [
-    'アクリルキーホルダー製作', '缶バッジ製作', 'ピンバッジ製作',
-    'ラバーキーホルダー製作', 'OEMグッズ',
-    'オリジナルグッズ一覧', '小ロット製作', '同人グッズ',
-  ],
   openGraph: {
     title: 'OEMグッズ製作 商品一覧 | FAST OEM',
     description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
@@ -27,34 +22,16 @@ export const metadata: Metadata = {
 }
 
 const categories = [
-  { id: 'all', name: 'すべて', icon: Sparkles },
-  { id: 'keychain', name: 'キーホルダー', icon: Package },
-  { id: 'badge', name: 'バッジ', icon: Package },
+  { id: 'all', name: 'すべて' },
+  { id: 'keychain', name: 'キーホルダー' },
+  { id: 'badge', name: 'バッジ' },
 ]
 
 export const revalidate = 60
 
-export default function ProductsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string }>
-}) {
-  return <ProductsContent searchParams={searchParams} />
-}
-
-async function ProductsContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string }>
-}) {
-  const params = await searchParams
-  const selectedCategory = params.category || 'all'
+export default async function ProductsPage() {
   const allProducts = await getProductsFromDb()
-
-  const filteredProducts =
-    selectedCategory === 'all'
-      ? allProducts
-      : allProducts.filter((p) => p.category === selectedCategory)
+  const filteredProducts = allProducts
 
   const bcJsonLd = breadcrumbJsonLd([{ name: '商品一覧' }])
 
@@ -123,7 +100,8 @@ async function ProductsContent({
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-3 mb-12">
           {categories.map((category) => {
-            const isSelected = selectedCategory === category.id
+            // This is the /products page (no category segment), so "all" is always selected
+            const isSelected = category.id === 'all'
             return (
               <Link
                 key={category.id}

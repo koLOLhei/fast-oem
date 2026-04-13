@@ -3,6 +3,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { isValidUUID } from '@/lib/validation'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp'
 
@@ -265,6 +266,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
  * Cancel a pending (unused) invitation.
  */
 export async function cancelInvitation(invitationId: string): Promise<ActionResult> {
+    if (!isValidUUID(invitationId)) return { error: '無効な招待IDです' }
     let isSuperAdmin: boolean
     try {
         const ctx = await requireAdmin()

@@ -95,6 +95,7 @@ export interface Product {
   imageViews?: ImageView[]      // required views for 3D products
   fixedUnitPrice?: boolean      // true = unit price from priceTiers only, option modifiers ignored
   complexityRules?: ComplexityRule[]  // restrict ordering by complexity + size/shape
+  updatedAt?: string                  // ISO date from DB (used for sitemap lastModified)
 }
 
 /**

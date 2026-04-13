@@ -234,26 +234,26 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
         <h1 className="text-3xl font-bold text-foreground mb-8">注文手続き</h1>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
+        <div className="flex items-center justify-center mb-8 overflow-x-auto">
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
               1
             </div>
-            <span className="ml-2 text-sm font-medium text-foreground">お届け先</span>
+            <span className="ml-2 text-sm font-medium text-foreground whitespace-nowrap">お届け先</span>
           </div>
-          <div className="w-16 h-0.5 bg-border mx-4"></div>
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold">
+          <div className="w-8 sm:w-16 h-0.5 bg-border mx-2 sm:mx-4 shrink-0"></div>
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold text-sm">
               2
             </div>
-            <span className="ml-2 text-sm text-muted-foreground">お支払い</span>
+            <span className="ml-2 text-sm text-muted-foreground whitespace-nowrap">お支払い</span>
           </div>
-          <div className="w-16 h-0.5 bg-border mx-4"></div>
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold">
+          <div className="w-8 sm:w-16 h-0.5 bg-border mx-2 sm:mx-4 shrink-0"></div>
+          <div className="flex items-center shrink-0">
+            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-semibold text-sm">
               3
             </div>
-            <span className="ml-2 text-sm text-muted-foreground">完了</span>
+            <span className="ml-2 text-sm text-muted-foreground whitespace-nowrap">完了</span>
           </div>
         </div>
 
@@ -301,7 +301,7 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
                   </div>
 
                   {/* Name */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="lastName">
                         姓 <span className="text-destructive">*</span>
@@ -335,7 +335,7 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
                   </div>
 
                   {/* Name Kana */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="lastNameKana">
                         セイ（カナ） <span className="text-destructive">*</span>
@@ -534,7 +534,7 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
                               setErrors((prev) => { const n = { ...prev }; delete n.agreedToTerms; return n })
                             }
                           }}
-                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                          className="mt-0.5 h-5 w-5 rounded border-border accent-primary flex-shrink-0"
                         />
                         <span className="text-sm text-foreground leading-relaxed">
                           <Link href="/terms" target="_blank" className="text-primary underline hover:text-primary/80 font-medium">
@@ -565,7 +565,7 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
                               setErrors((prev) => { const n = { ...prev }; delete n.agreedToCancel; return n })
                             }
                           }}
-                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                          className="mt-0.5 h-5 w-5 rounded border-border accent-primary flex-shrink-0"
                         />
                         <span className="text-sm text-foreground leading-relaxed">
                           本サービスはお客様デザインによる
@@ -593,7 +593,7 @@ export function CheckoutClient({ shippingFees: _shippingFees }: CheckoutClientPr
                               setErrors((prev) => { const n = { ...prev }; delete n.agreedToCopyright; return n })
                             }
                           }}
-                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary flex-shrink-0"
+                          className="mt-0.5 h-5 w-5 rounded border-border accent-primary flex-shrink-0"
                         />
                         <span className="text-sm text-foreground leading-relaxed">
                           アップロードするデザインは<strong>第三者の著作権・商標権・肖像権その他の権利を侵害していない</strong>ことを確認しました。

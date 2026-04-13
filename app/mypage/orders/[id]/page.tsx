@@ -64,7 +64,7 @@ export default async function MyOrderDetailPage({
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p className="text-muted-foreground">注文番号</p>
-                            <p className="font-mono mt-0.5 text-xs">{order.stripe_session_id}</p>
+                            <p className="font-mono mt-0.5 text-xs">{order.order_number ?? order.id}</p>
                         </div>
                         <div>
                             <p className="text-muted-foreground">注文日</p>

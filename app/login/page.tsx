@@ -24,9 +24,9 @@ export default async function LoginPage(
     return (
         <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2 mx-auto min-h-[80vh]">
             <div className="flex flex-col mb-8 text-center mt-10">
-                <h1 className="text-2xl font-bold">スタッフログイン</h1>
+                <h1 className="text-2xl font-bold">ログイン</h1>
                 <p className="text-sm text-muted-foreground mt-2">
-                    管理者・工場スタッフ・マイページ共通のログインです。
+                    マイページ・管理者・工場スタッフ共通のログインです。
                 </p>
             </div>
 

@@ -25,18 +25,6 @@ export const metadata: Metadata = {
   },
   description:
     'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティ・推しグッズの製作なら FAST OEM。',
-  keywords: [
-    'OEM', 'OEM製造', 'OEM製作', 'グッズ制作', 'グッズ製作', 'グッズ製造',
-    'オリジナルグッズ', 'オリジナル商品', 'オリジナルグッズ製作',
-    'アクリルキーホルダー', 'アクリルキーホルダー製作', 'アクリルキーホルダー作成',
-    '缶バッジ', '缶バッジ製作', '缶バッジ作成', '缶バッジ小ロット',
-    'ピンバッジ', 'ピンバッジ製作', 'ピンバッジ作成',
-    'ラバーキーホルダー', 'ラバーキーホルダー製作', 'ゴムキーホルダー',
-    'ノベルティ', 'ノベルティ製作', 'ノベルティグッズ',
-    '同人グッズ', '同人グッズ製作', '推しグッズ',
-    '小ロット', '小ロット製作', '小ロット注文', '格安', 'スピード納品', '短納期',
-    'キーホルダー製作', 'バッジ製作',
-  ],
   authors: [{ name: 'FAST OEM', url: BASE_URL }],
   creator: 'FAST OEM',
   publisher: 'FAST OEM',
@@ -63,10 +51,6 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: BASE_URL,
-    languages: {
-      'ja': BASE_URL,
-      'x-default': BASE_URL,
-    },
   },
   icons: {
     icon: '/icon.png',
