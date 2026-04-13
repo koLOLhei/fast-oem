@@ -11,6 +11,7 @@ export const metadata: Metadata = {
     title: '特定商取引法に基づく表記 | FAST OEM',
     description: 'FAST OEMの特定商取引法に基づく表記。販売業者・所在地・連絡先・支払方法・返品ポリシーなど。',
     url: `${BASE_URL}/tokushoho`,
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
   alternates: { canonical: `${BASE_URL}/tokushoho` },
 }

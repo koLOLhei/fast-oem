@@ -69,7 +69,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     headline: article.title,
     description: article.excerpt,
     datePublished: article.date,
+    dateModified: article.date,
     url: `${BASE_URL}/blog/${slug}`,
+    image: `${BASE_URL}/opengraph-image.png`,
     author: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
     publisher: {
       '@type': 'Organization',

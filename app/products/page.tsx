@@ -65,9 +65,9 @@ async function ProductsContent({
     description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作商品一覧',
     numberOfItems: allProducts.length,
     itemListElement: allProducts.map((product: Product, index: number) => {
-      const minPrice = product.priceTiers.length > 0
-        ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
-        : undefined
+      const prices = product.priceTiers.map((t) => t.unitPrice)
+      const minPrice = prices.length > 0 ? Math.min(...prices) : undefined
+      const maxPrice = prices.length > 0 ? Math.max(...prices) : undefined
       return {
         '@type': 'ListItem',
         position: index + 1,
@@ -80,9 +80,11 @@ async function ProductsContent({
           brand: { '@type': 'Brand', name: 'FAST OEM' },
           ...(minPrice !== undefined && {
             offers: {
-              '@type': 'Offer',
+              '@type': 'AggregateOffer',
               priceCurrency: 'JPY',
-              price: minPrice,
+              lowPrice: minPrice,
+              highPrice: maxPrice,
+              offerCount: product.priceTiers.length,
               availability: 'https://schema.org/InStock',
             },
           }),

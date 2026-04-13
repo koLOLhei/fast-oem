@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     title: 'オリジナルグッズの作り方ガイド | FAST OEM',
     description: 'グッズ製作の完全ガイド。デザインのコツから発注方法まで徹底解説。',
     url: `${BASE_URL}/guide`,
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
 }
 

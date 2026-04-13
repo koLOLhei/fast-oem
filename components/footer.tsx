@@ -161,26 +161,30 @@ export async function Footer() {
               お問い合わせ
             </h3>
             <div className="flex flex-col gap-4">
-              <a
-                href="mailto:contact@soara-mu.com"
+              <Link
+                href="/contact"
                 className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Mail className="h-5 w-5" />
                 </div>
+                お問い合わせページ
+              </Link>
+              <a
+                href="mailto:contact@soara-mu.com"
+                className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm ml-13"
+              >
                 contact@soara-mu.com
               </a>
-              <a
-                href="https://soara-mu.jp/privacy-policy/"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/privacy"
                 className="flex items-center gap-3 text-white/70 hover:text-[#ffe135] transition-colors text-sm"
               >
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
                   <Shield className="h-5 w-5" />
                 </div>
                 プライバシーポリシー
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -234,14 +238,12 @@ export async function Footer() {
               >
                 利用規約
               </Link>
-              <a
-                href="https://soara-mu.jp/privacy-policy/"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/privacy"
                 className="text-sm text-white/50 hover:text-[#ffe135] transition-colors"
               >
                 プライバシーポリシー
-              </a>
+              </Link>
               <Link
                 href="/tokushoho"
                 className="text-sm text-white/50 hover:text-[#ffe135] transition-colors"

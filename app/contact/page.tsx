@@ -11,6 +11,12 @@ export const metadata: Metadata = {
   description:
     'FAST OEMへのお問い合わせ。注文・デザインデータ・納期・返品など、OEMグッズ製作に関するご不明な点はメールにてお気軽にお問い合わせください。平日10:00〜18:00対応。',
   keywords: ['OEM お問い合わせ', 'グッズ製作 相談', 'グッズ製作 見積もり', 'OEM 問い合わせ'],
+  openGraph: {
+    title: 'お問い合わせ | FAST OEM',
+    description: 'OEMグッズ製作のご相談・お見積もりはお気軽にお問い合わせください。平日10:00〜18:00対応。',
+    url: `${BASE_URL}/contact`,
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
+  },
   alternates: { canonical: `${BASE_URL}/contact` },
 }
 

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     title: '配送・納期について | FAST OEM',
     description: 'OEMグッズの配送・納期情報。標準約1ヶ月・特急約2週間。数量ベースの送料体系。',
     url: `${BASE_URL}/shipping`,
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
   alternates: { canonical: `${BASE_URL}/shipping` },
 }

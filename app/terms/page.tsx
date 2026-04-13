@@ -11,6 +11,7 @@ export const metadata: Metadata = {
         title: '利用規約 | FAST OEM',
         description: 'FAST OEMのサービス利用規約。受注製造品の注文成立・デザインデータ・返品キャンセルポリシーについて。',
         url: `${BASE_URL}/terms`,
+        images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
     },
     alternates: { canonical: `${BASE_URL}/terms` },
 }

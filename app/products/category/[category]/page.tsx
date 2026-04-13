@@ -93,9 +93,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     description: config.description,
     numberOfItems: filteredProducts.length,
     itemListElement: filteredProducts.map((product, index) => {
-      const minPrice = product.priceTiers.length > 0
-        ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
-        : undefined
+      const prices = product.priceTiers.map((t) => t.unitPrice)
+      const minPrice = prices.length > 0 ? Math.min(...prices) : undefined
+      const maxPrice = prices.length > 0 ? Math.max(...prices) : undefined
       return {
         '@type': 'ListItem',
         position: index + 1,
@@ -108,9 +108,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           brand: { '@type': 'Brand', name: 'FAST OEM' },
           ...(minPrice !== undefined && {
             offers: {
-              '@type': 'Offer',
+              '@type': 'AggregateOffer',
               priceCurrency: 'JPY',
-              price: minPrice,
+              lowPrice: minPrice,
+              highPrice: maxPrice,
+              offerCount: product.priceTiers.length,
               availability: 'https://schema.org/InStock',
             },
           }),

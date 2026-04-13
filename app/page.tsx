@@ -22,7 +22,7 @@ import { getProductsFromDb } from '@/lib/products-db'
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-  title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
+  title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作',
   description:
     'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット50個〜対応、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
   keywords: [
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     'グッズ製作 おすすめ', 'グッズ 注文', 'オーダーメイド グッズ',
   ],
   openGraph: {
-    title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作',
+    title: 'FAST OEM | アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作',
     description:
       'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティなら FAST OEM。',
     url: BASE_URL,
@@ -123,7 +123,6 @@ const organizationJsonLd = {
     '@type': 'QuantitativeValue',
     value: 10,
   },
-  telephone: '',
   email: 'contact@soara-mu.com',
   priceRange: '¥12〜¥204',
   currenciesAccepted: 'JPY',
@@ -161,7 +160,6 @@ const organizationJsonLd = {
     '@type': 'Country',
     name: 'Japan',
   },
-  sameAs: [],
 }
 
 const siteNavigationJsonLd = {
@@ -188,11 +186,6 @@ const websiteJsonLd = {
   '@type': 'WebSite',
   name: 'FAST OEM',
   url: BASE_URL,
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: { '@type': 'EntryPoint', urlTemplate: `${BASE_URL}/products?category={search_term_string}` },
-    'query-input': 'required name=search_term_string',
-  },
 }
 
 const faqJsonLd = {

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     title: '製作事例・お客様の声 | FAST OEM',
     description: 'グッズ製作の事例とお客様の声。同人・ノベルティ・推し活の製作実績をご紹介。',
     url: `${BASE_URL}/cases`,
+    images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
   alternates: { canonical: `${BASE_URL}/cases` },
 }

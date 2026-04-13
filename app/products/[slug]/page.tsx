@@ -75,18 +75,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
         brand: { '@type': 'Brand', name: 'FAST OEM' },
         category: 'OEMグッズ',
         manufacturer: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: '4.9',
-          bestRating: '5',
-          ratingCount: '328',
-          reviewCount: '198',
-        },
         ...(minPrice !== undefined && {
           offers: {
-            '@type': 'Offer',
+            '@type': 'AggregateOffer',
             priceCurrency: 'JPY',
-            price: minPrice,
+            lowPrice: minPrice,
+            highPrice: Math.max(...product.priceTiers.map((t) => t.unitPrice)),
+            offerCount: product.priceTiers.length,
             priceValidUntil: '2027-03-31',
             itemCondition: 'https://schema.org/NewCondition',
             availability: 'https://schema.org/InStock',

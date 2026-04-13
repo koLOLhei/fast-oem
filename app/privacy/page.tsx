@@ -11,6 +11,7 @@ export const metadata: Metadata = {
         title: 'プライバシーポリシー | FAST OEM',
         description: 'FAST OEMのプライバシーポリシー。個人情報の取得・利用目的・第三者提供・安全管理について。',
         url: `${BASE_URL}/privacy`,
+        images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
     },
     alternates: { canonical: `${BASE_URL}/privacy` },
 }
