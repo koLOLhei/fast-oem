@@ -28,11 +28,33 @@ export async function checkMoldReuse(
         return { valid: false, reason: 'メールアドレスを入力してください' }
     }
 
-    const supabase = createServiceClient()
+    // ── Input validation ────────────────────────────────────────────────────
+    // Email format validation
+    const trimmedEmail = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        return { valid: false, reason: 'メールアドレスの形式が正しくありません' }
+    }
+    if (trimmedEmail.length > 254) {
+        return { valid: false, reason: 'メールアドレスが長すぎます' }
+    }
 
-    // Support both human-readable order_number (FO-...) and UUID
+    // Order reference format validation: must be FO-XXXX-XXXX or a valid UUID
     const ref = previousOrderRef.trim()
+    if (ref.length > 100) {
+        return { valid: false, reason: '注文番号の形式が正しくありません' }
+    }
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)
+    const isOrderNumber = /^FO-[A-Z0-9]{4,}-[A-Z0-9]{4,}$/i.test(ref)
+    if (!isUuid && !isOrderNumber) {
+        return { valid: false, reason: '注文番号の形式が正しくありません。FO-XXXX-XXXX の形式か、UUIDで入力してください。' }
+    }
+
+    // Product ID must be a valid UUID
+    if (!productId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)) {
+        return { valid: false, reason: '無効な商品IDです' }
+    }
+
+    const supabase = createServiceClient()
 
     // Fetch mold reuse expiration from site_settings (default 12 months; 0 = unlimited)
     const { data: settingRow } = await supabase

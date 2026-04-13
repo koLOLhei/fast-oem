@@ -36,6 +36,20 @@ export async function assignFactory(itemId: string, factoryId: string) {
 
 const VALID_ITEM_STATUSES = ['unassigned', 'assigned', 'manufacturing', 'ready_to_ship', 'shipped', 'cancelled'] as const
 
+/**
+ * Allowed item status transitions. Keys are the current status,
+ * values are the statuses that the item may transition to.
+ * This prevents nonsensical jumps (e.g. assigned → shipped).
+ */
+const ALLOWED_ITEM_TRANSITIONS: Record<string, readonly string[]> = {
+    unassigned: ['assigned', 'cancelled'],
+    assigned: ['manufacturing', 'cancelled'],
+    manufacturing: ['ready_to_ship', 'assigned', 'cancelled'],
+    ready_to_ship: ['shipped', 'manufacturing', 'cancelled'],
+    shipped: [],      // terminal (use revertItemStatus for corrections)
+    cancelled: [],    // terminal
+}
+
 export async function updateItemStatus(itemId: string, status: string) {
     if (!isValidUUID(itemId)) throw new Error('無効なアイテムIDです')
     if (!(VALID_ITEM_STATUSES as readonly string[]).includes(status)) {
@@ -48,15 +62,39 @@ export async function updateItemStatus(itemId: string, status: string) {
     const { factoryId } = await requireFactory()
     if (!factoryId) throw new Error('工場が割り当てられていません。管理者に連絡してください。')
 
-    const { error } = await createServiceClient()
+    // Fetch the current status to validate the transition
+    const service = createServiceClient()
+    const { data: currentItem, error: fetchError } = await service
+        .from('order_items')
+        .select('status')
+        .eq('id', itemId)
+        .eq('factory_id', factoryId)
+        .single()
+
+    if (fetchError || !currentItem) throw new Error('アイテムが見つかりません')
+
+    const allowed = ALLOWED_ITEM_TRANSITIONS[currentItem.status] ?? []
+    if (!allowed.includes(status)) {
+        throw new Error(
+            `ステータスを「${currentItem.status}」から「${status}」に変更することはできません`
+        )
+    }
+
+    // Optimistic lock: include current status in WHERE to detect concurrent changes
+    const { data: updated, error } = await service
         .from('order_items')
         .update({ status })
         .eq('id', itemId)
         .eq('factory_id', factoryId)
+        .eq('status', currentItem.status)
+        .select('id')
 
     if (error) {
         console.error('[updateItemStatus] DB error:', error.message)
         throw new Error('ステータスの更新に失敗しました')
+    }
+    if (!updated || updated.length === 0) {
+        throw new Error('ステータスが既に変更されています。ページを更新して再度お試しください。')
     }
     revalidatePath('/admin')
     revalidatePath('/factory')

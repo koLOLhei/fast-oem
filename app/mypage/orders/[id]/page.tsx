@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
@@ -16,11 +17,15 @@ export default async function MyOrderDetailPage({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: order } = await supabase
+    // Use service client to bypass RLS — customers don't have SELECT policies
+    // on orders, so the anon client would return empty results.
+    // Security: filter by customer email to ensure only the order owner can view.
+    const serviceClient = createServiceClient()
+    const { data: order } = await serviceClient
         .from('orders')
         .select(`*, order_items(*), access_token`)
         .eq('id', id)
-        .eq('customer_info->>email', user.email) // Security: only the right customer can see this
+        .eq('customer_info->>email', user.email ?? '')
         .single()
 
     if (!order) notFound()

@@ -665,6 +665,17 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
 }
 
 export async function getCheckoutSession(sessionId: string) {
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new Error('無効なセッションIDです')
+  }
+  // Basic format validation: Stripe session IDs start with "cs_"
+  if (!/^cs_(test_|live_)[a-zA-Z0-9]+$/.test(sessionId)) {
+    throw new Error('無効なセッションIDの形式です')
+  }
   const session = await stripe.checkout.sessions.retrieve(sessionId)
-  return session
+  // Only return the minimum data needed — never expose the full Stripe session object
+  return {
+    status: session.status,
+    payment_status: session.payment_status,
+  }
 }

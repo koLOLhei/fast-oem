@@ -126,7 +126,7 @@ export function ImageUploader({
     setIsExporting(true)
     setError(null)
     try {
-      const ts = Date.now()
+      const ts = `${Date.now()}_${Math.random().toString(36).substring(2)}`
 
       // Export high-res PNG composite from canvas
       const pngBlob = await canvasRef.current.exportPNG()
@@ -154,14 +154,22 @@ export function ImageUploader({
     }
   }, [currentImage, currentFileName, onImageSelect])
 
-  const handleRemove = useCallback(() => {
+  const handleRemove = useCallback(async () => {
     const oldUrl = localPreviewUrlRef.current
     if (oldUrl) URL.revokeObjectURL(oldUrl)
     setLocalPreviewUrl(null)
+
+    // Delete uploaded file from Supabase Storage to avoid orphans
+    if (currentImage) {
+      await supabase.storage.from('designs').remove([currentImage]).catch(() => {
+        /* best-effort cleanup */
+      })
+    }
+
     onImageSelect(null, null, null)
     setError(null)
     setConfirmed(false)
-  }, [onImageSelect])
+  }, [onImageSelect, currentImage])
 
   // The image URL to feed into DesignCanvas — always a browser-loadable URL
   const canvasImageUrl = localPreviewUrl

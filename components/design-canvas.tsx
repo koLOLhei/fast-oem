@@ -4,6 +4,27 @@ import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHand
 import { ZoomIn, ZoomOut, RotateCw, Maximize2 } from 'lucide-react'
 
 // ────────────────────────────────────────────────────────
+// roundRect polyfill for older browsers (Chrome <99, Firefox <112, Safari <16)
+// ────────────────────────────────────────────────────────
+function roundRectPolyfill(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, radii: number,
+) {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, radii)
+    return
+  }
+  // Manual fallback using arcTo
+  const r = Math.min(radii, w / 2, h / 2)
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
+// ────────────────────────────────────────────────────────
 // Shape path builders (CanvasRenderingContext2D)
 // ────────────────────────────────────────────────────────
 function buildShapePath(
@@ -23,7 +44,7 @@ function buildShapePath(
       break
     case 'rounded': {
       const r = Math.min(w, h) * 0.1
-      ctx.roundRect(x, y, w, h, r)
+      roundRectPolyfill(ctx, x, y, w, h, r)
       break
     }
     case 'heart':

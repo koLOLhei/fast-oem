@@ -45,6 +45,9 @@ interface OrderItem {
   converted_design_url: string | null
   delivery_pdf_url: string | null
   design_file_name: string | null
+  back_design_url: string | null
+  back_converted_design_url: string | null
+  back_delivery_pdf_url: string | null
   mold_fee: number | null
   mold_order_id: string | null
   express_delivery: boolean | null
@@ -198,10 +201,11 @@ serve(async (req: Request) => {
           // usage to a single image at a time at the cost of wall-clock time —
           // acceptable here because this runs in the background after the 200
           // response has already been sent to Stripe.
-          const imageItems = (orderItems ?? []).filter((item: OrderItem) => item.design_url?.startsWith('data:'))
+          const imageItems = (orderItems ?? []).filter((item: OrderItem) => !!item.design_url)
           for (const item of imageItems) {
+            // ── Front design ──
             try {
-              const convertedUrl = await processImage(supabase, item.design_url, orderId, item.product_id)
+              const convertedUrl = await processImage(supabase, item.design_url!, orderId, item.product_id)
               if (convertedUrl) {
                 await supabase
                   .from('order_items')
@@ -209,8 +213,23 @@ serve(async (req: Request) => {
                   .eq('id', item.id)
               }
             } catch (imgErr: unknown) {
-              console.error(`[${orderId}] Image processing failed for item ${item.id}: ${imgErr instanceof Error ? imgErr.message : String(imgErr)}`)
+              console.error(`[${orderId}] Image processing failed for item ${item.id} (front): ${imgErr instanceof Error ? imgErr.message : String(imgErr)}`)
               // Continue with remaining items — one bad image must not block others
+            }
+
+            // ── Back design (double-sided products) ──
+            if (item.back_design_url) {
+              try {
+                const backConvertedUrl = await processImage(supabase, item.back_design_url, orderId, item.product_id)
+                if (backConvertedUrl) {
+                  await supabase
+                    .from('order_items')
+                    .update({ back_converted_design_url: backConvertedUrl })
+                    .eq('id', item.id)
+                }
+              } catch (imgErr: unknown) {
+                console.error(`[${orderId}] Image processing failed for item ${item.id} (back): ${imgErr instanceof Error ? imgErr.message : String(imgErr)}`)
+              }
             }
           }
 
@@ -224,12 +243,27 @@ serve(async (req: Request) => {
 
           const itemsForEmail = await Promise.all(
             (freshItems ?? orderItems ?? []).map(async (item: OrderItem) => {
+              const updates: Partial<OrderItem> = {}
+
+              // Resolve front delivery PDF storage path → signed URL
               const pdfPath: string | null = item.delivery_pdf_url ?? null
-              if (!pdfPath || pdfPath.startsWith('http')) return item
-              const { data: signed } = await supabase.storage
-                .from('designs')
-                .createSignedUrl(pdfPath, 259200) // 72 hours — covers weekend delays and slow email opens
-              return { ...item, delivery_pdf_url: signed?.signedUrl ?? null }
+              if (pdfPath && !pdfPath.startsWith('http')) {
+                const { data: signed } = await supabase.storage
+                  .from('designs')
+                  .createSignedUrl(pdfPath, 259200) // 72 hours
+                updates.delivery_pdf_url = signed?.signedUrl ?? null
+              }
+
+              // Resolve back delivery PDF storage path → signed URL
+              const backPdfPath: string | null = item.back_delivery_pdf_url ?? null
+              if (backPdfPath && !backPdfPath.startsWith('http')) {
+                const { data: signed } = await supabase.storage
+                  .from('designs')
+                  .createSignedUrl(backPdfPath, 259200)
+                updates.back_delivery_pdf_url = signed?.signedUrl ?? null
+              }
+
+              return Object.keys(updates).length > 0 ? { ...item, ...updates } : item
             })
           )
 
@@ -421,6 +455,16 @@ serve(async (req: Request) => {
             // delivery_pdf_url: stored as a path like "delivery/orderId/product.pdf"
             if (item.delivery_pdf_url && !item.delivery_pdf_url.startsWith('http')) {
               storagePaths.push(item.delivery_pdf_url)
+            }
+            // back design files (double-sided products)
+            if (item.back_design_url && !item.back_design_url.startsWith('data:') && !item.back_design_url.startsWith('http')) {
+              storagePaths.push(item.back_design_url)
+            }
+            if (item.back_converted_design_url && !item.back_converted_design_url.startsWith('http')) {
+              storagePaths.push(item.back_converted_design_url)
+            }
+            if (item.back_delivery_pdf_url && !item.back_delivery_pdf_url.startsWith('http')) {
+              storagePaths.push(item.back_delivery_pdf_url)
             }
           }
           if (storagePaths.length > 0) {

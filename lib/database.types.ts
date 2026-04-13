@@ -99,6 +99,7 @@ export interface OrderItemRow {
   converted_design_url: string | null
   delivery_pdf_url: string | null
   back_design_url: string | null
+  back_converted_design_url: string | null
   back_design_file_name: string | null
   back_delivery_pdf_url: string | null
   express_delivery: boolean | null
