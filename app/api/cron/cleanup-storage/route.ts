@@ -116,7 +116,7 @@ export async function GET(request: Request) {
       const skipped = filePaths.length - safeToDelete.length
 
       if (skipped > 0) {
-        console.log(`[cleanup] Skipping ${skipped} files still referenced by orders`)
+        console.warn(`[cleanup] Skipping ${skipped} files still referenced by orders`)
       }
 
       if (safeToDelete.length > 0) {
