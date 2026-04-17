@@ -2,6 +2,7 @@
 
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/service'
+import { createClient } from '@/lib/supabase/server'
 import { type CartItem } from '@/lib/cart'
 import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import type { CustomerInfo } from '@/lib/database.types'
@@ -372,6 +373,19 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   const customerName = `${shippingAddress.lastName} ${shippingAddress.firstName}`
   const supabase = createServiceClient()
 
+  // ── Record user_id (if signed in) so mypage can link to this order safely ──
+  // Mypage previously matched orders by email alone, allowing a guest to type
+  // another user's address and have that order appear on the victim's mypage.
+  // Persisting user_id for authenticated orders closes that IDOR.
+  let authenticatedUserId: string | null = null
+  try {
+    const ssrSupabase = await createClient()
+    const { data: { user } } = await ssrSupabase.auth.getUser()
+    if (user) authenticatedUserId = user.id
+  } catch {
+    // not authenticated — proceed as guest
+  }
+
   // ── SECURITY: Server-side shipping fee recalculation ─────────────────────────
   // Never trust the client-supplied shipping fee. Recalculate from total
   // quantity using the quantity-based tier system.
@@ -440,6 +454,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
         total_price: totalPrice,
         shipping_fee: shippingFee,
         status: 'pending',
+        user_id: authenticatedUserId, // null for guest checkouts
       })
       .select()
       .single()

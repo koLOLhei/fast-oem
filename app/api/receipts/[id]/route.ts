@@ -285,6 +285,12 @@ export async function GET(
         headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="receipt-${safeNo}.pdf"`,
+            // Prevent the access token in the URL from leaking via Referer
+            // when the PDF is rendered/shared. "no-referrer" is safe here
+            // because the endpoint is only linked to from authenticated pages.
+            'Referrer-Policy': 'no-referrer',
+            // Belt-and-braces: ask CDNs not to cache the PDF across users.
+            'Cache-Control': 'private, no-store',
         },
     })
 }

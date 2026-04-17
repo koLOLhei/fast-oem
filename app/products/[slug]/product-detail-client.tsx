@@ -18,6 +18,7 @@ import {
   calculateShippingModifier,
   formatPrice,
   checkComplexityRestriction,
+  findCheaperTierSuggestion,
 } from '@/lib/products'
 import { OptionSelector, isOptionVisible, getDescendantIds } from './option-selector'
 import { PriceSummary } from './price-summary'
@@ -348,6 +349,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     ? Math.round((1 - unitPrice / baseTier.unitPrice) * 100)
     : 0
   const complexityBlock = checkComplexityRestriction(product, selectedOptions)
+
+  // When bulk-discount tiers make a larger quantity actually cheaper than the
+  // current selection, show a nudge so users don't overpay for a smaller lot.
+  const cheaperSuggestion = findCheaperTierSuggestion(product, quantity, selectedOptions)
 
   const handleMoldCheck = async () => {
     if (!moldOrderId.trim() || !moldEmail.trim()) return
@@ -684,6 +689,30 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             )}
           </CardContent>
         </Card>
+
+        {/* Cheaper-tier nudge — only shows when buying MORE is actually cheaper */}
+        {cheaperSuggestion && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="text-amber-900 font-medium">
+                {cheaperSuggestion.suggestedQuantity}個にすると合計が
+                <span className="font-bold"> {formatPrice(cheaperSuggestion.newTotal)} </span>
+                で、現在より <span className="font-bold text-amber-700">{formatPrice(cheaperSuggestion.saving)}安く</span> なります
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuantity(cheaperSuggestion.suggestedQuantity)
+                  setCustomQuantity('')
+                }}
+                className="mt-1 text-xs text-amber-700 underline hover:text-amber-900"
+              >
+                {cheaperSuggestion.suggestedQuantity}個に変更する
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Price Summary & Actions */}
         <PriceSummary

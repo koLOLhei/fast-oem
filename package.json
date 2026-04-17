@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --experimental-https",
-    "build": "next build",
+    "build": "npm run check:links && next build",
     "start": "next start",
     "lint": "eslint .",
+    "check:links": "node scripts/check-links.mjs",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
     "test:watch": "vitest --exclude '**/*.integration.test.ts'",
     "test:integration": "vitest run '__tests__/cross-tenant.integration.test.ts' '__tests__/integration.test.ts'"

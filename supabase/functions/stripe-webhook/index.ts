@@ -65,6 +65,53 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
 
 const cryptoProvider = Stripe.createSubtleCryptoProvider()
 
+// ── PII redaction for Slack/logs ────────────────────────────────────────────
+// Customer email/name were being posted raw to Slack. Redact by default; set
+// SLACK_REDACT_PII=false in the Edge Function secrets to disable for debug.
+const SLACK_REDACT_PII = (Deno.env.get('SLACK_REDACT_PII') ?? 'true') !== 'false'
+
+function redactEmail(email: string | null | undefined): string {
+  if (!email) return '—'
+  if (!SLACK_REDACT_PII) return email
+  const [local, domain] = email.split('@')
+  if (!domain) return '***'
+  const domParts = domain.split('.')
+  const maskedLocal = local ? (local[0] ?? '') + '***' : '***'
+  const maskedDom = (domParts[0]?.[0] ?? '') + '***' + (domParts.length > 1 ? '.' + domParts.slice(1).join('.') : '')
+  return `${maskedLocal}@${maskedDom}`
+}
+
+function redactName(name: string | null | undefined): string {
+  if (!name) return '—'
+  if (!SLACK_REDACT_PII) return name
+  const trimmed = name.trim()
+  if (!trimmed) return '—'
+  return trimmed[0] + '**'
+}
+
+// ── Event idempotency: record processed Stripe event IDs ────────────────────
+// Uses the webhook_events table (added in 20260417000001). If the INSERT fails
+// with a uniqueness violation (code 23505), the event has already been handled
+// and we skip downstream side effects.
+async function markEventProcessed(
+  supa: ReturnType<typeof createClient>,
+  event: Stripe.Event,
+): Promise<{ alreadyProcessed: boolean }> {
+  const { error } = await supa
+    .from('webhook_events')
+    .insert({ event_id: event.id, event_type: event.type })
+  if (!error) return { alreadyProcessed: false }
+  // Postgres unique_violation === duplicate
+  // supabase-js returns { code: '23505' } on PostgREST error wrapping it.
+  const code = (error as { code?: string }).code ?? ''
+  if (code === '23505' || error.message?.includes('duplicate')) {
+    return { alreadyProcessed: true }
+  }
+  // Unknown DB error — fail open (process the event) but log
+  console.warn('[markEventProcessed] unexpected insert error, processing anyway:', error.message)
+  return { alreadyProcessed: false }
+}
+
 serve(async (req: Request) => {
   const signature = req.headers.get('Stripe-Signature')
   if (!signature) {
@@ -183,9 +230,13 @@ serve(async (req: Request) => {
       // Notify admin on Slack immediately (before heavy background work)
       const adminUrl = `${Deno.env.get('NEXT_PUBLIC_SITE_URL') ?? 'https://fast-oem.soara-mu.jp'}/admin/orders/${order.id}`
       const itemSummary = (orderItems ?? []).map((i: OrderItem) => `• ${i.product_name} ×${i.quantity}`).join('\n')
+      // Redact PII by default — admin can uncheck via SLACK_REDACT_PII=false
+      const customerDisplay = customerInfo?.name
+        ? redactName(customerInfo.name)
+        : redactEmail(customerInfo?.email)
       await sendSlackMessage(
         `🎉 *新規注文* 注文番号: ${orderId}\n` +
-        `顧客: ${customerInfo?.name ?? customerInfo?.email ?? '—'}\n` +
+        `顧客: ${customerDisplay}\n` +
         `合計: ¥${(order.total_price ?? 0).toLocaleString('ja-JP')}\n` +
         `${itemSummary}\n` +
         `<${adminUrl}|管理画面で確認する>`
@@ -357,7 +408,7 @@ serve(async (req: Request) => {
                   await sendSlackMessage(
                     `🔔 *型代免除の可能性あり*\n` +
                     `注文番号: ${orderId}\n` +
-                    `顧客: ${customerInfo.email}\n` +
+                    `顧客: ${redactEmail(customerInfo.email)}\n` +
                     `商品: ${moldItem.product_name}\n` +
                     `型代: ¥${(moldItem.mold_fee ?? 0).toLocaleString('ja-JP')}\n` +
                     `過去注文: ${prev}\n\n` +
@@ -505,9 +556,12 @@ serve(async (req: Request) => {
           }
 
           // Slack cancellation alert
+          const cancelCustomer = customerInfo?.name
+            ? redactName(customerInfo.name)
+            : redactEmail(customerInfo?.email)
           await sendSlackMessage(
             `⚠️ *注文キャンセル* 注文番号: ${orderId}\n` +
-            `顧客: ${customerInfo?.name ?? customerInfo?.email ?? '—'}\n` +
+            `顧客: ${cancelCustomer}\n` +
             `合計: ¥${(order.total_price ?? 0).toLocaleString('ja-JP')}\n` +
             `理由: Stripe Checkoutセッション期限切れ（未決済）`
           )
@@ -551,15 +605,21 @@ serve(async (req: Request) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
         )
 
+        // True idempotency via event.id — the previous amount-based guard broke
+        // on multiple partial refunds of equal cumulative total.
+        const { alreadyProcessed } = await markEventProcessed(supabase, event)
+        if (alreadyProcessed) {
+          console.log(`[charge.refunded] ${event.id} already processed — skipping`)
+        } else {
         // First fetch the current order status to avoid regressing shipped/completed orders
-        // and to implement idempotency (skip if already recorded this exact refund amount)
         const { data: currentOrder } = await supabase
           .from('orders')
           .select('id, order_number, total_price, status, refunded_amount')
           .eq('payment_intent_id', paymentIntentId)
           .single()
 
-        // Idempotency guard: if refunded_amount already matches, this is a re-delivery
+        // Secondary guard: if the same cumulative amount is already recorded,
+        // this is the expected steady state after a previous partial event.
         const alreadyRecorded = currentOrder?.refunded_amount === refundedAmount
         if (alreadyRecorded) {
           console.log(`[charge.refunded] Duplicate event for payment_intent ${paymentIntentId} — skipping (amount=${refundedAmount})`)
@@ -599,6 +659,7 @@ serve(async (req: Request) => {
             )
           }
         }
+        } // end event.id idempotency else-branch
       } else {
         console.warn(`[charge.refunded] No payment_intent on charge ${charge.id} — skipped`)
       }
@@ -654,6 +715,15 @@ serve(async (req: Request) => {
         Deno.env.get('SUPABASE_URL') as string,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
       )
+
+      // Idempotency: skip if Stripe re-delivers the same dispute event
+      const { alreadyProcessed } = await markEventProcessed(supabase, event)
+      if (alreadyProcessed) {
+        console.log(`[charge.dispute.created] ${event.id} already processed — skipping`)
+        return new Response(JSON.stringify({ received: true }), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
 
       // Try to find the associated order for context
       let orderLabel = chargeId

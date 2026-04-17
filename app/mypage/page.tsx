@@ -20,7 +20,13 @@ export default async function MypagePage() {
     // Run profile check and orders fetch in parallel to reduce latency.
     // Use service client for both to bypass RLS — customers don't have
     // SELECT policies on orders, so the anon client would return empty results.
+    //
+    // Ownership: prefer orders.user_id (set at authenticated checkout).
+    // Fall back to email match ONLY for legacy rows where user_id is NULL.
+    // This eliminates the IDOR where a guest can spoof another user's email
+    // at checkout and have that order appear on the victim's mypage.
     const serviceClient = createServiceClient()
+    const email = (user.email ?? '').toLowerCase()
     const [{ data: profile }, { data: orders }] = await Promise.all([
         serviceClient
             .from('profiles')
@@ -30,7 +36,7 @@ export default async function MypagePage() {
         serviceClient
             .from('orders')
             .select(`*, order_items(product_name, quantity)`)
-            .eq('customer_info->>email', user.email ?? '')
+            .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
             .order('created_at', { ascending: false }),
     ])
 

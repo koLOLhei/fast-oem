@@ -638,6 +638,37 @@ export function getProductById(id: string): Product | undefined {
   return PRODUCTS.find((p) => p.id === id)
 }
 
+/**
+ * When the bulk-discount tier above yields a LOWER total price than the
+ * user's current selection (can happen where tier pricing isn't strictly
+ * monotone in total), return the suggestion details; else null.
+ *
+ * Example: 499個 @¥83 = ¥41,417 but 500個 @¥55 = ¥27,500 — returns
+ * { suggestedQuantity: 500, newTotal: 27500, saving: 13917 }.
+ */
+export function findCheaperTierSuggestion(
+  product: Product,
+  currentQuantity: number,
+  selectedOptions?: Record<string, string>,
+): { suggestedQuantity: number; newTotal: number; saving: number } | null {
+  if (!product.priceTiers || product.priceTiers.length === 0) return null
+  const currentTotal = calculateTotalPrice(product, currentQuantity, selectedOptions)
+  // For each tier whose minQuantity > current, compute the cost at that minQuantity
+  for (const tier of product.priceTiers) {
+    if (tier.minQuantity <= currentQuantity) continue
+    if (tier.minQuantity > product.maxQuantity) continue
+    const candidateTotal = calculateTotalPrice(product, tier.minQuantity, selectedOptions)
+    if (candidateTotal < currentTotal) {
+      return {
+        suggestedQuantity: tier.minQuantity,
+        newTotal: candidateTotal,
+        saving: currentTotal - candidateTotal,
+      }
+    }
+  }
+  return null
+}
+
 export function calculateUnitPrice(
   product: Product,
   quantity: number,

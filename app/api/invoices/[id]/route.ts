@@ -272,6 +272,9 @@ export async function GET(
         headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="invoice-${safeNo}.pdf"`,
+            // Prevent the access token in the URL from leaking via Referer.
+            'Referrer-Policy': 'no-referrer',
+            'Cache-Control': 'private, no-store',
         },
     })
 }

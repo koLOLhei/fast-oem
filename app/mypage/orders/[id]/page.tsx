@@ -19,14 +19,17 @@ export default async function MyOrderDetailPage({
 
     // Use service client to bypass RLS — customers don't have SELECT policies
     // on orders, so the anon client would return empty results.
-    // Security: filter by customer email to ensure only the order owner can view.
+    // Security: prefer user_id match; fall back to email only for legacy rows
+    // where user_id is still NULL. Prevents an IDOR where a guest could spoof
+    // another user's email at checkout and then that order would surface here.
     const serviceClient = createServiceClient()
+    const email = (user.email ?? '').toLowerCase()
     const { data: order } = await serviceClient
         .from('orders')
-        .select(`*, order_items(*), access_token`)
+        .select(`*, order_items(*), access_token, user_id`)
         .eq('id', id)
-        .eq('customer_info->>email', user.email ?? '')
-        .single()
+        .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
+        .maybeSingle()
 
     if (!order) notFound()
 
