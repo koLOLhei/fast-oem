@@ -287,18 +287,22 @@ export const PRODUCTS: Product[] = [
     isActive: true,
     leadTimeDays: 30,
     expressDeliveryFee: 0,
+    // 価格は44mm基準。市場相場調査(2026-04)より、国内缶バッジ製造業者の
+    // 主要価格レンジに合わせて改訂。大ロットでも製造原価を下回らないように設定。
+    // 参考相場: 100個¥60-95, 500個¥50-85, 1,000個¥46-75, 10,000個¥45-65
     priceTiers: [
-      { minQuantity: 100, maxQuantity: 199, unitPrice: 119 },
-      { minQuantity: 200, maxQuantity: 299, unitPrice: 101, discountPercent: 15 },
-      { minQuantity: 300, maxQuantity: 499, unitPrice: 83, discountPercent: 30 },
-      { minQuantity: 500, maxQuantity: 999, unitPrice: 55, discountPercent: 54 },
-      { minQuantity: 1000, maxQuantity: 2999, unitPrice: 33, discountPercent: 72 },
-      { minQuantity: 3000, maxQuantity: 4999, unitPrice: 19, discountPercent: 84 },
-      { minQuantity: 5000, maxQuantity: 9999, unitPrice: 16, discountPercent: 87 },
-      { minQuantity: 10000, maxQuantity: 19999, unitPrice: 14, discountPercent: 88 },
-      { minQuantity: 20000, maxQuantity: 29999, unitPrice: 13, discountPercent: 89 },
-      { minQuantity: 30000, maxQuantity: 99999, unitPrice: 12, discountPercent: 90 },
-      { minQuantity: 100000, maxQuantity: 200000, unitPrice: 12, discountPercent: 90 },
+      { minQuantity: 100, maxQuantity: 199, unitPrice: 95 },
+      { minQuantity: 200, maxQuantity: 299, unitPrice: 88, discountPercent: 7 },
+      { minQuantity: 300, maxQuantity: 499, unitPrice: 82, discountPercent: 14 },
+      { minQuantity: 500, maxQuantity: 999, unitPrice: 72, discountPercent: 24 },
+      { minQuantity: 1000, maxQuantity: 1999, unitPrice: 65, discountPercent: 32 },
+      { minQuantity: 2000, maxQuantity: 2999, unitPrice: 60, discountPercent: 37 },
+      { minQuantity: 3000, maxQuantity: 4999, unitPrice: 55, discountPercent: 42 },
+      { minQuantity: 5000, maxQuantity: 9999, unitPrice: 52, discountPercent: 45 },
+      { minQuantity: 10000, maxQuantity: 19999, unitPrice: 48, discountPercent: 49 },
+      { minQuantity: 20000, maxQuantity: 29999, unitPrice: 45, discountPercent: 53 },
+      { minQuantity: 30000, maxQuantity: 99999, unitPrice: 42, discountPercent: 56 },
+      { minQuantity: 100000, maxQuantity: 200000, unitPrice: 40, discountPercent: 58 },
     ],
     options: [
       {
@@ -307,11 +311,13 @@ export const PRODUCTS: Product[] = [
         type: 'list',
         required: true,
         values: [
-          { id: '25mm', label: '25mm', priceModifier: { type: 'add', value: -4 } },
-          { id: '32mm', label: '32mm', priceModifier: { type: 'add', value: -3 } },
+          // サイズ比: 44mmを基準(1.0)に 相場比(0.65/0.85/1.0/1.15/1.70)で
+          // multiply モディファイアを設定。add型だと大ロット時に比率が崩れるため
+          { id: '25mm', label: '25mm', priceModifier: { type: 'multiply', value: 0.65 } },
+          { id: '32mm', label: '32mm', priceModifier: { type: 'multiply', value: 0.85 } },
           { id: '44mm', label: '44mm' },
-          { id: '55mm', label: '55mm', priceModifier: { type: 'add', value: 2 } },
-          { id: '75mm', label: '75mm', priceModifier: { type: 'add', value: 8 } },
+          { id: '55mm', label: '55mm', priceModifier: { type: 'multiply', value: 1.15 } },
+          { id: '75mm', label: '75mm', priceModifier: { type: 'multiply', value: 1.70 } },
         ],
       },
       {
