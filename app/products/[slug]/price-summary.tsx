@@ -12,6 +12,10 @@ export interface PriceSummaryProps {
   totalPriceItems: number
   moldFee: number
   shippingExtra: number
+  /** Quantity-based shipping fee (incl. express multiplier). Optional so callers can omit. */
+  shippingFee?: number
+  /** Express delivery selected (affects shipping fee label). */
+  hasExpress?: boolean
   discountPercent: number
   complexityBlock: string | null
   designImage: string | null
@@ -20,6 +24,8 @@ export interface PriceSummaryProps {
   is3d: boolean
   allRequiredDone: boolean
   isAdded: boolean
+  /** True when we're editing an existing cart line (arrived via ?editCartId=). */
+  editing?: boolean
   validationError?: string | null
   onAddToCart: () => boolean
   onBuyNow: () => void
@@ -33,6 +39,8 @@ export function PriceSummary({
   totalPriceItems,
   moldFee,
   shippingExtra,
+  shippingFee = 0,
+  hasExpress = false,
   discountPercent,
   complexityBlock,
   designImage,
@@ -41,6 +49,7 @@ export function PriceSummary({
   is3d,
   allRequiredDone,
   isAdded,
+  editing = false,
   validationError,
   onAddToCart,
   onBuyNow,
@@ -99,22 +108,34 @@ export function PriceSummary({
                   </p>
                 </div>
               )}
+              {shippingFee > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    送料{hasExpress ? '（特急便 ×2）' : '（数量別）'}
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {formatPrice(shippingFee)}
+                  </p>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">
                   合計金額{' '}
                   <span className="text-xs font-semibold text-green-600">
-                    （税込・送料別）
+                    （税込・送料込）
                   </span>
                 </p>
                 <div className="flex flex-col gap-1">
-                  {moldFee > 0 && (
+                  {(moldFee > 0 || shippingFee > 0) && (
                     <p className="text-sm text-muted-foreground">
                       商品代: {formatPrice(totalPriceItems)}
+                      {moldFee > 0 && ` + 型代${formatPrice(moldFee)}`}
+                      {shippingFee > 0 && ` + 送料${formatPrice(shippingFee)}`}
                     </p>
                   )}
                   <div className="flex items-baseline gap-2">
                     <p className="text-3xl font-bold text-primary">
-                      {formatPrice(totalPrice)}
+                      {formatPrice(totalPrice + shippingFee)}
                     </p>
                     {discountPercent > 0 && (
                       <span className="text-sm font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded">
@@ -144,7 +165,27 @@ export function PriceSummary({
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              {isAdded ? (
+              {editing ? (
+                <>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
+                    onClick={() => router.push('/cart')}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
+                    onClick={onAddToCart}
+                    disabled={hasNoDesign || !!complexityBlock}
+                  >
+                    <Check className="h-5 w-5 mr-2" />
+                    更新してカートへ戻る
+                  </Button>
+                </>
+              ) : isAdded ? (
                 <Button
                   size="lg"
                   variant="default"
@@ -155,25 +196,27 @@ export function PriceSummary({
                   カートを見る →
                 </Button>
               ) : (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
-                  onClick={onAddToCart}
-                  disabled={hasNoDesign || !!complexityBlock}
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  カートに追加
-                </Button>
+                <>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1 lg:flex-none h-12 px-6 rounded-xl"
+                    onClick={onAddToCart}
+                    disabled={hasNoDesign || !!complexityBlock}
+                  >
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    カートに追加
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
+                    onClick={onBuyNow}
+                    disabled={hasNoDesign || !!complexityBlock}
+                  >
+                    カートへ進む
+                  </Button>
+                </>
               )}
-              <Button
-                size="lg"
-                className="flex-1 lg:flex-none h-12 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25"
-                onClick={onBuyNow}
-                disabled={hasNoDesign || isAdded || !!complexityBlock}
-              >
-                カートへ進む
-              </Button>
             </div>
           </div>
 

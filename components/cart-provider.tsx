@@ -13,6 +13,8 @@ import { calculateUnitPrice, calculateTotalPrice, calculateMoldFee, getProductBy
 interface CartContextType {
   cart: Cart
   addItem: (item: Omit<CartItem, 'id' | 'unitPrice' | 'totalPrice'> & { unitPrice?: number; totalPrice?: number }) => void
+  /** Replace the entire CartItem at itemId. Used by the "edit from cart" flow. */
+  replaceItem: (itemId: string, replacement: Omit<CartItem, 'id'>) => void
   updateItemQuantity: (itemId: string, quantity: number) => void
   removeItem: (itemId: string) => void
   clearCart: () => void
@@ -159,6 +161,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const replaceItem = useCallback((itemId: string, replacement: Omit<CartItem, 'id'>) => {
+    setCart((prevCart) => {
+      const idx = prevCart.items.findIndex((i) => i.id === itemId)
+      if (idx < 0) return prevCart
+      const next = [...prevCart.items]
+      next[idx] = { ...replacement, id: itemId } as CartItem
+      const totals = calculateCartTotals(next)
+      return { items: next, ...totals }
+    })
+  }, [])
+
   const clearCart = useCallback(() => {
     setCart(createEmptyCart())
   }, [])
@@ -166,11 +179,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     cart,
     addItem,
+    replaceItem,
     updateItemQuantity,
     removeItem,
     clearCart,
     isLoading,
-  }), [cart, addItem, updateItemQuantity, removeItem, clearCart, isLoading])
+  }), [cart, addItem, replaceItem, updateItemQuantity, removeItem, clearCart, isLoading])
 
   return (
     <CartContext.Provider value={value}>

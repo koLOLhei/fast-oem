@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Trash2, ArrowRight, ShoppingBag, Shield, Truck, Plus, Minus } from 'lucide-react'
+import { Trash2, ArrowRight, ShoppingBag, Shield, Truck, Plus, Minus, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCart } from '@/components/cart-provider'
@@ -124,15 +124,26 @@ export function CartClient() {
                               </p>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10"
-                            onClick={() => removeItem(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">削除</span>
-                          </Button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {product && (
+                              <Link
+                                href={`/products/${product.slug}?editCartId=${encodeURIComponent(item.id)}`}
+                                className="inline-flex items-center justify-center h-10 w-10 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                aria-label="この商品を編集"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-10 w-10"
+                              onClick={() => removeItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">削除</span>
+                            </Button>
+                          </div>
                         </div>
 
                         <div className="mt-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

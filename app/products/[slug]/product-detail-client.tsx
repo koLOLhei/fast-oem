@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, ChevronRight, Truck, Info } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ImageUploader } from '@/components/image-uploader'
 import { MultiViewUploader } from '@/components/multi-view-uploader'
-import { type DesignImageEntry } from '@/lib/cart'
+import { type DesignImageEntry, type CartItem } from '@/lib/cart'
+import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
 import { ProductPreview } from '@/components/product-preview'
 import { useCart } from '@/components/cart-provider'
 import {
@@ -30,7 +31,14 @@ interface ProductDetailClientProps {
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const router = useRouter()
-  const { addItem } = useCart()
+  const searchParams = useSearchParams()
+  const { cart, addItem, replaceItem } = useCart()
+  // When editing an existing cart item, the cart page sends ?editCartId=<id>.
+  // We pre-fill form state from the matching CartItem and switch the submit
+  // button to "update" mode so saving replaces the same cart line.
+  const editCartId = searchParams?.get('editCartId') || null
+  const editingItem = editCartId ? cart.items.find((i) => i.id === editCartId) : null
+  const editing = !!editingItem
 
   const [quantity, setQuantity] = useState(product.minQuantity)
   const [designImage, setDesignImage] = useState<string | null>(null)
@@ -103,6 +111,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   // Restore draft from localStorage on mount
   useEffect(() => {
+    // When editing from cart, don't restore the draft — use the cart item.
+    if (editingItem) return
     let timer: ReturnType<typeof setTimeout>
     try {
       const saved = localStorage.getItem(`draft-design-${product.id}`)
@@ -123,7 +133,29 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     } catch {}
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product.id])
+  }, [product.id, editingItem])
+
+  // Preload the cart item into form state (runs once when arriving with ?editCartId=).
+  const editHydratedRef = useRef(false)
+  useEffect(() => {
+    if (!editingItem || editHydratedRef.current) return
+    editHydratedRef.current = true
+    setQuantity(editingItem.quantity)
+    setExpressDelivery(!!editingItem.expressDelivery)
+    const opts: Record<string, string> = {}
+    for (const o of editingItem.options ?? []) {
+      // CartItem stores { id, name, value }. Map label→id for list options.
+      const productOpt = product.options.find((po) => po.id === o.id)
+      if (!productOpt) continue
+      const match = productOpt.values.find((v) => v.id === o.value || v.label === o.value)
+      opts[o.id] = match ? match.id : o.value
+    }
+    setSelectedOptions((prev) => ({ ...prev, ...opts }))
+    if (editingItem.designImage) setDesignImage(editingItem.designImage)
+    if (editingItem.designFileName) setDesignFileName(editingItem.designFileName)
+    if (editingItem.deliveryPdfUrl) setDeliveryPdfUrl(editingItem.deliveryPdfUrl)
+    if (editingItem.moldOrderId) setMoldOrderId(editingItem.moldOrderId)
+  }, [editingItem, product.options])
 
   // Persist draft to localStorage on change
   useEffect(() => {
@@ -305,7 +337,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     const productExpressFee = product.expressDeliveryFee ?? 0
     const effectiveExpressFee = expressDelivery && productExpressFee > 0 ? productExpressFee : 0
 
-    addItem({
+    const payload = {
       productId: product.id,
       productName: product.name,
       quantity,
@@ -328,7 +360,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         backDeliveryPdfUrl,
       } : {}),
       shippingModifier: shippingExtra > 0 ? shippingExtra : undefined,
-    })
+    }
+
+    if (editing && editCartId) {
+      // Replace the existing cart line with the edited payload and go back to cart.
+      replaceItem(editCartId, payload as Omit<CartItem, 'id'>)
+      router.push('/cart')
+      return true
+    }
+
+    addItem(payload)
 
     setIsAdded(true)
     clearTimeout(isAddedTimerRef.current)
@@ -338,7 +379,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const handleBuyNow = () => {
     const added = handleAddToCart()
-    if (added) router.push('/cart')
+    if (added && !editing) router.push('/cart')
   }
 
   const unitPrice = calculateUnitPrice(product, quantity, selectedOptions)
@@ -347,6 +388,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
   const shippingExtra = calculateShippingModifier(product, selectedOptions)
   const totalPrice = totalPriceItems + moldFee + shippingExtra
+  // Preview the shipping fee on the product page so users see the real total
+  // BEFORE adding to cart. This mirrors the calculation used at checkout.
+  const baseShippingPreview = calculateShippingByQuantity(quantity)
+  const shippingPreview = expressDelivery
+    ? calculateExpressShipping(baseShippingPreview)
+    : baseShippingPreview
   // priceTiers may be empty for DB-only products with a size-price override;
   // guard against undefined to prevent runtime crash on render.
   const baseTier = product.priceTiers[0]
@@ -421,10 +468,30 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     <div className="py-6 md:py-10 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Draft Restored Toast */}
-        {draftRestored && (
+        {draftRestored && !editing && (
           <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground text-sm px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2">
             <Check className="h-4 w-4" />
             前回の設定を復元しました
+          </div>
+        )}
+
+        {/* Editing-from-cart banner */}
+        {editing && (
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="text-blue-900 font-medium">カート内アイテムを編集中</p>
+              <p className="text-blue-800 text-xs mt-1">
+                オプション・数量・デザインを変更したら「更新してカートへ戻る」で保存できます。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/cart')}
+              className="text-xs text-blue-700 underline hover:text-blue-900"
+            >
+              キャンセル
+            </button>
           </div>
         )}
 
@@ -779,6 +846,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           totalPriceItems={totalPriceItems}
           moldFee={moldFee}
           shippingExtra={shippingExtra}
+          shippingFee={shippingPreview}
+          hasExpress={expressDelivery}
+          editing={editing}
           discountPercent={discountPercent}
           complexityBlock={complexityBlock}
           designImage={designImage}

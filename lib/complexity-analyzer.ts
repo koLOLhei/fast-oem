@@ -165,14 +165,63 @@ export async function detectHollow(imageUrl: string): Promise<boolean> {
     if (!transparent[i]) opaqueCount++
   }
 
-  // Only reject if interior holes dominate the design area (opaque pixels).
-  // Threshold: interior holes must exceed 40% of the opaque area AND 10% of total image.
-  // This catches truly hollow ring/frame shapes but allows normal character art
-  // with small enclosed transparent regions (arms, letters, etc.).
+  // A design is rejected as "hollow / not die-cuttable" when either of:
+  //   (a) a SINGLE interior hole is large relative to the design area, or
+  //   (b) the total enclosed holes dominate the opaque area (ring/frame case)
+  //
+  // Previously used a combined 40%+10% threshold that let donut/ring/O-letter
+  // style designs through. This version adds largest-hole detection, which is
+  // what actually matters for die-cutting (a single big hole = the shape must
+  // be cut as two separate pieces).
   if (opaqueCount === 0) return false
+
+  // Compute the largest contiguous interior hole via BFS over the *interior*
+  // transparent cells (those not visited during the border flood-fill).
+  let maxHole = 0
+  const holeSeen = new Uint8Array(total)
+  const holeQ: number[] = []
+  for (let i = 0; i < total; i++) {
+    if (!transparent[i] || visited[i] || holeSeen[i]) continue
+    // BFS one connected component
+    holeQ.length = 0
+    holeQ.push(i)
+    holeSeen[i] = 1
+    let size = 0
+    while (holeQ.length > 0) {
+      const idx = holeQ.pop()!
+      size++
+      const x = idx % width
+      const y = (idx - x) / width
+      if (y > 0) {
+        const n = idx - width
+        if (transparent[n] && !visited[n] && !holeSeen[n]) { holeSeen[n] = 1; holeQ.push(n) }
+      }
+      if (y < height - 1) {
+        const n = idx + width
+        if (transparent[n] && !visited[n] && !holeSeen[n]) { holeSeen[n] = 1; holeQ.push(n) }
+      }
+      if (x > 0) {
+        const n = idx - 1
+        if (transparent[n] && !visited[n] && !holeSeen[n]) { holeSeen[n] = 1; holeQ.push(n) }
+      }
+      if (x < width - 1) {
+        const n = idx + 1
+        if (transparent[n] && !visited[n] && !holeSeen[n]) { holeSeen[n] = 1; holeQ.push(n) }
+      }
+    }
+    if (size > maxHole) maxHole = size
+  }
+
   const holeToOpaqueRatio = interiorHoles / opaqueCount
   const holeToTotalRatio = interiorHoles / total
-  return holeToOpaqueRatio > 0.4 && holeToTotalRatio > 0.10
+  const biggestHoleRatio = maxHole / opaqueCount
+
+  // Reject when:
+  //  - a single hole >= 15% of the opaque area (e.g. donut, "O", ring) OR
+  //  - holes overall dominate both metrics (frame-only designs)
+  if (biggestHoleRatio >= 0.15) return true
+  if (holeToOpaqueRatio > 0.3 && holeToTotalRatio > 0.05) return true
+  return false
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
