@@ -15,6 +15,8 @@ interface ImageUploaderProps {
   currentImage: string | null
   currentFileName: string | null
   selectedShape?: string
+  /** Aspect ratio of the frame (width / height). 1 = square (default). */
+  aspect?: number
   onPreviewChange?: (dataUrl: string) => void
   onComplexityDetected?: (grade: string) => void
 }
@@ -24,6 +26,7 @@ export function ImageUploader({
   currentImage,
   currentFileName,
   selectedShape = 'die-cut',
+  aspect = 1,
   onPreviewChange,
   onComplexityDetected,
 }: ImageUploaderProps) {
@@ -225,7 +228,7 @@ export function ImageUploader({
   if (currentImage && canvasImageUrl) {
     return (
       <div className="space-y-4">
-        <DesignCanvas ref={canvasRef} imageUrl={canvasImageUrl} shape={selectedShape} onCanvasChange={onPreviewChange} />
+        <DesignCanvas ref={canvasRef} imageUrl={canvasImageUrl} shape={selectedShape} aspect={aspect} onCanvasChange={onPreviewChange} />
 
         {confirmed ? (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">

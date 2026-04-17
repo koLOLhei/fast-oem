@@ -228,7 +228,23 @@ export const PRODUCTS: Product[] = [
         values: [
           { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
           { id: 'round', label: '丸型' },
+          { id: 'square', label: '四角' },
           { id: 'rounded-rect', label: '角丸四角' },
+        ],
+      },
+      {
+        id: 'aspect_ratio',
+        name: '縦横比',
+        type: 'list',
+        required: false,
+        parentId: 'shape',
+        showWhen: ['square', 'rounded-rect'],
+        values: [
+          { id: '1:1', label: '1:1（正方形）' },
+          { id: '4:3', label: '4:3（横長）' },
+          { id: '3:4', label: '3:4（縦長）' },
+          { id: '16:9', label: '16:9（ワイド横）' },
+          { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
       {
@@ -403,9 +419,25 @@ export const PRODUCTS: Product[] = [
         values: [
           { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
           { id: 'round', label: '丸型' },
+          { id: 'square', label: '四角' },
           { id: 'rounded-rect', label: '角丸四角' },
           { id: 'heart', label: 'ハート型' },
           { id: 'star', label: '星型' },
+        ],
+      },
+      {
+        id: 'aspect_ratio',
+        name: '縦横比',
+        type: 'list',
+        required: false,
+        parentId: 'shape',
+        showWhen: ['square', 'rounded-rect'],
+        values: [
+          { id: '1:1', label: '1:1（正方形）' },
+          { id: '4:3', label: '4:3（横長）' },
+          { id: '3:4', label: '3:4（縦長）' },
+          { id: '16:9', label: '16:9（ワイド横）' },
+          { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
       {
@@ -507,7 +539,23 @@ export const PRODUCTS: Product[] = [
         values: [
           { id: 'die-cut', label: '型抜き（デザインに沿った形）' },
           { id: 'round', label: '丸型' },
+          { id: 'square', label: '四角' },
           { id: 'rounded-rect', label: '角丸四角' },
+        ],
+      },
+      {
+        id: 'aspect_ratio',
+        name: '縦横比',
+        type: 'list',
+        required: false,
+        parentId: 'shape',
+        showWhen: ['square', 'rounded-rect'],
+        values: [
+          { id: '1:1', label: '1:1（正方形）' },
+          { id: '4:3', label: '4:3（横長）' },
+          { id: '3:4', label: '3:4（縦長）' },
+          { id: '16:9', label: '16:9（ワイド横）' },
+          { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
       {

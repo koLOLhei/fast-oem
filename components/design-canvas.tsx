@@ -35,14 +35,21 @@ function buildShapePath(
   const cx = x + w / 2
   const cy = y + h / 2
   ctx.beginPath()
+  // Normalise shape aliases — product data uses 'round' / 'rounded-rect',
+  // this function historically matched on 'circle' / 'rounded'. Accept both.
   switch (shape) {
     case 'circle':
+    case 'round':
       ctx.arc(cx, cy, Math.min(w, h) / 2, 0, Math.PI * 2)
       break
     case 'square':
+    case 'rect':
+    case 'rectangle':
       ctx.rect(x, y, w, h)
       break
-    case 'rounded': {
+    case 'rounded':
+    case 'rounded-rect':
+    case 'rounded-square': {
       const r = Math.min(w, h) * 0.1
       roundRectPolyfill(ctx, x, y, w, h, r)
       break
@@ -103,42 +110,53 @@ function renderToCanvas(
   shape: string,
   t: Transform,
   exportMode = false,
+  aspect = 1, // width / height, 1 = square (default). Only applies to rect/rounded-rect.
 ) {
   const dpr = exportMode ? 4 : (window.devicePixelRatio || 1)
-  const displaySize = exportMode ? 1200 : 400
+  const canvasSize = exportMode ? 1200 : 400
 
-  canvas.width = displaySize * dpr
-  canvas.height = displaySize * dpr
+  canvas.width = canvasSize * dpr
+  canvas.height = canvasSize * dpr
   if (!exportMode) {
-    canvas.style.width = displaySize + 'px'
-    canvas.style.height = displaySize + 'px'
+    canvas.style.width = canvasSize + 'px'
+    canvas.style.height = canvasSize + 'px'
   }
 
   const ctx = canvas.getContext('2d')!
   ctx.scale(dpr, dpr)
-  ctx.clearRect(0, 0, displaySize, displaySize)
+  ctx.clearRect(0, 0, canvasSize, canvasSize)
 
   // Checkered background ONLY in interactive preview mode (visual indicator of
   // transparency). In export mode (for the delivery PDF) use a flat white fill
   // so printed output isn't polluted with gray squares or a black JPEG background.
   if (exportMode) {
     ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, displaySize, displaySize)
+    ctx.fillRect(0, 0, canvasSize, canvasSize)
   } else {
     const cs = 16
-    for (let i = 0; i < displaySize / cs; i++) {
-      for (let j = 0; j < displaySize / cs; j++) {
+    for (let i = 0; i < canvasSize / cs; i++) {
+      for (let j = 0; j < canvasSize / cs; j++) {
         ctx.fillStyle = (i + j) % 2 === 0 ? '#e5e5e5' : '#ffffff'
         ctx.fillRect(i * cs, j * cs, cs, cs)
       }
     }
   }
 
-  const pad = displaySize * 0.1
-  const fw = displaySize - pad * 2
-  const fh = fw
-  const fx = pad
-  const fy = pad
+  // Compute frame box — size it so the longer side sits inside the 80% margin
+  // of the canvas, then derive the short side via aspect ratio. aspect = w/h.
+  const usableSide = canvasSize * 0.8
+  const safeAspect = isFinite(aspect) && aspect > 0 ? aspect : 1
+  let fw: number
+  let fh: number
+  if (safeAspect >= 1) {
+    fw = usableSide
+    fh = usableSide / safeAspect
+  } else {
+    fh = usableSide
+    fw = usableSide * safeAspect
+  }
+  const fx = (canvasSize - fw) / 2
+  const fy = (canvasSize - fh) / 2
 
   // Draw image (clipped to shape for non-die-cut)
   if (image) {
@@ -198,6 +216,8 @@ export interface DesignCanvasRef {
 interface Props {
   imageUrl: string
   shape: string
+  /** width / height of the frame. 1 = square (default). */
+  aspect?: number
   onTransformChange?: (t: Transform) => void
   onCanvasChange?: (dataUrl: string) => void
 }
@@ -206,7 +226,7 @@ interface Props {
 // Component
 // ────────────────────────────────────────────────────────
 const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
-  { imageUrl, shape, onTransformChange, onCanvasChange },
+  { imageUrl, shape, aspect = 1, onTransformChange, onCanvasChange },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -238,7 +258,7 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    renderToCanvas(canvas, imageRef.current, shape, transform)
+    renderToCanvas(canvas, imageRef.current, shape, transform, false, aspect)
 
     // Throttled preview callback — max once per 100ms to avoid perf issues
     if (onCanvasChange && loaded) {
@@ -252,7 +272,7 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
     return () => {
       if (canvasChangeTimer.current) clearTimeout(canvasChangeTimer.current)
     }
-  }, [transform, shape, loaded, onCanvasChange])
+  }, [transform, shape, aspect, loaded, onCanvasChange])
 
   useEffect(() => {
     onTransformChange?.(transform)
@@ -302,7 +322,7 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
   useImperativeHandle(ref, () => ({
     async exportPNG(): Promise<Blob> {
       const canvas = document.createElement('canvas')
-      renderToCanvas(canvas, imageRef.current, shape, transform, true)
+      renderToCanvas(canvas, imageRef.current, shape, transform, true, aspect)
       return new Promise((resolve, reject) =>
         canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Export failed'))), 'image/png', 1.0),
       )
@@ -311,7 +331,7 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
       // Generate high-res canvas then wrap in PDF using pdf-lib.
       // Use JPEG for embedding to keep PDF size small and avoid mobile OOM on iOS Safari.
       const canvas = document.createElement('canvas')
-      renderToCanvas(canvas, imageRef.current, shape, transform, true)
+      renderToCanvas(canvas, imageRef.current, shape, transform, true, aspect)
 
       // JPEG at quality 0.92 balances fidelity vs. file size / memory footprint.
       // A checkered alpha background is already baked in by renderToCanvas, so JPEG is safe here.

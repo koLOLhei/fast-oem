@@ -282,7 +282,7 @@ export function PaymentClient() {
                       {hasExpress ? '送料（特急便 ×2）' : '送料'}
                     </span>
                     <span className="text-foreground font-medium">
-                      {shippingFee > 0 ? formatPrice(shippingFee) : '計算中...'}
+                      {formatPrice(shippingFee)}
                     </span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-border">

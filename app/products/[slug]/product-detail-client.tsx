@@ -77,6 +77,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const [designImages, setDesignImages] = useState<DesignImageEntry[]>([])
   const [allRequiredDone, setAllRequiredDone] = useState(false)
   const [viewPreviews, setViewPreviews] = useState<Record<string, string>>({})
+  // Grade A-E from background complexity analysis, shown as a visible banner.
+  const [detectedComplexity, setDetectedComplexity] = useState<string | null>(null)
   // Stable callback ref to avoid DesignCanvas useEffect re-triggering on every render
   const handlePreviewChange = useCallback((dataUrl: string) => {
     setPreviewImage(dataUrl)
@@ -150,7 +152,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     setDesignImage(imageData)
     setDesignFileName(fileName)
     setDeliveryPdfUrl(pdfUrl ?? null)
-    if (!imageData) setPreviewImage(null)
+    if (!imageData) {
+      setPreviewImage(null)
+      setDetectedComplexity(null)
+    }
   }
 
   const handleBackImageSelect = (imageData: string | null, fileName: string | null, pdfUrl?: string | null) => {
@@ -354,6 +359,31 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   // current selection, show a nudge so users don't overpay for a smaller lot.
   const cheaperSuggestion = findCheaperTierSuggestion(product, quantity, selectedOptions)
 
+  // Determine the effective shape to pass to the canvas.
+  // - Products that expose a 'shape' option (acrylic/rubber/pin): use that value.
+  // - Products without a 'shape' option:
+  //   - 缶バッジ is round by spec → force 'round'
+  //   - Everything else defaults to 'die-cut'
+  const hasShapeOption = product.options.some((o) => o.id === 'shape')
+  const effectiveShape = hasShapeOption
+    ? (selectedOptions['shape'] || 'die-cut')
+    : (product.slug === 'can-badge' ? 'round' : 'die-cut')
+
+  // Aspect ratio: only rectangular shapes can be non-square. Parse the selected
+  // aspect_ratio option (format: 'W:H' e.g. '1:1', '4:3', '3:4', '16:9', '9:16').
+  const isRectShape = effectiveShape === 'square' || effectiveShape === 'rect' ||
+    effectiveShape === 'rectangle' || effectiveShape === 'rounded' ||
+    effectiveShape === 'rounded-rect' || effectiveShape === 'rounded-square'
+  const aspectValue = selectedOptions['aspect_ratio'] || '1:1'
+  const parsedAspect = (() => {
+    if (!isRectShape) return 1
+    const [wStr, hStr] = aspectValue.split(':')
+    const w = Number(wStr)
+    const h = Number(hStr)
+    if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return 1
+    return w / h
+  })()
+
   const handleMoldCheck = async () => {
     if (!moldOrderId.trim() || !moldEmail.trim()) return
     setCheckingMold(true)
@@ -524,7 +554,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 <MultiViewUploader
                   imageViews={product.imageViews!}
                   onImagesChange={handleMultiViewImagesChange}
-                  selectedShape={selectedOptions['shape'] || 'die-cut'}
+                  selectedShape={effectiveShape}
                   onPreviewChange={handlePreviewChange}
                   onViewPreviewChange={handleViewPreviewChange}
                 />
@@ -533,10 +563,14 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                   onImageSelect={handleImageSelect}
                   currentImage={designImage}
                   currentFileName={designFileName}
-                  selectedShape={selectedOptions['shape'] || 'die-cut'}
+                  selectedShape={effectiveShape}
+                  aspect={parsedAspect}
                   onPreviewChange={handlePreviewChange}
                   onComplexityDetected={(grade) => {
-                    // Auto-set complexity option if the product has one
+                    // Surface the grade to the user so complex designs trigger
+                    // a visible warning rather than silently grading in background.
+                    setDetectedComplexity(grade)
+                    // Also auto-set a matching complexity option if the product has one
                     const complexityOpt = product.options.find((o) => o.id === 'complexity')
                     if (complexityOpt) {
                       const match = complexityOpt.values.find((v) => v.id === grade || v.id === grade.toLowerCase())
@@ -559,9 +593,32 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     onImageSelect={handleBackImageSelect}
                     currentImage={backDesignImage}
                     currentFileName={backDesignFileName}
-                    selectedShape={selectedOptions['shape'] || 'die-cut'}
+                    selectedShape={effectiveShape}
+                    aspect={parsedAspect}
                     onPreviewChange={handleBackPreviewChange}
                   />
+                </div>
+              )}
+              {/* Complexity grade warning — triggered by analyzeComplexity() */}
+              {detectedComplexity && (detectedComplexity === 'D' || detectedComplexity === 'E') && (
+                <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-900">
+                    <p className="font-medium">デザインの複雑度: グレード{detectedComplexity}</p>
+                    <p className="mt-1 text-xs">
+                      細部が非常に細かいデザインです。型抜きでは輪郭が再現できない場合や、印刷でつぶれる可能性があります。
+                      小サイズでの製造は推奨しません。不安な場合は
+                      <a href="/contact" className="underline hover:text-amber-700"> お問い合わせ </a>
+                      からご相談ください。
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* Hollow/die-cut compatibility hint — only when die-cut shape selected */}
+              {effectiveShape === 'die-cut' && (
+                <div className="mt-3 text-xs text-muted-foreground px-3 py-2 rounded-lg bg-muted/40">
+                  ※ 型抜きを選択中です。中身が空洞のデザイン（ドーナツ状・枠のみ）は製造できません。
+                  アップロード時に自動チェックが走ります。
                 </div>
               )}
             </CardContent>
