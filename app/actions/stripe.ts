@@ -429,8 +429,9 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
     await validateAndRepricItems(rawItems, shippingFee, shippingAddress.email, supabase)
 
   // Sanity check: reject orders with implausible totals (guards against
-  // misconfigured price tiers or integer overflow)
-  const MAX_ORDER_TOTAL_JPY = 10_000_000 // ¥10M
+  // misconfigured price tiers or integer overflow).
+  // Upper bound must accommodate legitimate bulk orders — ピンバッジ200,000個 ≈ ¥18.4M
+  const MAX_ORDER_TOTAL_JPY = 30_000_000 // ¥30M
   if (totalPrice <= 0 || totalPrice > MAX_ORDER_TOTAL_JPY) {
     console.error(JSON.stringify({
       evt: 'security.implausible_total',
