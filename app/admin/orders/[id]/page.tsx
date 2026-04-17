@@ -224,7 +224,7 @@ export default async function OrderDetailPage({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="rounded-xl border bg-card p-5 space-y-3">
                     <p className="text-sm font-semibold">📝 内部メモ（管理者のみ表示）</p>
-                    <form>
+                    <form action={saveAdminNoteAction}>
                         <input type="hidden" name="orderId" value={order.id} />
                         <textarea
                             name="note"
@@ -238,7 +238,7 @@ export default async function OrderDetailPage({
                 </div>
                 <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-3">
                     <p className="text-sm font-semibold text-blue-900">🏭 工場向けメモ（工場ポータルに表示）</p>
-                    <form>
+                    <form action={saveFactoryNoteAction}>
                         <input type="hidden" name="orderId" value={order.id} />
                         <textarea
                             name="note"
@@ -381,20 +381,35 @@ function AssignButton({ itemId, orderId }: { itemId: string; orderId: string }) 
 }
 
 
+// Server actions wired to the form's `action` attribute so pressing Enter in
+// the textarea submits to the action instead of silently GET-ing the URL.
+async function saveAdminNoteAction(fd: FormData) {
+    'use server'
+    const orderId = fd.get('orderId') as string
+    const note = fd.get('note') as string
+    try {
+        await updateOrderNote(orderId, note ?? '')
+    } catch (e: any) {
+        redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('❌ エラー: ' + (e?.message ?? 'メモの保存に失敗しました'))}`)
+    }
+    redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('内部メモを保存しました')}`)
+}
+
+async function saveFactoryNoteAction(fd: FormData) {
+    'use server'
+    const orderId = fd.get('orderId') as string
+    const note = fd.get('note') as string
+    try {
+        await updateFactoryNote(orderId, note ?? '')
+    } catch (e: any) {
+        redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('❌ エラー: ' + (e?.message ?? 'メモの保存に失敗しました'))}`)
+    }
+    redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('工場向けメモを保存しました')}`)
+}
+
 function SaveNoteButton() {
     return (
         <SubmitButton
-            formAction={async (fd: FormData) => {
-                'use server'
-                const orderId = fd.get('orderId') as string
-                const note = fd.get('note') as string
-                try {
-                    await updateOrderNote(orderId, note ?? '')
-                } catch (e: any) {
-                    redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('❌ エラー: ' + (e?.message ?? 'メモの保存に失敗しました'))}`)
-                }
-                redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('内部メモを保存しました')}`)
-            }}
             className="mt-2 bg-secondary text-secondary-foreground text-sm px-4 py-2 rounded-lg hover:bg-secondary/80 transition"
             pendingText="保存中..."
         >
@@ -406,17 +421,6 @@ function SaveNoteButton() {
 function SaveFactoryNoteButton() {
     return (
         <SubmitButton
-            formAction={async (fd: FormData) => {
-                'use server'
-                const orderId = fd.get('orderId') as string
-                const note = fd.get('note') as string
-                try {
-                    await updateFactoryNote(orderId, note ?? '')
-                } catch (e: any) {
-                    redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('❌ エラー: ' + (e?.message ?? 'メモの保存に失敗しました'))}`)
-                }
-                redirect(`/admin/orders/${orderId}?msg=${encodeURIComponent('工場向けメモを保存しました')}`)
-            }}
             className="mt-2 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             pendingText="保存中..."
         >

@@ -212,7 +212,15 @@ export function PaymentClient() {
           <div className="lg:col-span-2">
             <Card>
               <CardContent className="p-6">
+                {/*
+                  EmbeddedCheckoutProvider captures `fetchClientSecret` only on
+                  first mount. If the cart is edited in another tab, the
+                  already-mounted provider keeps the original snapshot.
+                  Force-remount on cart/shipping/fee changes so the Stripe
+                  session always reflects the current order.
+                */}
                 <EmbeddedCheckoutProvider
+                  key={`${cart.items.length}-${cart.totalPrice}-${shippingFee}-${shippingAddress?.postalCode ?? ''}`}
                   stripe={stripePromise}
                   options={{
                     fetchClientSecret,

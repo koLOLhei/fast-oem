@@ -89,7 +89,11 @@ export async function analyzeComplexity(imageUrl: string): Promise<ComplexityGra
  * Detect if a die-cut image has interior holes (hollow shape).
  * Uses flood-fill from the border to find "outside" transparent pixels,
  * then checks for remaining interior transparent pixels surrounded by opaque area.
- * Returns true if the image is hollow (has interior holes that make die-cutting impossible).
+ * Returns true ONLY for extreme cases where die-cutting is truly impossible
+ * (e.g. a thin outlined ring shape with most of the interior transparent).
+ *
+ * Normal character designs with small enclosed transparent regions
+ * (gaps between an arm and body, the hole in "O", etc.) are allowed.
  */
 export async function detectHollow(imageUrl: string): Promise<boolean> {
   const img = await loadImage(imageUrl)
@@ -155,13 +159,20 @@ export async function detectHollow(imageUrl: string): Promise<boolean> {
 
   // Count interior holes: transparent pixels NOT reached by flood-fill
   let interiorHoles = 0
+  let opaqueCount = 0
   for (let i = 0; i < total; i++) {
     if (transparent[i] && !visited[i]) interiorHoles++
+    if (!transparent[i]) opaqueCount++
   }
 
-  // Threshold: if interior holes are > 1% of total pixels, consider it hollow
-  const holeRatio = interiorHoles / total
-  return holeRatio > 0.01
+  // Only reject if interior holes dominate the design area (opaque pixels).
+  // Threshold: interior holes must exceed 40% of the opaque area AND 10% of total image.
+  // This catches truly hollow ring/frame shapes but allows normal character art
+  // with small enclosed transparent regions (arms, letters, etc.).
+  if (opaqueCount === 0) return false
+  const holeToOpaqueRatio = interiorHoles / opaqueCount
+  const holeToTotalRatio = interiorHoles / total
+  return holeToOpaqueRatio > 0.4 && holeToTotalRatio > 0.10
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

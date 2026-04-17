@@ -118,12 +118,19 @@ function renderToCanvas(
   ctx.scale(dpr, dpr)
   ctx.clearRect(0, 0, displaySize, displaySize)
 
-  // Checkered background
-  const cs = 16
-  for (let i = 0; i < displaySize / cs; i++) {
-    for (let j = 0; j < displaySize / cs; j++) {
-      ctx.fillStyle = (i + j) % 2 === 0 ? '#e5e5e5' : '#ffffff'
-      ctx.fillRect(i * cs, j * cs, cs, cs)
+  // Checkered background ONLY in interactive preview mode (visual indicator of
+  // transparency). In export mode (for the delivery PDF) use a flat white fill
+  // so printed output isn't polluted with gray squares or a black JPEG background.
+  if (exportMode) {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, displaySize, displaySize)
+  } else {
+    const cs = 16
+    for (let i = 0; i < displaySize / cs; i++) {
+      for (let j = 0; j < displaySize / cs; j++) {
+        ctx.fillStyle = (i + j) % 2 === 0 ? '#e5e5e5' : '#ffffff'
+        ctx.fillRect(i * cs, j * cs, cs, cs)
+      }
     }
   }
 
@@ -301,16 +308,22 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
       )
     },
     async exportPDF(): Promise<Blob> {
-      // Generate high-res PNG then wrap in PDF using pdf-lib
+      // Generate high-res canvas then wrap in PDF using pdf-lib.
+      // Use JPEG for embedding to keep PDF size small and avoid mobile OOM on iOS Safari.
       const canvas = document.createElement('canvas')
       renderToCanvas(canvas, imageRef.current, shape, transform, true)
-      const pngDataUrl = canvas.toDataURL('image/png', 1.0)
+
+      // JPEG at quality 0.92 balances fidelity vs. file size / memory footprint.
+      // A checkered alpha background is already baked in by renderToCanvas, so JPEG is safe here.
+      const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92)
 
       const { PDFDocument } = await import('pdf-lib')
       const pdfDoc = await PDFDocument.create()
-      const page = pdfDoc.addPage([canvas.width / 4, canvas.height / 4]) // pt = px/dpr
-      const pngImage = await pdfDoc.embedPng(pngDataUrl)
-      page.drawImage(pngImage, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() })
+      // Page size in points: canvas pixel / 4 (dpr=4 in export mode) ≈ 300pt square.
+      const pageSize = canvas.width / 4
+      const page = pdfDoc.addPage([pageSize, pageSize])
+      const jpegImage = await pdfDoc.embedJpg(jpegDataUrl)
+      page.drawImage(jpegImage, { x: 0, y: 0, width: pageSize, height: pageSize })
       const pdfBytes = await pdfDoc.save()
       return new Blob([pdfBytes], { type: 'application/pdf' })
     },

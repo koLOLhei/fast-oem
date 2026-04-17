@@ -141,13 +141,17 @@ export function checkComplexityRestriction(
       if (!shape || !rule.shapes.includes(shape)) continue
     }
 
-    // Check size condition — compare by finding the size option's index
+    // Check size condition — compare by finding the size option's index.
+    // maxSizeId is the largest size at which the rule applies (inclusive).
+    // If the user's selected size is strictly LARGER than maxSizeId (higher index
+    // when values are ordered small→large), the rule does NOT apply.
     if (rule.maxSizeId && size) {
       const sizeOpt = product.options.find((o) => o.id === 'size')
       if (sizeOpt) {
         const sizeIdx = sizeOpt.values.findIndex((v) => v.id === size)
         const maxIdx = sizeOpt.values.findIndex((v) => v.id === rule.maxSizeId)
-        if (sizeIdx < 0 || maxIdx < 0 || sizeIdx > maxIdx) continue
+        if (sizeIdx < 0 || maxIdx < 0) continue
+        if (sizeIdx > maxIdx) continue // user's size is larger than the cap → rule does not apply
       }
     }
 
@@ -810,26 +814,36 @@ export function calculateShippingModifier(
   selectedOptions?: Record<string, string>,
 ): number {
   if (!selectedOptions) return 0
-  let extra = 0
+  // Two-pass evaluation so the result is deterministic regardless of JS
+  // iteration order of selectedOptions:
+  //   1. sum all 'add' modifiers
+  //   2. then apply all 'multiply' modifiers to the running total
+  let addTotal = 0
+  const multipliers: number[] = []
   for (const [optionId, selectedValue] of Object.entries(selectedOptions)) {
     const option = product.options.find((o) => o.id === optionId)
     if (!option) continue
 
-    const getModifier = (val: OptionValue | undefined) => {
+    const collectModifier = (val: OptionValue | undefined) => {
       if (!val?.shippingModifier) return
-      if (val.shippingModifier.type === 'add') extra += val.shippingModifier.value
-      else if (val.shippingModifier.type === 'multiply') extra = Math.round(extra * val.shippingModifier.value)
+      if (val.shippingModifier.type === 'add') addTotal += val.shippingModifier.value
+      else if (val.shippingModifier.type === 'multiply') multipliers.push(val.shippingModifier.value)
     }
 
     if (option.type === 'checkbox' || option.multiSelect) {
       for (const id of selectedValue.split(',').filter(Boolean)) {
-        getModifier(option.values.find((v) => v.id === id || v.label === id))
+        collectModifier(option.values.find((v) => v.id === id || v.label === id))
       }
     } else {
-      getModifier(option.values.find((v) => v.id === selectedValue || v.label === selectedValue))
+      collectModifier(option.values.find((v) => v.id === selectedValue || v.label === selectedValue))
     }
   }
-  return extra
+  // Apply additions first, then multipliers against the running total.
+  let total = addTotal
+  for (const m of multipliers) {
+    total = Math.round(total * m)
+  }
+  return total
 }
 
 export function formatPrice(priceInYen: number): string {

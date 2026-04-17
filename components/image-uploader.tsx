@@ -33,6 +33,9 @@ export function ImageUploader({
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const canvasRef = useRef<DesignCanvasRef>(null)
+  // Monotonic counter to discard stale upload results when the user picks a
+  // new file before the previous upload resolves.
+  const uploadGenerationRef = useRef(0)
 
   // Local blob URL for DesignCanvas preview — never leaves the browser.
   // The parent stores only the Supabase storage path.
@@ -54,9 +57,17 @@ export function ImageUploader({
       setConfirmed(false)
       setIsUploading(true)
 
-      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp']
+      // Bump generation; any async work from a prior upload that resolves after
+      // this point will be discarded by the generation check below.
+      uploadGenerationRef.current += 1
+      const generation = uploadGenerationRef.current
+
+      // NOTE: SVG is intentionally rejected. SVGs can contain scripts or
+      // external refs that taint the canvas, which would silently break PNG
+      // export and complexity analysis. Users should rasterize to PNG first.
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
       if (!validTypes.includes(file.type)) {
-        setError('PNG、JPG、SVG、WebP形式の画像をアップロードしてください')
+        setError('PNG、JPG、WebP形式の画像をアップロードしてください（SVGはPNGに書き出してからアップロードしてください）')
         setIsUploading(false)
         return
       }
@@ -72,6 +83,8 @@ export function ImageUploader({
       const blobUrl = URL.createObjectURL(file)
       setLocalPreviewUrl(blobUrl)
 
+      const isStale = () => generation !== uploadGenerationRef.current
+
       try {
         // Upload to Supabase Storage (private bucket)
         const fileExt = file.name.split('.').pop()
@@ -82,10 +95,22 @@ export function ImageUploader({
           .upload(storagePath, file, { upsert: false })
         if (uploadError) throw uploadError
 
+        // Discard result if a newer upload has started.
+        if (isStale()) {
+          await supabase.storage.from('designs').remove([storagePath]).catch(() => {})
+          URL.revokeObjectURL(blobUrl)
+          return
+        }
+
         // For die-cut shapes, check if the image has interior holes (hollow)
         if (selectedShape === 'die-cut') {
           const { detectHollow } = await import('@/lib/complexity-analyzer')
           const isHollow = await detectHollow(blobUrl)
+          if (isStale()) {
+            await supabase.storage.from('designs').remove([storagePath]).catch(() => {})
+            URL.revokeObjectURL(blobUrl)
+            return
+          }
           if (isHollow) {
             setError('中身が空洞のデザインは型抜きで製造できません。空洞のない画像をアップロードしてください。')
             URL.revokeObjectURL(blobUrl)
@@ -105,20 +130,29 @@ export function ImageUploader({
         if (onComplexityDetected) {
           import('@/lib/complexity-analyzer').then(({ analyzeComplexity }) => {
             analyzeComplexity(blobUrl)
-              .then((grade) => onComplexityDetected(grade))
+              .then((grade) => {
+                // Don't deliver analysis result from a stale upload.
+                if (isStale()) return
+                onComplexityDetected(grade)
+              })
               .catch(() => { /* analysis is best-effort */ })
           })
         }
       } catch (err: any) {
-        setError('画像のアップロードに失敗しました。もう一度お試しください。')
-        // Clean up blob URL on failure
-        URL.revokeObjectURL(blobUrl)
-        setLocalPreviewUrl(null)
+        console.error('[ImageUploader] handleFile failed:', err)
+        if (!isStale()) {
+          setError('画像のアップロードに失敗しました。もう一度お試しください。')
+          // Clean up blob URL on failure
+          URL.revokeObjectURL(blobUrl)
+          setLocalPreviewUrl(null)
+        } else {
+          URL.revokeObjectURL(blobUrl)
+        }
       } finally {
-        setIsUploading(false)
+        if (!isStale()) setIsUploading(false)
       }
     },
-    [onImageSelect, selectedShape],
+    [onImageSelect, selectedShape, onComplexityDetected],
   )
 
   const handleConfirmLayout = useCallback(async () => {
@@ -131,7 +165,13 @@ export function ImageUploader({
       // Export high-res PNG composite from canvas
       const pngBlob = await canvasRef.current.exportPNG()
       const pngPath = `delivery/${ts}_composite.png`
-      await supabase.storage.from('designs').upload(pngPath, pngBlob, { contentType: 'image/png' })
+      const { error: pngUploadErr } = await supabase.storage
+        .from('designs')
+        .upload(pngPath, pngBlob, { contentType: 'image/png' })
+      if (pngUploadErr) {
+        console.error('[ImageUploader] PNG upload failed:', pngUploadErr)
+        throw new Error(`PNGのアップロードに失敗しました: ${pngUploadErr.message}`)
+      }
 
       // Update local preview to the composite image
       const oldUrl = localPreviewUrlRef.current
@@ -142,13 +182,21 @@ export function ImageUploader({
       // Export PDF
       const pdfBlob = await canvasRef.current.exportPDF()
       const pdfPath = `delivery/${ts}_delivery.pdf`
-      await supabase.storage.from('designs').upload(pdfPath, pdfBlob, { contentType: 'application/pdf' })
+      const { error: pdfUploadErr } = await supabase.storage
+        .from('designs')
+        .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' })
+      if (pdfUploadErr) {
+        console.error('[ImageUploader] PDF upload failed:', pdfUploadErr)
+        throw new Error(`PDFのアップロードに失敗しました: ${pdfUploadErr.message}`)
+      }
 
       // Pass composite storage path + delivery PDF path to parent
       onImageSelect(pngPath, currentFileName, pdfPath)
       setConfirmed(true)
     } catch (err: any) {
-      setError('納品データの生成に失敗しました。もう一度お試しください。')
+      console.error('[ImageUploader] handleConfirmLayout failed:', err)
+      const message = err?.message || '納品データの生成に失敗しました'
+      setError(`${message}。もう一度お試しください。`)
     } finally {
       setIsExporting(false)
     }
@@ -211,7 +259,7 @@ export function ImageUploader({
             <label className="flex-1">
               <input
                 type="file" className="sr-only"
-                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
               />
               <Button variant="outline" asChild className="w-full h-9 rounded-xl text-xs"><span>別の画像を選択</span></Button>
@@ -243,7 +291,7 @@ export function ImageUploader({
         <label className="cursor-pointer block">
           <input
             type="file" className="sr-only"
-            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
           />
           <div className="flex flex-col items-center gap-4">
@@ -259,7 +307,7 @@ export function ImageUploader({
                 {isUploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />アップロード中...</> : <><Upload className="h-4 w-4 mr-2" />ファイルを選択</>}
               </span>
             </Button>
-            <p className="text-xs text-muted-foreground">対応形式: PNG, JPG, SVG, WebP（最大10MB）</p>
+            <p className="text-xs text-muted-foreground">対応形式: PNG, JPG, WebP（最大10MB / SVGはPNGに書き出してください）</p>
           </div>
         </label>
       </div>

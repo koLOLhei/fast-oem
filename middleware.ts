@@ -8,8 +8,10 @@ import { Ratelimit } from '@upstash/ratelimit'
 // Module-level constants — parsed once per cold start, not per request
 // ---------------------------------------------------------------------------
 
-/** Routes subject to rate limiting. Stripe webhooks are intentionally excluded. */
-const RATE_LIMITED_PREFIXES = ['/checkout', '/api/admin', '/api/receipts', '/api/invoices', '/api/orders', '/login', '/signup', '/reset-password'] as const
+/** Routes subject to rate limiting. Stripe webhooks are intentionally excluded.
+ * `/admin` is included so admin form-action POSTs are throttled (form actions
+ * hit the admin page URL, not `/api/admin`). */
+const RATE_LIMITED_PREFIXES = ['/checkout', '/admin', '/api/admin', '/api/receipts', '/api/invoices', '/api/orders', '/login', '/signup', '/reset-password'] as const
 
 /**
  * Pre-parsed IP allowlist entries from ADMIN_ALLOWED_IPS env var.

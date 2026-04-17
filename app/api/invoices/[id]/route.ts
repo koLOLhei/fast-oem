@@ -96,13 +96,16 @@ export async function GET(
     const page   = pdfDoc.addPage([595, 842]) // A4
     const { width, height } = page.getSize()
 
+    // Japanese font is REQUIRED. Helvetica cannot render Japanese characters —
+    // falling back would produce a broken PDF with mojibake (boxes / "????"),
+    // which is unacceptable for a legal document. Fail fast instead.
     let font
     try {
         const jaFontBytes = await loadJapaneseFont()
         font = await pdfDoc.embedFont(jaFontBytes, { subset: true })
     } catch (fontErr) {
-        console.error('[invoice] Japanese font load failed, falling back to Helvetica:', (fontErr as Error).message)
-        font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+        console.error('[invoice] Japanese font load failed:', (fontErr as Error).message)
+        return new Response('請求書の生成に失敗しました（フォント読み込みエラー）。時間をおいて再度お試しください。', { status: 500 })
     }
 
     let currentPage = page

@@ -196,10 +196,27 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
   const handleCustomQuantityChange = (value: string) => {
     setCustomQuantity(value)
-    const num = parseInt(value, 10)
-    if (!isNaN(num) && num >= product.minQuantity && num <= product.maxQuantity) {
-      setQuantity(num)
+    // Empty input: ignore (keep previous quantity)
+    if (value === '') {
+      setValidationError(null)
+      return
     }
+    const num = parseInt(value, 10)
+    if (isNaN(num)) {
+      setValidationError('数量は数字で入力してください')
+      return
+    }
+    if (num < product.minQuantity) {
+      setValidationError(`最低注文数は${product.minQuantity}個です`)
+      // Don't commit — keep quantity at previous value so price reflects actual cart qty.
+      return
+    }
+    if (num > product.maxQuantity) {
+      setValidationError(`最大注文数は${product.maxQuantity}個です`)
+      return
+    }
+    setValidationError(null)
+    setQuantity(num)
   }
 
   const handleAddToCart = (): boolean => {
@@ -276,6 +293,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       }
     })
 
+    // Express delivery fee: only charge if product actually offers it (>0).
+    // Otherwise the user may have toggled it but the server will zero it out,
+    // producing a mismatch between cart total and Stripe charge.
+    const productExpressFee = product.expressDeliveryFee ?? 0
+    const effectiveExpressFee = expressDelivery && productExpressFee > 0 ? productExpressFee : 0
+
     addItem({
       productId: product.id,
       productName: product.name,
@@ -288,7 +311,8 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       designFileName: is3d ? designImages[0]?.fileName ?? null : designFileName,
       moldFee: moldFee > 0 ? moldFee : undefined,
       moldOrderId: moldReuseValid && moldOrderId ? moldOrderId : undefined,
-      expressDelivery: expressDelivery || undefined,
+      expressDelivery: effectiveExpressFee > 0 ? true : undefined,
+      expressDeliveryFee: effectiveExpressFee > 0 ? effectiveExpressFee : undefined,
       deliveryPdfUrl: is3d ? designImages[0]?.deliveryPdfUrl ?? null : deliveryPdfUrl,
       ...(is3d ? { designImages } : {}),
       ...(needsBackDesign ? {
@@ -317,8 +341,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const moldFee = moldInfo.requiresMold && moldReuseValid !== true ? moldInfo.moldFee : 0
   const shippingExtra = calculateShippingModifier(product, selectedOptions)
   const totalPrice = totalPriceItems + moldFee + shippingExtra
+  // priceTiers may be empty for DB-only products with a size-price override;
+  // guard against undefined to prevent runtime crash on render.
   const baseTier = product.priceTiers[0]
-  const discountPercent = baseTier.unitPrice > unitPrice
+  const discountPercent = baseTier && baseTier.unitPrice > unitPrice
     ? Math.round((1 - unitPrice / baseTier.unitPrice) * 100)
     : 0
   const complexityBlock = checkComplexityRestriction(product, selectedOptions)

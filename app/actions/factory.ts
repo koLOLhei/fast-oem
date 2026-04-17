@@ -21,10 +21,33 @@ export async function assignFactory(itemId: string, factoryId: string) {
     if (!isValidUUID(itemId) || !isValidUUID(factoryId)) {
         throw new Error('無効なIDが指定されました')
     }
-    const { error } = await createServiceClient()
+
+    const supabase = createServiceClient()
+
+    // Only allow (re)assignment when the item is still in a pre-manufacturing
+    // state. Prevents accidentally overwriting a shipped/cancelled/in-progress
+    // item and blowing away the factory's work.
+    const { data: current, error: fetchErr } = await supabase
+        .from('order_items')
+        .select('status')
+        .eq('id', itemId)
+        .single()
+
+    if (fetchErr || !current) {
+        console.error('[assignFactory] fetch failed:', fetchErr?.message)
+        throw new Error('対象のアイテムが見つかりませんでした')
+    }
+
+    const assignable = ['unassigned', 'assigned']
+    if (!assignable.includes(current.status)) {
+        throw new Error(`ステータスが「${current.status}」のアイテムは再割り当てできません（製造・出荷・キャンセル済）`)
+    }
+
+    const { error } = await supabase
         .from('order_items')
         .update({ factory_id: factoryId, status: 'assigned' })
         .eq('id', itemId)
+        .in('status', assignable) // optimistic lock: reject if status changed in a race
 
     if (error) {
         console.error('[assignFactory] DB error:', error.message)
@@ -600,7 +623,10 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
     }
 
     // ── DB updates ───────────────────────────────────────────────────────────
-    await supabase
+    // CRITICAL: if the Stripe refund already ran but the DB update fails,
+    // the customer has been refunded but the order is still marked paid.
+    // Alert on any DB error so ops can reconcile manually.
+    const { error: orderUpdateErr } = await supabase
         .from('orders')
         .update({
             status: refundIssued ? 'refunded' : 'cancelled',
@@ -614,17 +640,36 @@ export async function adminCancelOrder(orderId: string, reason: string, cancella
         })
         .eq('id', orderId)
 
+    if (orderUpdateErr) {
+        console.error(`[adminCancelOrder] orders update failed for ${orderId}:`, orderUpdateErr.message)
+        await sendSlackMessage(
+            `🚨 *注文ステータス更新失敗（要手動対応）*\n注文番号: ${order.order_number ?? orderId}\n` +
+            `Stripe返金: ${refundIssued ? `完了 (¥${refundAmount})` : '未実行'}\n` +
+            `DBエラー: ${orderUpdateErr.message}\n` +
+            `対応: 注文ステータスを手動で「${refundIssued ? 'refunded' : 'cancelled'}」に更新してください。`,
+        ).catch(() => {})
+        throw new Error('注文ステータスの更新に失敗しました。Stripe返金は実行済みの可能性があるため、管理者に連絡してください。')
+    }
+
     // For partially_shipped: only cancel unshipped items; keep shipped items as-is
-    if (isPartiallyShipped && unshippedItems.length > 0) {
-        await supabase
+    const { error: itemsUpdateErr } = isPartiallyShipped && unshippedItems.length > 0
+        ? await supabase
             .from('order_items')
             .update({ status: 'cancelled' })
             .in('id', unshippedItems.map((i) => i.id))
-    } else {
-        await supabase
+        : await supabase
             .from('order_items')
             .update({ status: 'cancelled' })
             .eq('order_id', orderId)
+
+    if (itemsUpdateErr) {
+        console.error(`[adminCancelOrder] order_items update failed for ${orderId}:`, itemsUpdateErr.message)
+        await sendSlackMessage(
+            `⚠️ *注文アイテムのステータス更新失敗*\n注文番号: ${order.order_number ?? orderId}\n` +
+            `注文本体は更新済みですが、アイテムのステータスが更新できませんでした。\n` +
+            `エラー: ${itemsUpdateErr.message}`,
+        ).catch(() => {})
+        // Non-fatal: order is already cancelled, item status is display-only.
     }
 
     // ── Customer email ───────────────────────────────────────────────────────
