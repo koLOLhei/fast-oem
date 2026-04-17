@@ -17,17 +17,14 @@ export default async function MypagePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Run profile check and orders fetch in parallel to reduce latency.
-    // Use service client for both to bypass RLS — customers don't have
-    // SELECT policies on orders, so the anon client would return empty results.
-    //
     // Ownership: prefer orders.user_id (set at authenticated checkout).
     // Fall back to email match ONLY for legacy rows where user_id is NULL.
-    // This eliminates the IDOR where a guest can spoof another user's email
-    // at checkout and have that order appear on the victim's mypage.
+    // Also tolerate the case where the user_id migration hasn't been applied
+    // yet in this environment — if the column is missing, fall back to
+    // email-only matching so the page still renders.
     const serviceClient = createServiceClient()
     const email = (user.email ?? '').toLowerCase()
-    const [{ data: profile }, { data: orders }] = await Promise.all([
+    const [profileRes, ordersRes] = await Promise.all([
         serviceClient
             .from('profiles')
             .select('role')
@@ -39,6 +36,17 @@ export default async function MypagePage() {
             .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
             .order('created_at', { ascending: false }),
     ])
+    const { data: profile } = profileRes
+    let orders = ordersRes.data
+    if (!orders && (ordersRes.error as { code?: string })?.code === '42703') {
+        // user_id column missing → migration not applied yet. Legacy fallback.
+        const fb = await serviceClient
+            .from('orders')
+            .select(`*, order_items(product_name, quantity)`)
+            .eq('customer_info->>email', email)
+            .order('created_at', { ascending: false })
+        orders = fb.data
+    }
 
     // Redirect staff roles to their own portals — prevents accidental /mypage access
     if (profile?.role === 'admin' || profile?.role === 'super_admin') redirect('/admin')

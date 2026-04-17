@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { formatPrice } from '@/lib/products'
 import { Fragment } from 'react'
-import type { OrderItemRow, OrderItemOption } from '@/lib/database.types'
+import type { OrderItemRow, OrderItemOption, OrderRow } from '@/lib/database.types'
 import type { ShippingAddress } from '@/lib/order'
+
+type OrderDetail = OrderRow & { order_items: OrderItemRow[]; access_token: string | null; user_id?: string | null }
 
 export default async function MyOrderDetailPage({
     params,
@@ -17,19 +19,30 @@ export default async function MyOrderDetailPage({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    // Use service client to bypass RLS — customers don't have SELECT policies
-    // on orders, so the anon client would return empty results.
     // Security: prefer user_id match; fall back to email only for legacy rows
     // where user_id is still NULL. Prevents an IDOR where a guest could spoof
     // another user's email at checkout and then that order would surface here.
+    // Also tolerate migration not yet applied: fall back to email-only.
     const serviceClient = createServiceClient()
     const email = (user.email ?? '').toLowerCase()
-    const { data: order } = await serviceClient
+    let order: OrderDetail | null = null
+    const primary = await serviceClient
         .from('orders')
         .select(`*, order_items(*), access_token, user_id`)
         .eq('id', id)
         .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
         .maybeSingle()
+    if (primary.error && (primary.error as { code?: string }).code === '42703') {
+        const fb = await serviceClient
+            .from('orders')
+            .select(`*, order_items(*), access_token`)
+            .eq('id', id)
+            .eq('customer_info->>email', email)
+            .maybeSingle()
+        order = (fb.data ?? null) as OrderDetail | null
+    } else {
+        order = (primary.data ?? null) as OrderDetail | null
+    }
 
     if (!order) notFound()
 

@@ -443,24 +443,36 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   // ── Step 1: Insert pending order into DB FIRST ──────────────────────────────
   let order: any = null
   let orderError: any = null
+  // If the user_id column hasn't been migrated yet in this environment, fall
+  // back to inserting without it (guest-style). This keeps checkout working
+  // for the window between code deploy and DB migration apply.
+  let skipUserId = false
   for (let attempt = 1; attempt <= 3; attempt++) {
+    const payload: Record<string, unknown> = {
+      stripe_session_id: `tmp_${orderId}`,
+      order_number: orderId,
+      customer_info: { name: customerName, ...shippingAddress },
+      shipping_address: shippingAddress,
+      total_price: totalPrice,
+      shipping_fee: shippingFee,
+      status: 'pending',
+    }
+    if (authenticatedUserId && !skipUserId) payload.user_id = authenticatedUserId
+
     const result = await supabase
       .from('orders')
-      .insert({
-        stripe_session_id: `tmp_${orderId}`,
-        order_number: orderId,
-        customer_info: { name: customerName, ...shippingAddress },
-        shipping_address: shippingAddress,
-        total_price: totalPrice,
-        shipping_fee: shippingFee,
-        status: 'pending',
-        user_id: authenticatedUserId, // null for guest checkouts
-      })
+      .insert(payload)
       .select()
       .single()
     order = result.data
     orderError = result.error
     if (!orderError) break
+    // 42703 = undefined_column — migration not yet applied
+    if (orderError.code === '42703' && !skipUserId) {
+      console.warn('[checkout] user_id column not found (migration pending); falling back to guest-style insert')
+      skipUserId = true
+      continue
+    }
     if (orderError.code === '23505' && attempt < 3) {
       orderId = generateOrderId()
       console.warn(`[order_number collision] Retrying with new ID: ${orderId} (attempt ${attempt + 1})`)
