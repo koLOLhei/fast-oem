@@ -784,7 +784,7 @@ const BasicTab = React.memo(function BasicTab({ draft, setDraft, factories }: { 
 
             <div className="rounded-xl border bg-card p-4 space-y-3">
                 <h3 className="font-semibold text-sm">⚡ 特急納期設定</h3>
-                <p className="text-xs text-muted-foreground">通常約1ヶ月のところ、約2週間でお届けする特急オプションの追加料金です。0円に設定すると特急オプションは非表示になります。</p>
+                <p className="text-xs text-muted-foreground">通常15〜30営業日のところ、12営業日以内でお届けする特急オプションの追加料金です。0円に設定すると特急オプションは非表示になります。</p>
                 <Field label="特急料金（円・税込、0=非表示）">
                     <input
                         type="number"

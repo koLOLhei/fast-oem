@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 const benefits = [
   { icon: Building2, title: '法人対応', description: '領収書PDF・インボイス制度対応の適格請求書を注文ページからダウンロード可能。' },
   { icon: Award, title: '高品質な仕上がり', description: '企業のブランドイメージを損なわない高品質な印刷・製造。提携工場で品質管理を徹底。' },
-  { icon: Truck, title: '柔軟な納期対応', description: '通常約1ヶ月、特急約2週間。展示会・イベントの日程に合わせてスケジュール調整可能。' },
+  { icon: Truck, title: '柔軟な納期対応', description: '通常15〜30営業日、特急12営業日以内。展示会・イベントの日程に合わせてスケジュール調整可能。' },
   { icon: FileText, title: 'かんたん発注', description: 'デザインデータをアップロードするだけ。面倒な見積もりや打ち合わせは不要です。' },
 ]
 

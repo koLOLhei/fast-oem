@@ -93,7 +93,7 @@ export default function TermsPage() {
                         <div className="grid grid-cols-3 gap-4">
                             <dt className="font-semibold text-foreground col-span-1">商品のお届け</dt>
                             <dd className="text-muted-foreground col-span-2">
-                                入金確認後、通常15営業日以内に発送（特急プラン：12営業日以内）。<br />
+                                入金確認後、通常15〜30営業日以内に発送（特急プラン：12営業日以内）。<br />
                                 製造状況により前後する場合があります。発送時に追跡番号をメールでお知らせします。
                             </dd>
                         </div>

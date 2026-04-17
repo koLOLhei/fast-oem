@@ -9,6 +9,7 @@ import { ImageUploader } from '@/components/image-uploader'
 import { MultiViewUploader } from '@/components/multi-view-uploader'
 import { type DesignImageEntry, type CartItem } from '@/lib/cart'
 import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
+import { calculateTotalQuantity } from '@/lib/cart'
 import { ProductPreview } from '@/components/product-preview'
 import { useCart } from '@/components/cart-provider'
 import {
@@ -32,13 +33,29 @@ interface ProductDetailClientProps {
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { cart, addItem, replaceItem } = useCart()
+  const { cart, addItem, replaceItem, isLoading: cartLoading } = useCart()
   // When editing an existing cart item, the cart page sends ?editCartId=<id>.
   // We pre-fill form state from the matching CartItem and switch the submit
   // button to "update" mode so saving replaces the same cart line.
   const editCartId = searchParams?.get('editCartId') || null
-  const editingItem = editCartId ? cart.items.find((i) => i.id === editCartId) : null
+  // Only treat this as an edit when:
+  //   (1) editCartId is in the URL
+  //   (2) a cart item with that id exists (not cleared / cross-session)
+  //   (3) the cart item's productId matches the current page's product id
+  // Otherwise, silently ignore editCartId (avoids "edit link to different
+  // product pre-fills with wrong product's options" and the "2-item duplicate
+  // after localStorage clear" bug).
+  const rawEditingItem = editCartId ? cart.items.find((i) => i.id === editCartId) : null
+  const editingItem = rawEditingItem && rawEditingItem.productId === product.id ? rawEditingItem : null
   const editing = !!editingItem
+  // If the URL carries an editCartId that no longer matches, strip it so
+  // the user can cleanly add a new item or navigate away without ghost state.
+  useEffect(() => {
+    if (editCartId && !editingItem && !cartLoading) {
+      router.replace(`/products/${product.slug}`, { scroll: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editCartId, editingItem, cartLoading])
 
   const [quantity, setQuantity] = useState(product.minQuantity)
   const [designImage, setDesignImage] = useState<string | null>(null)
@@ -69,7 +86,16 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   })
   const [isAdded, setIsAdded] = useState(false)
   const [customQuantity, setCustomQuantity] = useState('')
-  const [expressDelivery, setExpressDelivery] = useState(false)
+  const [expressDelivery, setExpressDeliveryRaw] = useState(false)
+  // Guard: a product with expressDeliveryFee=0 cannot accept express. Clamp to false
+  // so any stale state from editing or drafts can't trigger a double-shipping charge.
+  const productAllowsExpress = (product.expressDeliveryFee ?? 0) > 0
+  const setExpressDelivery = useCallback((v: boolean) => {
+    setExpressDeliveryRaw(productAllowsExpress ? v : false)
+  }, [productAllowsExpress])
+  useEffect(() => {
+    if (!productAllowsExpress && expressDelivery) setExpressDeliveryRaw(false)
+  }, [productAllowsExpress, expressDelivery])
   const [draftRestored, setDraftRestored] = useState(false)
   const [moldOrderId, setMoldOrderId] = useState('')
   const [moldEmail, setMoldEmail] = useState('')
@@ -308,28 +334,36 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       return false
     }
 
-    const options = Object.entries(selectedOptions).map(([id, valueId]) => {
-      const option = product.options.find((o) => o.id === id)
-      // checkbox/multiSelect: comma-separated IDs → comma-separated labels
-      if (option && (option.type === 'checkbox' || option.multiSelect)) {
-        const ids = valueId.split(',').filter(Boolean)
-        const labels = ids.map((vid) => {
-          const val = option.values.find((v) => v.id === vid)
-          return val?.label || vid
-        })
+    const options = Object.entries(selectedOptions)
+      .filter(([id, valueId]) => {
+        const option = product.options.find((o) => o.id === id)
+        if (!option) return false // unknown option — drop it entirely
+        if (!isOptionVisible(option, selectedOptions)) return false // stale child option
+        if (valueId === undefined || valueId === null || valueId === '') return false
+        return true
+      })
+      .map(([id, valueId]) => {
+        const option = product.options.find((o) => o.id === id)!
+        // checkbox/multiSelect: comma-separated IDs → comma-separated labels
+        if (option.type === 'checkbox' || option.multiSelect) {
+          const ids = valueId.split(',').filter(Boolean)
+          const labels = ids.map((vid) => {
+            const val = option.values.find((v) => v.id === vid)
+            return val?.label || vid
+          })
+          return {
+            id,
+            name: option.name || id,
+            value: labels.join(','),
+          }
+        }
+        const value = option.values.find((v) => v.id === valueId)
         return {
           id,
           name: option.name || id,
-          value: labels.join(','),
+          value: value?.label || valueId,
         }
-      }
-      const value = option?.values.find((v) => v.id === valueId)
-      return {
-        id,
-        name: option?.name || id,
-        value: value?.label || valueId,
-      }
-    })
+      })
 
     // Express delivery fee: only charge if product actually offers it (>0).
     // Otherwise the user may have toggled it but the server will zero it out,
@@ -389,9 +423,19 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const shippingExtra = calculateShippingModifier(product, selectedOptions)
   const totalPrice = totalPriceItems + moldFee + shippingExtra
   // Preview the shipping fee on the product page so users see the real total
-  // BEFORE adding to cart. This mirrors the calculation used at checkout.
-  const baseShippingPreview = calculateShippingByQuantity(quantity)
-  const shippingPreview = expressDelivery
+  // BEFORE adding to cart. Shipping is tiered by total cart quantity (not this
+  // item alone), so simulate "adding/replacing this item into the cart" when
+  // computing the preview — otherwise the number shown differs from what
+  // appears on the cart page after adding.
+  const otherItemsQty = cart.items
+    .filter((it) => !editing || it.id !== editCartId)
+    .reduce((sum, it) => sum + it.quantity, 0)
+  const projectedTotalQty = otherItemsQty + quantity
+  const baseShippingPreview = calculateShippingByQuantity(projectedTotalQty)
+  // Any existing cart item with express marks the whole shipment express.
+  const anyExpressInCart = cart.items.some((it) => !!it.expressDelivery && (!editing || it.id !== editCartId))
+  const effectiveExpressForShipping = expressDelivery || anyExpressInCart
+  const shippingPreview = effectiveExpressForShipping
     ? calculateExpressShipping(baseShippingPreview)
     : baseShippingPreview
   // priceTiers may be empty for DB-only products with a size-price override;
@@ -756,63 +800,65 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           />
         )}
 
-        {/* Delivery Speed Selection */}
-        <Card className="mb-4 border-2 border-border">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Truck className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-foreground">納期を選択</h3>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="納期の選択">
-              {/* Standard */}
-              <button
-                role="radio"
-                aria-checked={!expressDelivery}
-                onClick={() => setExpressDelivery(false)}
-                className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                  !expressDelivery
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-muted-foreground/40 bg-card'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">通常納期</span>
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${!expressDelivery ? 'border-primary bg-primary' : 'border-border'}`}>
-                    {!expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+        {/* Delivery Speed Selection — hide entirely when product doesn't offer express. */}
+        {(product.expressDeliveryFee ?? 0) > 0 && (
+          <Card className="mb-4 border-2 border-border">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-foreground">納期を選択</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="納期の選択">
+                {/* Standard */}
+                <button
+                  role="radio"
+                  aria-checked={!expressDelivery}
+                  onClick={() => setExpressDelivery(false)}
+                  className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                    !expressDelivery
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/40 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">通常納期</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${!expressDelivery ? 'border-primary bg-primary' : 'border-border'}`}>
+                      {!expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs text-muted-foreground">2週間〜1ヶ月</span>
-                <span className="text-sm font-bold text-green-600">追加料金なし</span>
-              </button>
+                  <span className="text-xs text-muted-foreground">15〜30営業日</span>
+                  <span className="text-sm font-bold text-green-600">追加料金なし</span>
+                </button>
 
-              {/* Express */}
-              <button
-                role="radio"
-                aria-checked={expressDelivery}
-                onClick={() => setExpressDelivery(true)}
-                className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                  expressDelivery
-                    ? 'border-orange-400 bg-orange-50'
-                    : 'border-border hover:border-orange-300 bg-card'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">⚡ 特急納期</span>
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${expressDelivery ? 'border-orange-500 bg-orange-500' : 'border-border'}`}>
-                    {expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                {/* Express */}
+                <button
+                  role="radio"
+                  aria-checked={expressDelivery}
+                  onClick={() => setExpressDelivery(true)}
+                  className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                    expressDelivery
+                      ? 'border-orange-400 bg-orange-50'
+                      : 'border-border hover:border-orange-300 bg-card'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm">⚡ 特急納期</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${expressDelivery ? 'border-orange-500 bg-orange-500' : 'border-border'}`}>
+                      {expressDelivery && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs text-muted-foreground">約2週間（目安）</span>
-                <span className="text-sm font-bold text-orange-600">送料 ×2</span>
-              </button>
-            </div>
-            {expressDelivery && (
-              <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2 mt-3">
-                特急納期は工場の生産状況により対応できない場合があります。ご注文後に担当者よりご連絡いたします。
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                  <span className="text-xs text-muted-foreground">12営業日以内（目安2〜3週間）</span>
+                  <span className="text-sm font-bold text-orange-600">送料 ×2</span>
+                </button>
+              </div>
+              {expressDelivery && (
+                <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg p-2 mt-3">
+                  特急納期は工場の生産状況により対応できない場合があります。ご注文後に担当者よりご連絡いたします。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Cheaper-tier nudge — only shows when buying MORE is actually cheaper */}
         {cheaperSuggestion && (

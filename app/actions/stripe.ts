@@ -67,53 +67,53 @@ function computeUnitPrice(
 
   if (fixedUnitPrice) return base
 
-  let price = base
+  // Two-pass to match client (lib/products.ts:calculateUnitPrice) exactly —
+  // sum additive modifiers first, then apply multipliers. Order-independent.
+  let addTotal = 0
+  const multipliers: number[] = []
+
   for (const [optionId, valueIdOrLabel] of Object.entries(selectedOptions)) {
     const option = options.find((o) => o.id === optionId)
     if (!option) continue
 
-    // number type: input value × pricePerUnit
+    // number type: input value × pricePerUnit (additive)
     if (option.type === 'number' && option.pricePerUnit) {
       const num = parseFloat(valueIdOrLabel)
-      // Enforce option's min/max bounds; reject negative values unless explicitly allowed
       const min = option.numberMin ?? 0
       const max = option.numberMax ?? 100_000
       if (!isNaN(num) && isFinite(num) && num >= min && num <= max) {
-        price += Math.round(num * option.pricePerUnit)
-      }
-      if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
-        throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
+        addTotal += Math.round(num * option.pricePerUnit)
       }
       continue
     }
 
-    // checkbox type: comma-separated values, accumulate all modifiers
+    const collect = (val: any) => {
+      const mod = val?.priceModifier
+      if (!mod) return
+      if (mod.type === 'add') addTotal += mod.value
+      else if (mod.type === 'multiply') multipliers.push(mod.value)
+    }
+
     if (option.type === 'checkbox' || option.multiSelect) {
       const ids = valueIdOrLabel.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)
       for (const id of ids) {
-        // Match by ID first, then label — same order as client (lib/products.ts)
-        const val = option.values.find((v) => v.id === id || v.label === id)
-        const mod = val?.priceModifier
-        if (!mod) continue
-        if (mod.type === 'add') price += mod.value
-        else if (mod.type === 'multiply') price = Math.round(price * mod.value)
-        if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
-          throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
-        }
+        collect(option.values.find((v: any) => v.id === id || v.label === id))
       }
       continue
     }
 
-    // Standard single-select
-    // Match by ID first, then label — same order as client (lib/products.ts)
-    const value = option.values.find((v) => v.id === valueIdOrLabel || v.label === valueIdOrLabel)
-    const mod = value?.priceModifier
-    if (!mod) continue
-    if (mod.type === 'add') price += mod.value
-    else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+    collect(option.values.find((v: any) => v.id === valueIdOrLabel || v.label === valueIdOrLabel))
+  }
+
+  let price = base + addTotal
+  for (const m of multipliers) {
+    price = Math.round(price * m)
     if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
       throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
     }
+  }
+  if (price < 0 || price > MAX_UNIT_PRICE_JPY) {
+    throw new Error('単価の計算結果が許容範囲を超えました。オプションの組み合わせをご確認ください。')
   }
   // Floor to ¥1 — matches client-side Math.max(1, price) in lib/products.ts
   return Math.max(1, price)

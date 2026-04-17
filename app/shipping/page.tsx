@@ -8,10 +8,10 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: '配送・納期について | OEMグッズの送料・特急対応',
   description:
-    'FAST OEMの配送・納期について。標準納期約1ヶ月・特急約2週間対応。送料は注文数量に応じた料金体系。ヤマト運輸・佐川急便にて発送。',
+    'FAST OEMの配送・納期について。標準納期15〜30営業日・特急12営業日以内対応。送料は注文数量に応じた料金体系。ヤマト運輸・佐川急便にて発送。',
   openGraph: {
     title: '配送・納期について | FAST OEM',
-    description: 'OEMグッズの配送・納期情報。標準約1ヶ月・特急約2週間。数量ベースの送料体系。',
+    description: 'OEMグッズの配送・納期情報。標準15〜30営業日・特急12営業日以内。数量ベースの送料体系。',
     url: `${BASE_URL}/shipping`,
     images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
@@ -19,10 +19,10 @@ export const metadata: Metadata = {
 }
 
 const deliveryProducts = [
-  { name: 'アクリルキーホルダー', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
-  { name: '缶バッジ', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
-  { name: 'ピンバッジ', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
-  { name: 'ラバーキーホルダー', standard: '約1ヶ月', express: '約2週間', expressAvailable: true },
+  { name: 'アクリルキーホルダー', standard: '15〜30営業日', express: '12営業日以内', expressAvailable: true },
+  { name: '缶バッジ', standard: '15〜30営業日', express: '12営業日以内', expressAvailable: true },
+  { name: 'ピンバッジ', standard: '15〜30営業日', express: '12営業日以内', expressAvailable: true },
+  { name: 'ラバーキーホルダー', standard: '15〜30営業日', express: '12営業日以内', expressAvailable: true },
 ]
 
 const shippingTiers = [

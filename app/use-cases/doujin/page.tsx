@@ -10,10 +10,10 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: '同人グッズ製作・同人グッズ作成 | 小ロット50個〜・コミケ・即売会対応',
   description:
-    '同人グッズの製作ならFAST OEM。アクリルキーホルダー・缶バッジ・ピンバッジを小ロット50個から作成可能。コミケ・即売会・同人イベントの頒布物に最適。高品質・格安・短納期でお届け。',
+    '同人グッズの製作ならFAST OEM。アクリルキーホルダー・缶バッジ・ピンバッジを小ロット50個（缶バッジは100個）から作成可能。コミケ・即売会・同人イベントの頒布物に最適。高品質・格安・短納期でお届け。',
   openGraph: {
     title: '同人グッズ製作 | 小ロット50個〜・FAST OEM',
-    description: '同人グッズの製作ならFAST OEM。アクリルキーホルダー・缶バッジを小ロット50個から。コミケ・即売会対応。',
+    description: '同人グッズの製作ならFAST OEM。アクリルキーホルダー・缶バッジを小ロット50個（缶バッジは100個）から。コミケ・即売会対応。',
     url: `${BASE_URL}/use-cases/doujin`,
     images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 const benefits = [
   { icon: Package, title: '小ロット50個〜', description: '少量からでも高品質なグッズを製作。在庫リスクなく始められます。' },
-  { icon: Clock, title: '短納期で即売会に間に合う', description: '通常約1ヶ月、特急なら約2週間で納品。イベント日程に合わせて対応。' },
+  { icon: Clock, title: '短納期で即売会に間に合う', description: '通常15〜30営業日、特急なら12営業日以内で納品。イベント日程に合わせて対応。' },
   { icon: Sparkles, title: '高品質な仕上がり', description: 'フルカラー印刷で発色鮮やか。手に取ったファンに感動を届けます。' },
   { icon: Users, title: '個人クリエイター歓迎', description: '法人でなくてもOK。個人サークルの方にも多数ご利用いただいています。' },
 ]
@@ -49,7 +49,7 @@ export default async function DoujinPage() {
     '@context': 'https://schema.org',
     '@type': 'Service',
     name: '同人グッズ製作サービス',
-    description: '同人イベント向けオリジナルグッズのOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジを小ロット50個から。',
+    description: '同人イベント向けオリジナルグッズのOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジを小ロット50個（缶バッジは100個）から。',
     provider: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
     areaServed: { '@type': 'Country', name: 'Japan' },
     serviceType: 'OEMグッズ製作',
@@ -165,8 +165,8 @@ export default async function DoujinPage() {
                 コミックマーケット（コミケ）をはじめとする同人即売会での頒布物として、またBOOTHやメロンブックスなどのオンラインショップでの販売商品として、多くのクリエイターに親しまれています。
               </p>
               <p>
-                FAST OEMでは、アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーなどの同人グッズを、小ロット50個から製作できます。
-                デザインデータ（PNG・JPG・SVG等）をアップロードするだけで簡単に注文でき、通常約1ヶ月でお届けします。
+                FAST OEMでは、アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーなどの同人グッズを、小ロット50個（缶バッジは100個）から製作できます。
+                デザインデータ（PNG・JPG・SVG等）をアップロードするだけで簡単に注文でき、通常15〜30営業日でお届けします。
                 特急オプション（約2週間）もあるため、イベント直前でも間に合います。
               </p>
               <p>

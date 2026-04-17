@@ -8,7 +8,7 @@ const BASE_URL = 'https://fast-oem.soara-mu.jp'
 export const metadata: Metadata = {
   title: '用途別グッズ製作ガイド｜同人・ノベルティ・推し活',
   description:
-    '同人グッズ・企業ノベルティ・推し活グッズなど、用途別のオリジナルグッズ製作ガイド。FAST OEMなら小ロット50個から対応、最短約2週間で納品。',
+    '同人グッズ・企業ノベルティ・推し活グッズなど、用途別のオリジナルグッズ製作ガイド。FAST OEMなら小ロット50個（缶バッジは100個）から対応（缶バッジは100個〜）、最短約2週間で納品。',
   openGraph: {
     title: '用途別グッズ製作ガイド | FAST OEM',
     description: '同人・ノベルティ・推し活など、用途に合わせたグッズ製作をご案内。',
@@ -23,7 +23,7 @@ const useCases = [
     href: '/use-cases/doujin',
     icon: Users,
     title: '同人グッズ製作',
-    description: 'コミケ・即売会の頒布物に。小ロット50個〜対応で個人クリエイターも安心。アクリルキーホルダー・缶バッジが人気です。',
+    description: 'コミケ・即売会の頒布物に。小ロット50個〜対応（缶バッジは100個〜）で個人クリエイターも安心。アクリルキーホルダー・缶バッジが人気です。',
     color: 'border-[#ff7b54]/30 hover:border-[#ff7b54]',
     iconBg: 'bg-[#ff7b54]/10 text-[#ff7b54]',
     cta: 'text-[#ff7b54]',

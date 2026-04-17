@@ -218,7 +218,7 @@ export default function AboutPage() {
             まずは商品を見てみませんか？
           </h2>
           <p className="mt-4 text-muted-foreground">
-            デザインをアップロードするだけで、すぐにお見積もり。小ロット50個から製作できます。
+            デザインをアップロードするだけで、すぐにお見積もり。小ロット50個（缶バッジは100個）から製作できます。
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <Link

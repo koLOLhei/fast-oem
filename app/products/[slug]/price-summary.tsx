@@ -151,11 +151,11 @@ export function PriceSummary({
             <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <Truck className="w-4 h-4 text-primary" />
-                <span>2週間〜1ヶ月</span>
+                <span>15〜30営業日</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Shield className="w-4 h-4 text-primary" />
-                <span>高品質保証</span>
+                <span>不良時再製作対応</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Star className="w-4 h-4 text-primary" />

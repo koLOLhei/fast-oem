@@ -757,47 +757,45 @@ export function calculateUnitPrice(
 
   if (!selectedOptions || product.fixedUnitPrice) return base
 
-  // Apply option modifiers
-  let price = base
+  // Two-pass modifier evaluation to remove dependence on iteration order:
+  //  1. Sum all 'add' modifiers (including number-type pricePerUnit increments)
+  //  2. Apply all 'multiply' modifiers in sequence on top.
+  // This matches lib/products.ts:calculateShippingModifier and the server's
+  // app/actions/stripe.ts:computeUnitPrice to prevent security.price_mismatch
+  // warnings when client and server iterate options in different orders.
+  let addTotal = 0
+  const multipliers: number[] = []
+
   for (const [optionId, selectedValue] of Object.entries(selectedOptions)) {
     const option = product.options.find((o) => o.id === optionId)
     if (!option) continue
 
-    // number type: input value × pricePerUnit
+    // number type: input value × pricePerUnit counts as additive
     if (option.type === 'number' && option.pricePerUnit) {
       const num = parseFloat(selectedValue)
-      if (!isNaN(num)) {
-        price += Math.round(num * option.pricePerUnit)
-      }
+      if (!isNaN(num)) addTotal += Math.round(num * option.pricePerUnit)
       continue
     }
 
-    // checkbox type: comma-separated values, accumulate all modifiers
+    const collectFromValue = (val: OptionValue | undefined) => {
+      const mod = val?.priceModifier
+      if (!mod) return
+      if (mod.type === 'add') addTotal += mod.value
+      else if (mod.type === 'multiply') multipliers.push(mod.value)
+    }
+
     if (option.type === 'checkbox' || option.multiSelect) {
-      const ids = selectedValue.split(',').filter(Boolean)
-      for (const id of ids) {
-        // Match by ID first, then by label (cart stores labels after addToCart)
-        const val = option.values.find((v) => v.id === id || v.label === id)
-        const mod = val?.priceModifier
-        if (!mod) continue
-        if (mod.type === 'add') price += mod.value
-        else if (mod.type === 'multiply') price = Math.round(price * mod.value)
+      for (const id of selectedValue.split(',').filter(Boolean)) {
+        collectFromValue(option.values.find((v) => v.id === id || v.label === id))
       }
       continue
     }
 
-    // Standard single-select
-    // Match by ID first, then by label (cart stores labels after addToCart)
-    const value = option.values.find((v) => v.id === selectedValue || v.label === selectedValue)
-    const mod = value?.priceModifier
-    if (!mod) continue
-    if (mod.type === 'add') {
-      price += mod.value
-    } else if (mod.type === 'multiply') {
-      price = Math.round(price * mod.value)
-    }
+    collectFromValue(option.values.find((v) => v.id === selectedValue || v.label === selectedValue))
   }
 
+  let price = base + addTotal
+  for (const m of multipliers) price = Math.round(price * m)
   return Math.max(1, price)
 }
 

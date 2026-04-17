@@ -113,50 +113,68 @@ function renderToCanvas(
   aspect = 1, // width / height, 1 = square (default). Only applies to rect/rounded-rect.
 ) {
   const dpr = exportMode ? 4 : (window.devicePixelRatio || 1)
-  const canvasSize = exportMode ? 1200 : 400
+  const baseSize = exportMode ? 1200 : 400
+  const safeAspect = isFinite(aspect) && aspect > 0 ? aspect : 1
 
-  canvas.width = canvasSize * dpr
-  canvas.height = canvasSize * dpr
+  // In export mode, size the canvas to the frame aspect directly so the
+  // produced PDF/PNG has no padding around non-square designs. Interactive
+  // mode always uses a square canvas for simpler drag math.
+  const canvasW = exportMode ? (safeAspect >= 1 ? baseSize : baseSize * safeAspect) : baseSize
+  const canvasH = exportMode ? (safeAspect >= 1 ? baseSize / safeAspect : baseSize) : baseSize
+
+  canvas.width = canvasW * dpr
+  canvas.height = canvasH * dpr
   if (!exportMode) {
-    canvas.style.width = canvasSize + 'px'
-    canvas.style.height = canvasSize + 'px'
+    canvas.style.width = canvasW + 'px'
+    canvas.style.height = canvasH + 'px'
   }
 
   const ctx = canvas.getContext('2d')!
   ctx.scale(dpr, dpr)
-  ctx.clearRect(0, 0, canvasSize, canvasSize)
+  ctx.clearRect(0, 0, canvasW, canvasH)
 
   // Checkered background ONLY in interactive preview mode (visual indicator of
   // transparency). In export mode (for the delivery PDF) use a flat white fill
   // so printed output isn't polluted with gray squares or a black JPEG background.
   if (exportMode) {
     ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvasSize, canvasSize)
+    ctx.fillRect(0, 0, canvasW, canvasH)
   } else {
     const cs = 16
-    for (let i = 0; i < canvasSize / cs; i++) {
-      for (let j = 0; j < canvasSize / cs; j++) {
+    for (let i = 0; i < canvasW / cs; i++) {
+      for (let j = 0; j < canvasH / cs; j++) {
         ctx.fillStyle = (i + j) % 2 === 0 ? '#e5e5e5' : '#ffffff'
         ctx.fillRect(i * cs, j * cs, cs, cs)
       }
     }
   }
 
-  // Compute frame box — size it so the longer side sits inside the 80% margin
-  // of the canvas, then derive the short side via aspect ratio. aspect = w/h.
-  const usableSide = canvasSize * 0.8
-  const safeAspect = isFinite(aspect) && aspect > 0 ? aspect : 1
+  // Frame box sizing:
+  //  - Export mode: canvas itself matches the aspect ratio already, so the
+  //    frame fills 100% of the canvas (minus a tiny printer-safe bleed).
+  //  - Preview mode: canvas is square; inset the frame to leave room for
+  //    drag margins and the cut-line label.
   let fw: number
   let fh: number
-  if (safeAspect >= 1) {
-    fw = usableSide
-    fh = usableSide / safeAspect
+  let fx: number
+  let fy: number
+  if (exportMode) {
+    fw = canvasW
+    fh = canvasH
+    fx = 0
+    fy = 0
   } else {
-    fh = usableSide
-    fw = usableSide * safeAspect
+    const usableSide = baseSize * 0.8
+    if (safeAspect >= 1) {
+      fw = usableSide
+      fh = usableSide / safeAspect
+    } else {
+      fh = usableSide
+      fw = usableSide * safeAspect
+    }
+    fx = (baseSize - fw) / 2
+    fy = (baseSize - fh) / 2
   }
-  const fx = (canvasSize - fw) / 2
-  const fy = (canvasSize - fh) / 2
 
   // Draw image (clipped to shape for non-die-cut)
   if (image) {
@@ -339,11 +357,13 @@ const DesignCanvas = forwardRef<DesignCanvasRef, Props>(function DesignCanvas(
 
       const { PDFDocument } = await import('pdf-lib')
       const pdfDoc = await PDFDocument.create()
-      // Page size in points: canvas pixel / 4 (dpr=4 in export mode) ≈ 300pt square.
-      const pageSize = canvas.width / 4
-      const page = pdfDoc.addPage([pageSize, pageSize])
+      // Page size in points — canvas dimensions divided by export dpr (4).
+      // canvasW/canvasH already match the aspect ratio of the design.
+      const pageW = canvas.width / 4
+      const pageH = canvas.height / 4
+      const page = pdfDoc.addPage([pageW, pageH])
       const jpegImage = await pdfDoc.embedJpg(jpegDataUrl)
-      page.drawImage(jpegImage, { x: 0, y: 0, width: pageSize, height: pageSize })
+      page.drawImage(jpegImage, { x: 0, y: 0, width: pageW, height: pageH })
       const pdfBytes = await pdfDoc.save()
       return new Blob([pdfBytes], { type: 'application/pdf' })
     },

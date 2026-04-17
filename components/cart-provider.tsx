@@ -165,8 +165,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart((prevCart) => {
       const idx = prevCart.items.findIndex((i) => i.id === itemId)
       if (idx < 0) return prevCart
+
+      // Re-derive unit price / total price / mold fee from the product master
+      // whenever possible — trust the DB-backed calculation over any client
+      // value that could have been tampered with via DevTools.
+      let unitPrice = replacement.unitPrice
+      let totalPrice = replacement.totalPrice
+      let moldFee = replacement.moldFee
+      const product = getProductById(replacement.productId)
+      if (product) {
+        const selectedOptions: Record<string, string> = {}
+        replacement.options.forEach((opt) => {
+          selectedOptions[opt.id] = opt.value
+        })
+        unitPrice = calculateUnitPrice(product, replacement.quantity, selectedOptions)
+        totalPrice = calculateTotalPrice(product, replacement.quantity, selectedOptions)
+        const moldInfo = calculateMoldFee(product, selectedOptions, replacement.quantity)
+        moldFee = moldInfo.requiresMold && !replacement.moldOrderId
+          ? moldInfo.moldFee
+          : replacement.moldOrderId ? 0 : replacement.moldFee
+      }
+
       const next = [...prevCart.items]
-      next[idx] = { ...replacement, id: itemId } as CartItem
+      next[idx] = {
+        ...replacement,
+        id: itemId,
+        unitPrice,
+        totalPrice,
+        moldFee,
+      } as CartItem
       const totals = calculateCartTotals(next)
       return { items: next, ...totals }
     })

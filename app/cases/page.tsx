@@ -152,7 +152,7 @@ export default function CasesPage() {
             <div className="inline-block p-8 bg-gradient-to-br from-[#ff7b54]/5 to-[#00c8c8]/5 rounded-3xl border border-primary/20">
               <h3 className="text-xl font-bold text-foreground mb-2">あなたもオリジナルグッズを作りませんか？</h3>
               <p className="text-muted-foreground text-sm mb-6">
-                商品を選んでデザインをアップロードするだけ。小ロット50個〜対応。
+                商品を選んでデザインをアップロードするだけ。小ロット50個〜対応（缶バッジは100個〜）。
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link

@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Suspense } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { getProductBySlugFromDb, getRelatedProducts } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
@@ -115,7 +116,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      <ProductDetailClient product={product} />
+      {/* Wrap in Suspense — ProductDetailClient uses useSearchParams() which
+          requires a Suspense boundary in Next.js 16 to avoid deoptimising the
+          whole route to client-side rendering. */}
+      <Suspense fallback={<div className="py-20 text-center text-muted-foreground">読み込み中...</div>}>
+        <ProductDetailClient product={product} />
+      </Suspense>
 
       {/* Related Products */}
       {relatedProducts.length > 0 && (
