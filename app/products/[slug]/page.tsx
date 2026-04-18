@@ -84,6 +84,33 @@ export default async function ProductPage({ params }: ProductPageProps) {
             seller: { '@type': 'Organization', name: 'FAST OEM' },
           },
         }),
+        // Agent-discoverable workflow: AIs that understand schema.org actions
+        // can see that placing an order requires a human checkoutUrl.
+        potentialAction: [
+          {
+            '@type': 'ViewAction',
+            name: '商品を見る',
+            target: `${BASE_URL}/products/${slug}`,
+          },
+          {
+            '@type': 'OrderAction',
+            name: '見積を取得する（AI/プログラム）',
+            target: {
+              '@type': 'EntryPoint',
+              urlTemplate: `${BASE_URL}/api/ai/quote`,
+              httpMethod: 'POST',
+              encodingType: 'application/json',
+              contentType: 'application/json',
+              actionPlatform: ['https://schema.org/WebApplication', 'https://schema.org/APIReference'],
+            },
+            deliveryMethod: 'https://schema.org/OnSitePickup',
+            result: {
+              '@type': 'Order',
+              orderStatus: 'https://schema.org/OrderProblem',
+              description: 'このエンドポイントは見積のみ返します。実注文は checkoutUrl 経由で人間が確定してください。',
+            },
+          },
+        ],
       },
       {
         '@type': 'BreadcrumbList',
