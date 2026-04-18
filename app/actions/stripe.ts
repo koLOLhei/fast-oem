@@ -17,6 +17,16 @@ interface CheckoutSessionData {
   shippingAddress: ShippingAddress
   totalPrice: number
   shippingFee?: number
+  /** 'embedded' (default, returns clientSecret) for the human web UI,
+   *  'hosted' (returns url) for AI agents / external clients. */
+  mode?: 'embedded' | 'hosted'
+  /** When mode='hosted', where Stripe redirects the user after success.
+   *  Defaults to /orders/{orderId}/status. */
+  successUrl?: string
+  cancelUrl?: string
+  /** Audit trail: if this order was placed via an agent API key, we store
+   *  the key's id for later reporting. */
+  agentKeyId?: string
 }
 
 const SHIPPING_FIELD_LABELS: Record<string, string> = {
@@ -361,7 +371,16 @@ async function validateAndRepricItems(
 }
 
 export async function startCheckoutSession(data: CheckoutSessionData) {
-  const { items: rawItems, shippingAddress, totalPrice: clientTotalPrice, shippingFee: clientShippingFee = 0 } = data
+  const {
+    items: rawItems,
+    shippingAddress,
+    totalPrice: clientTotalPrice,
+    shippingFee: clientShippingFee = 0,
+    mode = 'embedded',
+    successUrl,
+    cancelUrl,
+    agentKeyId,
+  } = data
 
   // ── Server-side input validation ────────────────────────────────────────────
   if (!rawItems || rawItems.length === 0) throw new Error('カートが空です')
@@ -653,17 +672,33 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   // ── Step 5: Create Stripe Checkout Session ───────────────────────────────────
   let session
   try {
-    session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded',
-      redirect_on_completion: 'never',
+    const baseParams = {
       line_items: lineItems,
-      mode: 'payment',
+      mode: 'payment' as const,
       metadata: {
         orderId,
         dbOrderId: order.id,
+        ...(agentKeyId ? { agentKeyId } : {}),
+        ...(mode === 'hosted' ? { origin: 'agent_api' } : {}),
       },
       customer_email: shippingAddress.email,
-    })
+    }
+
+    if (mode === 'hosted') {
+      const BASE = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp').replace(/\/$/, '')
+      session = await stripe.checkout.sessions.create({
+        ...baseParams,
+        ui_mode: 'hosted',
+        success_url: successUrl ?? `${BASE}/orders/${order.id}/status?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl ?? `${BASE}/products`,
+      })
+    } else {
+      session = await stripe.checkout.sessions.create({
+        ...baseParams,
+        ui_mode: 'embedded',
+        redirect_on_completion: 'never',
+      })
+    }
   } catch (stripeErr) {
     await supabase.from('orders').delete().eq('id', order.id)
     console.error('Failed to create Stripe session:', (stripeErr as Error).message)
@@ -690,6 +725,11 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
     clientSecret: session.client_secret,
     sessionId: session.id,
     orderId,
+    dbOrderId: order.id,
+    // 'hosted' mode exposes a Stripe-hosted payment URL that AI agents can
+    // return to their user for one-click card entry.
+    url: mode === 'hosted' ? session.url : null,
+    expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
   }
 }
 

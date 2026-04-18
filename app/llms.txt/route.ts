@@ -25,9 +25,25 @@ export async function GET() {
 ## 主要な公開 API（AIエージェント向け）
 - \`GET  https://fast-oem.soara-mu.jp/api/ai/catalog.json\` — 全商品カタログ（価格帯・オプション・サイズ・金型代含む）
 - \`POST https://fast-oem.soara-mu.jp/api/ai/quote\` — 商品・数量・オプション指定で見積を返す（注文は成立しない）
+- \`POST https://fast-oem.soara-mu.jp/api/ai/order\` — 注文を作成し Stripe Hosted Checkout URL を返す。Authorization: Bearer sk_agent_... を付けると顧客の登録カードで off-session 自動決済
 - \`GET  https://fast-oem.soara-mu.jp/api/ai/shipping?quantity=N&express=true|false\` — 送料計算
+- \`POST https://fast-oem.soara-mu.jp/api/mcp\` — Model Context Protocol サーバー（Streamable HTTP、5ツール）
 - \`GET  https://fast-oem.soara-mu.jp/.well-known/ai-plugin.json\` — AI plugin manifest（OpenAPI schema リンク含む）
 - \`GET  https://fast-oem.soara-mu.jp/api/openapi.json\` — OpenAPI 3.1 スキーマ
+
+## MCP 接続設定（Claude Desktop / Cursor / Claude Code 等）
+\`\`\`json
+{
+  "mcpServers": {
+    "fast-oem": {
+      "url": "https://fast-oem.soara-mu.jp/api/mcp",
+      "transport": "streamable-http",
+      "headers": { "Authorization": "Bearer sk_agent_..." }
+    }
+  }
+}
+\`\`\`
+ツール: get_catalog / get_quote / get_shipping / create_order / check_order_status
 
 ## 商品
 ${productLines}
@@ -43,11 +59,18 @@ ${productLines}
 - 通常: ご入金確認後 15〜30営業日（目安3〜4週間）
 - 特急: 12営業日以内（目安2〜3週間）
 
-## 発注フロー（人間・AI共通）
+## 発注フロー（AI主導）
+### パターンA: URL 返却（カード登録不要）
 1. GET /api/ai/catalog.json で商品 slug を取得
 2. POST /api/ai/quote で見積取得（JSON）
-3. クライアント（または人間）が最終確認
-4. 人間が商品ページで「カートに追加」→ 注文手続き → Stripe 決済（現状、AI による決済自動実行は安全上無効）
+3. POST /api/ai/order で注文作成 → Stripe Hosted Checkout URL 取得
+4. ユーザーに URL を提示 → カード入力 → 決済完了
+
+### パターンB: 完全自律（事前カード登録あり）
+1. 顧客が /mypage/agent-access で Agent API キー発行＋カード登録
+2. エージェントが Authorization: Bearer sk_agent_... で /api/ai/order を呼ぶ
+3. 登録済みカードに off-session 自動課金 → 即決済完了
+4. 1日の上限額（顧客がキー毎に設定）を超える注文は自動拒否
 
 ## 法務・ポリシー
 - 特商法: /tokushoho

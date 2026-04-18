@@ -81,8 +81,73 @@ export async function GET() {
           },
         },
       },
+      '/api/ai/order': {
+        post: {
+          operationId: 'postOrder',
+          summary: 'Create a pending order and return a Stripe Hosted Checkout URL. With Authorization: Bearer <agent api key> the order is charged off-session using the customer\'s saved card.',
+          security: [{ agentKey: [] }, {}],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['items', 'shippingAddress'],
+                  properties: {
+                    items: {
+                      type: 'array',
+                      minItems: 1,
+                      items: {
+                        type: 'object',
+                        required: ['productSlug', 'quantity'],
+                        properties: {
+                          productSlug: { type: 'string' },
+                          quantity: { type: 'integer' },
+                          options: { type: 'object', additionalProperties: { type: 'string' } },
+                          designImageUrl: { type: 'string', format: 'uri' },
+                        },
+                      },
+                    },
+                    shippingAddress: { type: 'object' },
+                    express: { type: 'boolean' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Order created. Either checkoutUrl (URL mode) or paymentStatus=paid + statusUrl (off-session mode).',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/Order' } } },
+            },
+            '401': { description: 'Invalid agent key.' },
+            '402': { description: 'Payment refused or daily cap exceeded.' },
+          },
+        },
+      },
+      '/api/mcp': {
+        post: {
+          operationId: 'mcpRpc',
+          summary: 'Model Context Protocol (MCP) JSON-RPC endpoint. Implements tools/list and tools/call.',
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { type: 'object' } } },
+          },
+          responses: {
+            '200': { description: 'JSON-RPC response.' },
+          },
+        },
+      },
     },
     components: {
+      securitySchemes: {
+        agentKey: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'sk_agent_...',
+          description: 'Per-customer Agent API Key. Issued at /mypage/agent-access.',
+        },
+      },
       schemas: {
         Catalog: {
           type: 'object',
@@ -141,6 +206,21 @@ export async function GET() {
             express: { type: 'boolean' },
             fee: { type: 'integer' },
             currency: { type: 'string' },
+          },
+        },
+        Order: {
+          type: 'object',
+          properties: {
+            schema: { type: 'string' },
+            mode: { type: 'string', enum: ['checkout_url', 'paid_off_session'] },
+            orderId: { type: 'string' },
+            dbOrderId: { type: 'string' },
+            checkoutUrl: { type: 'string', format: 'uri' },
+            paymentIntentId: { type: 'string' },
+            paymentStatus: { type: 'string' },
+            statusUrl: { type: 'string', format: 'uri' },
+            totalPrice: { type: 'integer' },
+            expiresAt: { type: 'string', format: 'date-time' },
           },
         },
       },
