@@ -23,7 +23,7 @@ const COMMON_DISALLOW = [
 ]
 
 // Public AI-agent endpoints + llms.txt must be explicitly allowed.
-const AI_ALLOW = ['/api/ai/', '/llms.txt', '/llms-full.txt', '/.well-known/']
+const AI_ALLOW = ['/api/ai/', '/api/mcp', '/api/openapi.json', '/llms.txt', '/llms-full.txt', '/.well-known/']
 
 export default function robots(): MetadataRoute.Robots {
   return {
