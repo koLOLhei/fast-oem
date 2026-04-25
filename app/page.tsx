@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Clock,
   Shield,
-  Star,
   Sparkles,
   Package,
   Zap,
@@ -153,13 +152,6 @@ const organizationJsonLd = {
   sameAs: [
     'https://soara-mu.jp',
   ],
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '4.8',
-    reviewCount: '512',
-    bestRating: '5',
-    worstRating: '1',
-  },
   parentOrganization: {
     '@type': 'Organization',
     name: '株式会社SOARA',

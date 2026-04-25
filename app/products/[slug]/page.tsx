@@ -59,41 +59,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
     ? Math.min(...product.priceTiers.map((t) => t.unitPrice))
     : undefined
 
-  // Aggregate rating (high-quality fallback ratings; replace with real reviews when available).
-  // Rich Results in Google search require either aggregateRating + 1+ Reviews or aggregateRating alone.
-  const aggregateRating = {
-    '@type': 'AggregateRating',
-    ratingValue: '4.8',
-    reviewCount: '127',
-    bestRating: '5',
-    worstRating: '1',
-  }
-
-  // Sample reviews — schema.org requires the body to be present.
-  const reviews = [
-    {
-      '@type': 'Review',
-      author: { '@type': 'Person', name: 'M.S.' },
-      datePublished: '2026-02-14',
-      reviewRating: { '@type': 'Rating', ratingValue: '5', bestRating: '5' },
-      reviewBody: `${product.name}を制作しました。仕上がりがとても綺麗で、納期も予定通り。次回もお願いしたいです。`,
-    },
-    {
-      '@type': 'Review',
-      author: { '@type': 'Person', name: 'K.T.' },
-      datePublished: '2026-01-22',
-      reviewRating: { '@type': 'Rating', ratingValue: '5', bestRating: '5' },
-      reviewBody: '小ロットでの対応が嬉しいです。サポートも親切で、初めてでも安心して発注できました。',
-    },
-    {
-      '@type': 'Review',
-      author: { '@type': 'Person', name: 'A.Y.' },
-      datePublished: '2025-12-08',
-      reviewRating: { '@type': 'Rating', ratingValue: '4', bestRating: '5' },
-      reviewBody: '価格と品質のバランスが良いです。発送も早く、満足のいく仕上がりでした。',
-    },
-  ]
-
   // Shipping & return details for Google Merchant validation
   const shippingDetails = {
     '@type': 'OfferShippingDetails',
@@ -128,8 +93,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
         brand: { '@type': 'Brand', name: 'FAST OEM' },
         category: 'OEMグッズ',
         manufacturer: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
-        aggregateRating,
-        review: reviews,
         ...(minPrice !== undefined && {
           offers: {
             '@type': 'AggregateOffer',
