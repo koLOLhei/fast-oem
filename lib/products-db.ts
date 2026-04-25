@@ -36,8 +36,8 @@ function sanitizeOptions(raw: any[]): any[] {
             (opt: any) =>
                 opt.name &&
                 opt.name !== '新しいオプション' &&
-                // number and color type options may legitimately have no values list
-                (opt.type === 'number' || opt.type === 'color' || (opt.values ?? []).length > 0),
+                // number, color, and text type options may legitimately have no values list
+                (opt.type === 'number' || opt.type === 'color' || opt.type === 'text' || (opt.values ?? []).length > 0),
         )
 }
 
