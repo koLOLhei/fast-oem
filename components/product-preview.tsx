@@ -44,6 +44,15 @@ function getShapeName(shapeId: string): string {
   return SHAPE_NAMES[shapeId] || shapeId
 }
 
+/** Build CSS filter that adds a white outline around an image's alpha shape via stacked drop-shadows. */
+function buildWhiteOutlineFilter(px: number): string {
+  const offsets = [
+    [px, 0], [-px, 0], [0, px], [0, -px],
+    [px, px], [-px, -px], [px, -px], [-px, px],
+  ]
+  return offsets.map(([x, y]) => `drop-shadow(${x}px ${y}px 0 #fff)`).join(' ')
+}
+
 // ────────────────────────────────────────────
 // Collect preview overlays from selected options
 // ────────────────────────────────────────────
@@ -143,6 +152,19 @@ export function ProductPreview({
   const { overlays, texture, chainColor } = collectOverlays(product, selectedOptions)
   const isKeychain = product.category === 'keychain' || product.id.includes('keychain')
 
+  // White border (型抜き素材の縁取り) — only meaningful for die-cut shapes
+  const whiteBorder = selectedOptions['white_border'] || 'none'
+  const isDieCut = selectedShape === 'die-cut'
+  const borderPx = !isDieCut ? 0 :
+    whiteBorder === 'thin' ? 4 :
+    whiteBorder === 'normal' ? 8 :
+    whiteBorder === 'thick' ? 14 : 0
+
+  // White ink (back/middle) for visual cue
+  const whiteBack = selectedOptions['white_back']
+  const whiteMiddle = selectedOptions['white_middle']
+  const hasWhiteInk = whiteBack === 'white' || whiteMiddle === 'white'
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -195,7 +217,12 @@ export function ProductPreview({
 
               {isCanvasComposite ? (
                 <div className="w-full h-full relative">
-                  <img src={designImage} alt="あなたのデザイン" className="w-full h-full object-contain drop-shadow-xl" />
+                  <img
+                    src={designImage}
+                    alt="あなたのデザイン"
+                    className="w-full h-full object-contain drop-shadow-xl"
+                    style={borderPx > 0 ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
+                  />
                 </div>
               ) : (
                 <ShapeMask shapeId={selectedShape}>
@@ -217,6 +244,27 @@ export function ProductPreview({
                 <OverlayImage key={`fg-${i}`} overlay={o.overlay} tintColor={chainColor || o.color} />
               ))}
             </div>
+
+            {/* Feature badges (white border, white ink) */}
+            {(borderPx > 0 || hasWhiteInk) && (
+              <div className="absolute top-4 right-4 flex flex-col gap-1.5 items-end z-20">
+                {borderPx > 0 && (
+                  <span className="px-2.5 py-1 bg-white/95 text-foreground text-[10px] font-bold rounded-full shadow-md border border-border">
+                    白フチ：{whiteBorder === 'thin' ? '細め' : whiteBorder === 'normal' ? '普通' : '太め'}
+                  </span>
+                )}
+                {whiteBack === 'white' && (
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full shadow-md border border-blue-200">
+                    裏面ホワイト
+                  </span>
+                )}
+                {whiteMiddle === 'white' && (
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full shadow-md border border-blue-200">
+                    中間ホワイト
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Success indicator */}
             <div className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-full shadow-lg">

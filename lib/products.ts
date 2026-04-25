@@ -56,6 +56,7 @@ export interface OptionValue {
 export interface ProductOption {
   id: string
   name: string
+  description?: string      // optional explainer shown to the customer below the option name
   values: OptionValue[]
   type: 'list' | 'grid' | 'dropdown' | 'checkbox' | 'number' | 'color'
   multiSelect?: boolean     // for checkbox type
@@ -248,23 +249,54 @@ export const PRODUCTS: Product[] = [
         ],
       },
       {
-        id: 'white_back',
-        name: 'ホワイト（白バック）',
+        id: 'white_border',
+        name: '白フチ（型抜き素材の縁取り）',
         type: 'list',
         required: false,
+        parentId: 'shape',
+        showWhen: ['die-cut'],
+        description: '型抜き素材の輪郭に沿って、デザインを保護する白い縁取りを追加します',
         values: [
           { id: 'none', label: 'なし' },
-          { id: 'white', label: 'ホワイト挿入', priceModifier: { type: 'multiply', value: 1.2 } },
+          { id: 'thin', label: '細め（約0.5mm）', priceModifier: { type: 'add', value: 5 } },
+          { id: 'normal', label: '普通（約1mm）', priceModifier: { type: 'add', value: 8 } },
+          { id: 'thick', label: '太め（約2mm）', priceModifier: { type: 'add', value: 12 } },
         ],
       },
       {
         id: 'double_sided',
-        name: '両面印刷',
+        name: '印刷面',
+        type: 'list',
+        required: true,
+        values: [
+          { id: 'none', label: '片面印刷' },
+          { id: 'double', label: '両面印刷', priceModifier: { type: 'multiply', value: 1.6 } },
+        ],
+      },
+      {
+        id: 'white_back',
+        name: '裏面ホワイト（白押さえ）',
         type: 'list',
         required: false,
+        parentId: 'double_sided',
+        showWhen: ['none'],
+        description: '片面印刷の裏側に白インクを敷いて、発色を鮮やかにします',
         values: [
-          { id: 'none', label: '片面のみ' },
-          { id: 'double', label: '両面印刷', priceModifier: { type: 'multiply', value: 1.6 } },
+          { id: 'none', label: 'なし' },
+          { id: 'white', label: '裏面ホワイト挿入', priceModifier: { type: 'multiply', value: 1.2 } },
+        ],
+      },
+      {
+        id: 'white_middle',
+        name: '中間ホワイト（両面の間に白挟み込み）',
+        type: 'list',
+        required: false,
+        parentId: 'double_sided',
+        showWhen: ['double'],
+        description: '両面印刷の中間に白インクを挟み込み、表裏の透け感を防ぎます',
+        values: [
+          { id: 'none', label: 'なし' },
+          { id: 'white', label: '中間ホワイト挿入', priceModifier: { type: 'multiply', value: 1.2 } },
         ],
       },
       {
