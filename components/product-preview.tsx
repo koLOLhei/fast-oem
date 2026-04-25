@@ -152,10 +152,9 @@ export function ProductPreview({
   const { overlays, texture, chainColor } = collectOverlays(product, selectedOptions)
   const isKeychain = product.category === 'keychain' || product.id.includes('keychain')
 
-  // White border (型抜き素材の縁取り) — only meaningful for die-cut shapes
+  // White border (素材の縁取り) — applies to ALL shapes, not just die-cut
   const whiteBorder = selectedOptions['white_border'] || 'none'
-  const isDieCut = selectedShape === 'die-cut'
-  const borderPx = !isDieCut ? 0 :
+  const borderPx =
     whiteBorder === 'thin' ? 4 :
     whiteBorder === 'normal' ? 8 :
     whiteBorder === 'thick' ? 14 : 0
@@ -164,6 +163,11 @@ export function ProductPreview({
   const whiteBack = selectedOptions['white_back']
   const whiteMiddle = selectedOptions['white_middle']
   const hasWhiteInk = whiteBack === 'white' || whiteMiddle === 'white'
+
+  // Back-side print (裏面印刷)
+  const backPrint = selectedOptions['back_print']
+  const backText = selectedOptions['back_text']
+  const hasBackPrint = backPrint && backPrint !== 'none'
 
   return (
     <div className="space-y-4">
@@ -245,9 +249,9 @@ export function ProductPreview({
               ))}
             </div>
 
-            {/* Feature badges (white border, white ink) */}
-            {(borderPx > 0 || hasWhiteInk) && (
-              <div className="absolute top-4 right-4 flex flex-col gap-1.5 items-end z-20">
+            {/* Feature badges (white border, white ink, back print) */}
+            {(borderPx > 0 || hasWhiteInk || hasBackPrint) && (
+              <div className="absolute top-4 right-4 flex flex-col gap-1.5 items-end z-20 max-w-[60%]">
                 {borderPx > 0 && (
                   <span className="px-2.5 py-1 bg-white/95 text-foreground text-[10px] font-bold rounded-full shadow-md border border-border">
                     白フチ：{whiteBorder === 'thin' ? '細め' : whiteBorder === 'normal' ? '普通' : '太め'}
@@ -261,6 +265,14 @@ export function ProductPreview({
                 {whiteMiddle === 'white' && (
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-full shadow-md border border-blue-200">
                     中間ホワイト
+                  </span>
+                )}
+                {hasBackPrint && (
+                  <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-full shadow-md border border-purple-200 text-right">
+                    裏面印刷：
+                    {backPrint === 'text' ? `テキスト${backText ? `「${backText.substring(0, 20)}${backText.length > 20 ? '…' : ''}」` : ''}` :
+                     backPrint === 'same_shape' ? '同じデザイン' :
+                     backPrint === 'within_frame' ? '別画像（枠内）' : ''}
                   </span>
                 )}
               </div>

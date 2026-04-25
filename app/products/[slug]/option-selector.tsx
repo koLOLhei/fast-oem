@@ -287,6 +287,39 @@ function OptionsColumn({
           </div>
         ))}
 
+      {/* Text Options (free text input) */}
+      {product.options
+        .filter((o) => o.type === 'text' && isOptionVisible(o, selectedOptions))
+        .map((option) => {
+          const val = selectedOptions[option.id] || ''
+          const max = option.textMaxLength ?? 200
+          return (
+            <div
+              key={option.id}
+              className={option.parentId ? 'border-l-2 border-primary/30 pl-4 ml-2' : ''}
+            >
+              <h3 className="font-semibold text-foreground mb-1">
+                {option.name}
+                <RequiredMark required={option.required} />
+              </h3>
+              {option.description && (
+                <p className="text-xs text-muted-foreground mb-2">{option.description}</p>
+              )}
+              <input
+                type="text"
+                value={val}
+                maxLength={max}
+                onChange={(e) => onOptionChange(option.id, e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                placeholder={option.textPlaceholder || ''}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                {val.length} / {max}
+              </p>
+            </div>
+          )
+        })}
+
       {/* Color Options */}
       {product.options
         .filter(

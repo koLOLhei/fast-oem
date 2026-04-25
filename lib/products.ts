@@ -58,7 +58,9 @@ export interface ProductOption {
   name: string
   description?: string      // optional explainer shown to the customer below the option name
   values: OptionValue[]
-  type: 'list' | 'grid' | 'dropdown' | 'checkbox' | 'number' | 'color'
+  type: 'list' | 'grid' | 'dropdown' | 'checkbox' | 'number' | 'color' | 'text'
+  textPlaceholder?: string  // for text type
+  textMaxLength?: number    // for text type
   multiSelect?: boolean     // for checkbox type
   numberMin?: number        // for number type
   numberMax?: number
@@ -250,18 +252,41 @@ export const PRODUCTS: Product[] = [
       },
       {
         id: 'white_border',
-        name: '白フチ（型抜き素材の縁取り）',
+        name: '白フチ（素材の縁取り）',
         type: 'list',
         required: false,
-        parentId: 'shape',
-        showWhen: ['die-cut'],
-        description: '型抜き素材の輪郭に沿って、デザインを保護する白い縁取りを追加します',
+        description: '素材の輪郭に沿って、デザインを保護する白い縁取りを追加します（全形状対応）',
         values: [
           { id: 'none', label: 'なし' },
           { id: 'thin', label: '細め（約0.5mm）', priceModifier: { type: 'add', value: 5 } },
           { id: 'normal', label: '普通（約1mm）', priceModifier: { type: 'add', value: 8 } },
           { id: 'thick', label: '太め（約2mm）', priceModifier: { type: 'add', value: 12 } },
         ],
+      },
+      {
+        id: 'back_print',
+        name: '裏面印刷（透明部分への印刷）',
+        type: 'list',
+        required: false,
+        description: 'アクリルの裏面・空白部分に印刷を追加（+20%）',
+        values: [
+          { id: 'none', label: 'なし' },
+          { id: 'text', label: 'テキスト印刷（裏面に文字）', priceModifier: { type: 'multiply', value: 1.2 } },
+          { id: 'same_shape', label: '裏面に同じデザイン（鏡像配置）', priceModifier: { type: 'multiply', value: 1.2 } },
+          { id: 'within_frame', label: '裏面に別画像を枠内配置', priceModifier: { type: 'multiply', value: 1.2 } },
+        ],
+      },
+      {
+        id: 'back_text',
+        name: '裏面テキスト',
+        type: 'text',
+        required: false,
+        parentId: 'back_print',
+        showWhen: ['text'],
+        textPlaceholder: '例：©YourName 2026',
+        textMaxLength: 80,
+        description: '裏面に印刷する文字を入力してください（80文字以内）',
+        values: [],
       },
       {
         id: 'double_sided',
