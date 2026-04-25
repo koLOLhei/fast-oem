@@ -1,17 +1,17 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, Users, Building2, Heart } from 'lucide-react'
+import { ArrowRight, Users, Building2, Heart, Gift, Award, Calendar } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
 export const metadata: Metadata = {
-  title: '用途別グッズ製作ガイド｜同人・ノベルティ・推し活',
+  title: '用途別グッズ製作ガイド｜同人・ノベルティ・推し活・結婚式・記念品・イベント',
   description:
-    '同人グッズ・企業ノベルティ・推し活グッズなど、用途別のオリジナルグッズ製作ガイド。FAST OEMなら小ロット50個（缶バッジは100個）から対応（缶バッジは100個〜）、最短約2週間で納品。',
+    '同人・企業ノベルティ・推し活・結婚式プチギフト・記念品・イベント配布物など、用途別のオリジナルグッズ製作ガイド。FAST OEMなら小ロット50個（缶バッジは100個）から対応、最短約2週間で納品。',
   openGraph: {
     title: '用途別グッズ製作ガイド | FAST OEM',
-    description: '同人・ノベルティ・推し活など、用途に合わせたグッズ製作をご案内。',
+    description: '同人・ノベルティ・推し活・結婚式・記念品・イベントなど、用途に合わせたグッズ製作をご案内。',
     url: `${BASE_URL}/use-cases`,
     images: [{ url: '/opengraph-image.png', width: 1200, height: 630 }],
   },
@@ -45,6 +45,33 @@ const useCases = [
     color: 'border-pink-200 hover:border-pink-400',
     iconBg: 'bg-pink-100 text-pink-600',
     cta: 'text-pink-500',
+  },
+  {
+    href: '/use-cases/wedding',
+    icon: Gift,
+    title: '結婚式プチギフト製作',
+    description: '結婚式のプチギフト・ウェディングノベルティ・ウェルカムグッズに。新郎新婦の名入れ・日付入りで世界にひとつの記念品を。',
+    color: 'border-rose-200 hover:border-rose-400',
+    iconBg: 'bg-rose-100 text-rose-500',
+    cta: 'text-rose-500',
+  },
+  {
+    href: '/use-cases/anniversary',
+    icon: Award,
+    title: '記念品・誕生日・退職祝い・卒業記念品',
+    description: '誕生日・退職祝い・卒業記念品・周年祝いに。名入れオーダーメイドで、大切な節目を思い出に残るカタチに。',
+    color: 'border-amber-200 hover:border-amber-400',
+    iconBg: 'bg-amber-100 text-amber-600',
+    cta: 'text-amber-600',
+  },
+  {
+    href: '/use-cases/event',
+    icon: Calendar,
+    title: 'イベント配布物・ファンミ・周年祭',
+    description: 'ファンミーティング・周年祭・協賛イベント・カンファレンスの配布物に。ロゴ入れ自由・小ロット対応で来場者の心に残るグッズを。',
+    color: 'border-violet-200 hover:border-violet-400',
+    iconBg: 'bg-violet-100 text-violet-600',
+    cta: 'text-violet-600',
   },
 ]
 

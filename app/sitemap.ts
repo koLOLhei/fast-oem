@@ -54,6 +54,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.85,
     },
+    {
+      url: `${BASE_URL}/use-cases/wedding`,
+      lastModified: siteLastUpdated,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/use-cases/anniversary`,
+      lastModified: siteLastUpdated,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/use-cases/event`,
+      lastModified: siteLastUpdated,
+      changeFrequency: 'monthly',
+      priority: 0.85,
+    },
     // Category landing pages
     {
       url: `${BASE_URL}/products/category/keychain`,
