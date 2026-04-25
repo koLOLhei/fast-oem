@@ -71,7 +71,7 @@ export function PriceSummary({
         </div>
       )}
 
-      <Card className="sticky bottom-0 lg:bottom-4 z-40 shadow-2xl border-2">
+      <Card className="lg:sticky lg:bottom-4 z-40 shadow-2xl border-2">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             {/* Price Summary */}
