@@ -292,39 +292,61 @@ serve(async (req: Request) => {
             .select('*')
             .eq('order_id', order.id)
 
+          // Helper: extract storage path from either a raw path or a legacy public URL.
+          // Returns null for data: URIs or signed URLs (which we can't re-sign).
+          const extractStoragePath = (raw: string | null | undefined): string | null => {
+            if (!raw) return null
+            if (raw.startsWith('data:')) return null
+            // Legacy public URLs from when bucket was public
+            const PUBLIC_PREFIX = '/storage/v1/object/public/designs/'
+            if (raw.includes(PUBLIC_PREFIX)) {
+              return raw.split(PUBLIC_PREFIX)[1] ?? null
+            }
+            // Already-signed URLs (have ?token=...) — pass through, don't re-sign
+            if (raw.startsWith('http') && raw.includes('?token=')) return null
+            // If still http without our public prefix, can't extract reliably
+            if (raw.startsWith('http')) return null
+            // Plain path
+            return raw
+          }
+
+          const signIfPath = async (raw: string | null | undefined): Promise<string | null> => {
+            const path = extractStoragePath(raw)
+            if (!path) return raw ?? null
+            const { data: signed } = await supabase.storage
+              .from('designs')
+              .createSignedUrl(path, 259200) // 72 hours
+            return signed?.signedUrl ?? raw ?? null
+          }
+
           const itemsForEmail = await Promise.all(
             (freshItems ?? orderItems ?? []).map(async (item: OrderItem) => {
               const updates: Partial<OrderItem> = {}
 
-              // Resolve front delivery PDF storage path → signed URL
-              const pdfPath: string | null = item.delivery_pdf_url ?? null
-              if (pdfPath && !pdfPath.startsWith('http')) {
-                const { data: signed } = await supabase.storage
-                  .from('designs')
-                  .createSignedUrl(pdfPath, 259200) // 72 hours
-                updates.delivery_pdf_url = signed?.signedUrl ?? null
+              // Resolve front delivery PDF
+              const newPdfUrl = await signIfPath(item.delivery_pdf_url)
+              if (newPdfUrl !== item.delivery_pdf_url) updates.delivery_pdf_url = newPdfUrl
+
+              // Resolve back delivery PDF
+              const newBackPdfUrl = await signIfPath(item.back_delivery_pdf_url)
+              if (newBackPdfUrl !== item.back_delivery_pdf_url) updates.back_delivery_pdf_url = newBackPdfUrl
+
+              // Resolve front design image (prefer converted, fallback to original)
+              if (item.converted_design_url) {
+                const newConverted = await signIfPath(item.converted_design_url)
+                if (newConverted !== item.converted_design_url) updates.converted_design_url = newConverted
+              } else if (item.design_url) {
+                const newDesign = await signIfPath(item.design_url)
+                if (newDesign !== item.design_url) updates.design_url = newDesign
               }
 
-              // Resolve back delivery PDF storage path → signed URL
-              const backPdfPath: string | null = item.back_delivery_pdf_url ?? null
-              if (backPdfPath && !backPdfPath.startsWith('http')) {
-                const { data: signed } = await supabase.storage
-                  .from('designs')
-                  .createSignedUrl(backPdfPath, 259200)
-                updates.back_delivery_pdf_url = signed?.signedUrl ?? null
-              }
-
-              // Resolve design image storage paths → signed URLs (for factory email download links)
-              const designPath: string | null = (item.converted_design_url ?? item.design_url) ?? null
-              if (designPath && !designPath.startsWith('http')) {
-                const { data: signed } = await supabase.storage
-                  .from('designs')
-                  .createSignedUrl(designPath, 259200) // 72 hours
-                if (item.converted_design_url) {
-                  updates.converted_design_url = signed?.signedUrl ?? item.converted_design_url
-                } else {
-                  updates.design_url = signed?.signedUrl ?? item.design_url
-                }
+              // Resolve back design image (3D products)
+              if (item.back_converted_design_url) {
+                const newBackConverted = await signIfPath(item.back_converted_design_url)
+                if (newBackConverted !== item.back_converted_design_url) updates.back_converted_design_url = newBackConverted
+              } else if (item.back_design_url) {
+                const newBackDesign = await signIfPath(item.back_design_url)
+                if (newBackDesign !== item.back_design_url) updates.back_design_url = newBackDesign
               }
 
               return Object.keys(updates).length > 0 ? { ...item, ...updates } : item
