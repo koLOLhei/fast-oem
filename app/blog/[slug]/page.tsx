@@ -53,13 +53,21 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   return {
     title: article.title,
     description: article.excerpt,
+    keywords: article.keywords,
     openGraph: {
       title: `${article.title} | FAST OEM コラム`,
       description: article.excerpt,
       url: `${BASE_URL}/blog/${slug}`,
       type: 'article',
       publishedTime: article.date,
+      modifiedTime: article.lastUpdated || article.date,
       authors: ['FAST OEM'],
+      section: article.category,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: article.excerpt,
     },
     alternates: { canonical: `${BASE_URL}/blog/${slug}` },
   }
@@ -81,30 +89,66 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   const author = AUTHORS[article.authorId]
 
-  const articleJsonLd = {
+  // Extract h2 headings for table of contents (AEO + UX boost)
+  const tocItems = article.content
+    .split('\n')
+    .filter((line) => line.startsWith('## '))
+    .map((line, idx) => {
+      const text = line.replace('## ', '').replace(/\*\*/g, '').trim()
+      const id = `toc-${idx}-${text.replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]+/g, '-').slice(0, 30)}`
+      return { id, text }
+    })
+
+  const wordCount = article.content.replace(/\s+/g, '').length
+
+  const articleJsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: article.title,
     description: article.excerpt,
     datePublished: article.date,
-    dateModified: article.date,
+    dateModified: article.lastUpdated || article.date,
     url: `${BASE_URL}/blog/${slug}`,
     image: `${BASE_URL}/opengraph-image.png`,
-    author: { '@type': 'Organization', name: 'FAST OEM', url: BASE_URL },
+    wordCount,
+    articleSection: article.category,
+    inLanguage: 'ja',
+    isAccessibleForFree: true,
+    author: {
+      '@type': 'Organization',
+      name: 'FAST OEM',
+      url: BASE_URL,
+    },
     publisher: {
       '@type': 'Organization',
       name: 'FAST OEM',
       url: BASE_URL,
-      logo: { '@type': 'ImageObject', url: `${BASE_URL}/logo.png` },
+      logo: { '@type': 'ImageObject', url: `${BASE_URL}/logo.png`, width: 600, height: 60 },
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': `${BASE_URL}/blog/${slug}` },
   }
+  if (article.keywords && article.keywords.length > 0) {
+    articleJsonLd.keywords = article.keywords.join(', ')
+  }
+
+  // FAQPage JSON-LD (AEO: People Also Ask / Featured Snippets)
+  const faqJsonLd = article.faqItems && article.faqItems.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: article.faqItems.map((q) => ({
+      '@type': 'Question',
+      name: q.question,
+      acceptedAnswer: { '@type': 'Answer', text: q.answer },
+    })),
+  } : null
+
+  const allJsonLd = [bcJsonLd, articleJsonLd, ...(faqJsonLd ? [faqJsonLd] : [])]
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, articleJsonLd]) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(allJsonLd) }}
       />
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -138,19 +182,44 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <User className="h-6 w-6 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="font-bold text-foreground text-sm">{author.name}</p>
               <p className="text-xs text-muted-foreground">{author.role}</p>
             </div>
+            {article.lastUpdated && article.lastUpdated !== article.date && (
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground">最終更新</p>
+                <p className="text-xs font-medium text-foreground">{article.lastUpdated}</p>
+              </div>
+            )}
           </div>
+
+          {/* Table of Contents (h2 だけ抽出した目次) */}
+          {tocItems.length >= 3 && (
+            <nav aria-label="目次" className="mb-8 p-5 rounded-xl bg-muted/30 border border-border">
+              <p className="text-sm font-bold text-foreground mb-3">📋 この記事の目次</p>
+              <ol className="space-y-1.5 text-sm text-foreground/80 list-decimal list-inside">
+                {tocItems.map((item) => (
+                  <li key={item.id}>
+                    <a href={`#${item.id}`} className="hover:text-primary transition-colors underline-offset-2 hover:underline">
+                      {item.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
           <hr className="border-border mb-8" />
 
           {/* Article Content */}
           <article className="prose prose-gray max-w-none prose-headings:font-bold prose-h2:text-xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3 prose-p:leading-relaxed prose-p:text-foreground/80 prose-li:text-foreground/80 prose-strong:text-foreground prose-table:text-sm">
-            {article.content.split('\n\n').map((block, i) => {
+            {(() => { let h2Counter = 0; return article.content.split('\n\n').map((block, i) => {
               if (block.startsWith('## ')) {
-                return <h2 key={i} className="text-xl font-bold text-foreground mt-10 mb-4">{renderBoldText(block.replace('## ', ''))}</h2>
+                const text = block.replace('## ', '').replace(/\*\*/g, '').trim()
+                const tocId = `toc-${h2Counter}-${text.replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]+/g, '-').slice(0, 30)}`
+                h2Counter++
+                return <h2 key={i} id={tocId} className="text-xl font-bold text-foreground mt-10 mb-4 scroll-mt-24">{renderBoldText(block.replace('## ', ''))}</h2>
               }
               if (block.startsWith('### ')) {
                 return <h3 key={i} className="text-lg font-bold text-foreground mt-8 mb-3">{renderBoldText(block.replace('### ', ''))}</h3>
@@ -207,8 +276,26 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               return (
                 <p key={i} className="text-foreground/80 leading-relaxed my-4">{renderBoldText(block)}</p>
               )
-            })}
+            }) })()}
           </article>
+
+          {/* FAQ Section (AEOブースト) */}
+          {article.faqItems && article.faqItems.length > 0 && (
+            <section className="mt-12 p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200" aria-labelledby="article-faq-heading">
+              <h2 id="article-faq-heading" className="text-xl font-bold text-foreground mb-4">❓ よくある質問</h2>
+              <dl className="space-y-4">
+                {article.faqItems.map((q, i) => (
+                  <div key={i} className="bg-white rounded-xl p-4 border border-border">
+                    <dt className="font-bold text-foreground mb-2 flex items-start gap-2">
+                      <span className="text-primary shrink-0">Q.</span>
+                      <span>{q.question}</span>
+                    </dt>
+                    <dd className="text-sm text-foreground/80 leading-relaxed pl-7">{renderBoldText(q.answer)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           {/* Related Articles */}
           {(() => {
