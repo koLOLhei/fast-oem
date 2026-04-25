@@ -59,8 +59,29 @@ export function PriceSummary({
 
   const hasNoDesign = is3d ? designImagesCount === 0 : !designImage
 
+  const isCtaDisabled = !!complexityBlock || hasNoDesign || (is3d ? !allRequiredDone : !deliveryPdfUrl)
+
   return (
     <>
+      {/* Mobile-only compact sticky CTA bar (lg未満で表示) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-primary/20 shadow-2xl px-3 py-2.5 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] text-muted-foreground leading-tight">合計（税込）</p>
+          <p className="text-base font-bold text-primary truncate">
+            {formatPrice(Math.round((totalPrice + (moldFee || 0) + (expressFeeCost || 0) + (shippingExtra || 0)) * 1.1))}
+          </p>
+        </div>
+        <button
+          onClick={onAddToCart}
+          disabled={isCtaDisabled}
+          className="shrink-0 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          🛒 カートに追加
+        </button>
+      </div>
+      {/* Spacer to prevent mobile content overlap with the fixed CTA */}
+      <div className="lg:hidden h-16" aria-hidden="true" />
+
       {complexityBlock && (
         <div className="rounded-xl border-2 border-red-300 bg-red-50 p-4 flex items-start gap-3">
           <span className="text-red-500 text-lg shrink-0">⚠️</span>

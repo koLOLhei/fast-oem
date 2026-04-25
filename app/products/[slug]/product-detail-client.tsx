@@ -224,7 +224,12 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   // Determine if this product needs a second (back) design upload
-  const needsBackDesign = selectedOptions['double_sided'] === 'double' && selectedOptions['second_design'] === 'different'
+  // Back design upload needed when:
+  //  (a) double-sided printing with different back design, OR
+  //  (b) back_print=within_frame (rear side has its own image inside the front frame)
+  const needsBackDesign =
+    (selectedOptions['double_sided'] === 'double' && selectedOptions['second_design'] === 'different') ||
+    selectedOptions['back_print'] === 'within_frame'
 
   const handleOptionChange = (optionId: string, valueId: string) => {
     setSelectedOptions((prev) => {
