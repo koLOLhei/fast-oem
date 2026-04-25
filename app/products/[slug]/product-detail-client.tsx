@@ -334,6 +334,15 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       return false
     }
 
+    // Back-print conditional validation: if back_print=text, back_text must be filled
+    if (selectedOptions['back_print'] === 'text') {
+      const backText = (selectedOptions['back_text'] || '').trim()
+      if (!backText) {
+        setValidationError('裏面テキストを入力してください（テキスト印刷を選択中）')
+        return false
+      }
+    }
+
     const options = Object.entries(selectedOptions)
       .filter(([id, valueId]) => {
         const option = product.options.find((o) => o.id === id)

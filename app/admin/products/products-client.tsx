@@ -1324,6 +1324,7 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                             <option value="dropdown">ドロップダウン (dropdown)</option>
                             <option value="checkbox">チェックボックス（複数選択）</option>
                             <option value="number">数値入力</option>
+                            <option value="text">テキスト入力（自由記述）</option>
                             <option value="color">カラーピッカー</option>
                         </select>
                         <label className="flex items-center gap-1 text-[10px]">
@@ -1428,6 +1429,36 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                                         </div>
                                     </div>
                                     <p className="text-[10px] text-muted-foreground">数値入力型では選択肢（values）は使用しません。</p>
+                                </div>
+                            )}
+
+                            {/* Text type settings */}
+                            {opt.type === 'text' && (
+                                <div className="rounded-lg border bg-purple-50/50 p-3 space-y-2 mb-3">
+                                    <h4 className="text-xs font-semibold text-purple-700">テキスト入力設定</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">プレースホルダー</label>
+                                            <input
+                                                type="text"
+                                                className={smallInput}
+                                                value={opt.textPlaceholder ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'textPlaceholder', e.target.value || undefined)}
+                                                placeholder="例: ©YourName 2026"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-muted-foreground block mb-0.5">最大文字数</label>
+                                            <input
+                                                type="number"
+                                                className={smallInput}
+                                                value={opt.textMaxLength ?? ''}
+                                                onChange={(e) => updateOption(opt.id, 'textMaxLength', e.target.value ? parseInt(e.target.value) : undefined)}
+                                                placeholder="80"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">テキスト入力型では選択肢（values）は使用しません。ユーザーが自由に文字入力します。</p>
                                 </div>
                             )}
 
