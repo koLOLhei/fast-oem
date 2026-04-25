@@ -227,6 +227,28 @@ export function ProductPreview({
                     className="w-full h-full object-contain drop-shadow-xl"
                     style={borderPx > 0 ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
                   />
+                  {/* 鏡像配置（同じデザインを裏面）プレビュー */}
+                  {backPrint === 'same_shape' && (
+                    <img
+                      src={designImage}
+                      alt="裏面（鏡像）"
+                      className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                      style={{
+                        transform: 'scaleX(-1)',
+                        opacity: 0.35,
+                        mixBlendMode: 'multiply',
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {/* 裏面テキスト プレビュー */}
+                  {backPrint === 'text' && backText && (
+                    <div className="absolute inset-x-0 bottom-2 text-center pointer-events-none">
+                      <span className="inline-block px-2 py-0.5 bg-white/85 text-foreground text-xs font-medium rounded shadow-sm border border-border max-w-[80%] truncate">
+                        裏：{backText}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <ShapeMask shapeId={selectedShape}>
