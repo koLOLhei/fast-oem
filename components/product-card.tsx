@@ -1,8 +1,5 @@
-'use client'
-
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
 import { ArrowRight, Package } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,20 +23,18 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const lowestPrice = lastTier?.unitPrice
   const lowestQuantity = lastTier?.minQuantity
   const color = cardColors[index % cardColors.length]
-  const [imgError, setImgError] = useState(false)
 
   return (
     <Link href={`/products/${product.slug}`} className="block group">
       <Card className={`overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-3 border-4 ${color.border} bg-white h-full rounded-3xl`}>
         <div className="aspect-[4/3] relative overflow-hidden">
-          {!imgError && product.imageUrl ? (
+          {product.imageUrl ? (
             <Image
               src={product.imageUrl}
               alt={`${product.name} - OEM製作・オリジナルグッズ | FAST OEM`}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-110"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              onError={() => setImgError(true)}
             />
           ) : (
             <div className={`w-full h-full ${color.light} flex items-center justify-center`}>
