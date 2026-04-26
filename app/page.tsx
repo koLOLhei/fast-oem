@@ -261,6 +261,7 @@ export default async function HomePage() {
                         alt="アクリルキーホルダー OEM製作 - 透明アクリル素材にフルカラー印刷、小ロット50個（缶バッジは100個）から対応（缶バッジは100個〜）"
                         fill
                         priority
+                        fetchPriority="high"
                         sizes="(max-width: 1024px) 0px, 25vw"
                         className="object-cover"
                       />

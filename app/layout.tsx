@@ -79,6 +79,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://utwvalzykfxdeuwnebne.supabase.co" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${notoSansJP.variable} font-sans antialiased`}>
