@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight, Building2, Users, Globe, Award, Shield, Clock } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -28,10 +29,7 @@ export default function AboutPage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
-      />
+      <JsonLd data={bcJsonLd} />
 
       {/* Hero */}
       <section className="relative bg-gradient-to-br from-primary/5 via-background to-primary/10 py-20 md:py-28 overflow-hidden">

@@ -62,15 +62,25 @@ export function getJapaneseHolidays(year: number): Set<string> {
     add(3, springEquinoxDay(year))   // 春分の日
     add(9, autumnEquinoxDay(year))   // 秋分の日
 
-    // ── 振替休日: holiday on Sunday → next Monday is substitute holiday ──────
+    // ── 振替休日: holiday on Sunday → next NON-holiday day is the substitute ──
+    // Two correctness points:
+    //  1. Use UTC calendar arithmetic (Date.UTC + getUTC*) so the Sunday check is
+    //     independent of the server timezone. A naive `new Date(str+'T00:00:00+09:00').getDay()`
+    //     reads the weekday in the server's local zone — on Vercel (UTC) that is
+    //     the PREVIOUS calendar day, which silently suppressed every substitute.
+    //  2. Skip consecutive holidays: by law the substitute is the next day that is
+    //     not itself a holiday. For the Golden Week cluster (May 3 Sun, 4, 5) the
+    //     substitute must cascade to May 6, not stop at the already-holiday May 4.
     const base = [...h]
     for (const dateStr of base) {
-        const d = new Date(dateStr + 'T00:00:00+09:00')
-        if (d.getDay() === 0) {
-            const next = new Date(d)
-            next.setDate(next.getDate() + 1)
-            h.add(toKey(next.getFullYear(), next.getMonth() + 1, next.getDate()))
-        }
+        const [y, m, dd] = dateStr.split('-').map(Number)
+        const d = new Date(Date.UTC(y, m - 1, dd))
+        if (d.getUTCDay() !== 0) continue // not Sunday
+        const next = new Date(d)
+        do {
+            next.setUTCDate(next.getUTCDate() + 1)
+        } while (h.has(toKey(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate())))
+        h.add(toKey(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate()))
     }
 
     // ── 国民の休日: non-holiday weekday sandwiched between two holidays ────────

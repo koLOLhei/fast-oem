@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -20,10 +21,7 @@ export default function PrivacyPage() {
     const bcJsonLd = breadcrumbJsonLd([{ name: 'プライバシーポリシー' }])
     return (
         <>
-        <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
-        />
+        <JsonLd data={bcJsonLd} />
         <div className="min-h-screen bg-background py-12">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                 <Breadcrumb items={[{ name: 'プライバシーポリシー' }]} />

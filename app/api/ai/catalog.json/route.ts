@@ -18,7 +18,9 @@ export async function GET() {
     schema: 'fast-oem.catalog.v1',
     generatedAt: new Date().toISOString(),
     currency: 'JPY',
-    taxIncluded: false,
+    // Prices are tax-inclusive: Stripe charges the raw yen amounts with no
+    // separate tax line, and the storefront labels every total 税込.
+    taxIncluded: true,
     site: 'https://fast-oem.soara-mu.jp',
     leadTime: {
       standardBusinessDays: { min: 15, max: 30 },

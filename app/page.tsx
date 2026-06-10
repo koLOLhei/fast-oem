@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProductCard } from '@/components/product-card'
 import { getProductsFromDb } from '@/lib/products-db'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -201,10 +202,7 @@ export default async function HomePage() {
   const products = await getProductsFromDb()
   return (
     <div className="bg-background overflow-hidden">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationJsonLd, websiteJsonLd, siteNavigationJsonLd]) }}
-      />
+      <JsonLd data={[organizationJsonLd, websiteJsonLd, siteNavigationJsonLd]} />
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center bg-[#fdfbf6] overflow-hidden">
         {/* Subtle background decoration */}

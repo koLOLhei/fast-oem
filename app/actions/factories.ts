@@ -113,7 +113,7 @@ export async function deleteFactory(factoryId: string): Promise<ActionResult> {
     const supabase = createServiceClient()
 
     // 注文アイテム・ユーザーが紐づいている場合は削除不可
-    const [{ count: itemCount }, { count: userCount }] = await Promise.all([
+    const [{ count: itemCount, error: itemErr }, { count: userCount, error: userErr }] = await Promise.all([
         supabase
             .from('order_items')
             .select('*', { count: 'exact', head: true })
@@ -123,6 +123,15 @@ export async function deleteFactory(factoryId: string): Promise<ActionResult> {
             .select('*', { count: 'exact', head: true })
             .eq('factory_id', factoryId),
     ])
+
+    // If a dependency count failed, `count` is null and the > 0 guards below
+    // would silently pass — deleting a factory whose order_items would then be
+    // orphaned (factory_id set NULL by the FK). Treat unknown counts as a hard
+    // stop rather than risk data loss.
+    if (itemErr || userErr) {
+        console.error('[deleteFactory] dependency check failed:', itemErr?.message, userErr?.message)
+        return { error: '依存データの確認に失敗しました。時間をおいて再度お試しください。' }
+    }
 
     if ((itemCount ?? 0) > 0) {
         return { error: 'この工場には注文アイテムが存在するため削除できません。先に工場の割り当てを解除してください。' }

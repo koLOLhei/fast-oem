@@ -98,10 +98,18 @@ export async function GET(request: Request) {
           `back_delivery_pdf_url.ilike.%${p}`,
           `back_converted_design_url.ilike.%${p}`,
         ])
-        const { data } = await supabase
+        const { data, error: refError } = await supabase
           .from('order_items')
           .select('design_url, converted_design_url, delivery_pdf_url, back_design_url, back_delivery_pdf_url, back_converted_design_url')
           .or(batchConditions.join(','))
+        // CRITICAL: a failed batch (transient DB error, malformed filter) would
+        // contribute ZERO referenced filenames, causing genuinely-referenced
+        // files to be classified safe-to-delete and IRREVERSIBLY removed. Never
+        // delete when the reference set is known-incomplete — abort the run.
+        if (refError) {
+          console.error('[cleanup] reference cross-check failed — aborting before any deletion:', refError.message)
+          return NextResponse.json({ error: 'Reference check failed; cleanup aborted to avoid deleting referenced files.' }, { status: 500 })
+        }
         if (data) referencedItems = referencedItems.concat(data)
       }
 

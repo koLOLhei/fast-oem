@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Calendar, Clock } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { articles, categoryColors, getArticleBySlug, AUTHORS } from '@/lib/blog-articles'
 import { User } from 'lucide-react'
+import { JsonLd } from '@/components/json-ld'
 
 /** Render markdown-style [link](/url) as safe React <Link> nodes. */
 function renderLinks(text: string): React.ReactNode {
@@ -146,10 +147,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(allJsonLd) }}
-      />
+      <JsonLd data={allJsonLd} />
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ name: 'コラム', href: '/blog' }, { name: article.title }]} />

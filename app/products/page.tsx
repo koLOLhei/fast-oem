@@ -5,6 +5,7 @@ import { ProductCard } from '@/components/product-card'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { getProductsFromDb } from '@/lib/products-db'
 import { type Product } from '@/lib/products'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -72,10 +73,7 @@ export default async function ProductsPage() {
 
   return (
     <>
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, itemListJsonLd]) }}
-    />
+    <JsonLd data={[bcJsonLd, itemListJsonLd]} />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}

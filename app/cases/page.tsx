@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Users, Building2, Heart, Star, Quote } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -86,10 +87,7 @@ export default function CasesPage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcJsonLd) }}
-      />
+      <JsonLd data={bcJsonLd} />
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ name: '製作事例' }]} />

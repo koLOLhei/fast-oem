@@ -26,13 +26,16 @@ export default async function MyOrderDetailPage({
     const serviceClient = createServiceClient()
     const email = (user.email ?? '').toLowerCase()
     let order: OrderDetail | null = null
-    const primary = await serviceClient
+    // Two scoped lookups instead of interpolating the email into a PostgREST
+    // .or() group (filter-injection risk on the RLS-bypassing service client).
+    const byUser = await serviceClient
         .from('orders')
         .select(`*, order_items(*), access_token, user_id`)
         .eq('id', id)
-        .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
+        .eq('user_id', user.id)
         .maybeSingle()
-    if (primary.error && (primary.error as { code?: string }).code === '42703') {
+    if (byUser.error && (byUser.error as { code?: string }).code === '42703') {
+        // user_id column missing → legacy email-only fallback.
         const fb = await serviceClient
             .from('orders')
             .select(`*, order_items(*), access_token`)
@@ -41,7 +44,18 @@ export default async function MyOrderDetailPage({
             .maybeSingle()
         order = (fb.data ?? null) as OrderDetail | null
     } else {
-        order = (primary.data ?? null) as OrderDetail | null
+        order = (byUser.data ?? null) as OrderDetail | null
+        if (!order) {
+            // Legacy guest order: user_id NULL and email matches the signed-in user.
+            const byEmail = await serviceClient
+                .from('orders')
+                .select(`*, order_items(*), access_token, user_id`)
+                .eq('id', id)
+                .is('user_id', null)
+                .eq('customer_info->>email', email)
+                .maybeSingle()
+            order = (byEmail.data ?? null) as OrderDetail | null
+        }
     }
 
     if (!order) notFound()

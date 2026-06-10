@@ -10,8 +10,13 @@ import { Ratelimit } from '@upstash/ratelimit'
 
 /** Routes subject to rate limiting. Stripe webhooks are intentionally excluded.
  * `/admin` is included so admin form-action POSTs are throttled (form actions
- * hit the admin page URL, not `/api/admin`). */
-const RATE_LIMITED_PREFIXES = ['/checkout', '/admin', '/api/admin', '/api/receipts', '/api/invoices', '/api/orders', '/login', '/signup', '/reset-password'] as const
+ * hit the admin page URL, not `/api/admin`).
+ * `/api/ai` and `/api/mcp` mint real DB orders + Stripe sessions on every call
+ * and are otherwise unauthenticated, so they MUST be throttled (the per-email
+ * cap inside startCheckoutSession is bypassable by varying the email).
+ * `/contact` is included so the public contact form (a server action POSTing to
+ * the page URL) can't be used to flood outbound email. */
+const RATE_LIMITED_PREFIXES = ['/checkout', '/admin', '/api/admin', '/api/ai', '/api/mcp', '/api/receipts', '/api/invoices', '/api/orders', '/contact', '/login', '/signup', '/reset-password'] as const
 
 /**
  * Pre-parsed IP allowlist entries from ADMIN_ALLOWED_IPS env var.

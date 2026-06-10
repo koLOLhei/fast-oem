@@ -34,8 +34,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const savedCart = localStorage.getItem(CART_STORAGE_KEY)
       if (savedCart) {
-        const parsedCart = JSON.parse(savedCart) as Cart
-        setCart(parsedCart)
+        // Validate shape before trusting it: a syntactically-valid but malformed
+        // value (null, [], {}, legacy/tampered data) would otherwise leave
+        // cart.items undefined and crash every consumer that does cart.items.map.
+        // Recompute totals from items so stale/absent totals can't desync.
+        const parsed: unknown = JSON.parse(savedCart)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Array.isArray((parsed as Cart).items)) {
+          const items = (parsed as Cart).items
+          setCart({ items, ...calculateCartTotals(items) })
+        }
       }
     } catch {
       console.error('Failed to load cart from localStorage')

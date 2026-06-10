@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle, Building2, Award, Truck, FileText } from 'luci
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { getProductsFromDb } from '@/lib/products-db'
 import { ProductCard } from '@/components/product-card'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -58,10 +59,7 @@ export default async function NoveltyPage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, serviceJsonLd]) }}
-      />
+      <JsonLd data={[bcJsonLd, serviceJsonLd]} />
       <div className="bg-background min-h-screen">
         {/* Hero */}
         <section className="bg-gradient-to-br from-[#1e3a5f]/5 via-[#00c8c8]/5 to-[#ffe135]/5 py-16 md:py-24">

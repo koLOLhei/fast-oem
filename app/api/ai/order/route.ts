@@ -186,7 +186,19 @@ export async function POST(req: NextRequest) {
   // and return a completed order. Otherwise, fall back to hosted checkout URL.
   const authHeader = req.headers.get('authorization') ?? ''
   const agentKey = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : null
-  const agentOffSession = agentKey ? await tryOffSessionCharge(agentKey, cartItems, shippingAddress).catch((e) => {
+  // Off-session auto-charging is DISABLED unless AGENT_OFF_SESSION_ENABLED=true.
+  // The standalone PaymentIntent below charges the saved card, but order
+  // fulfillment — confirmation email, design-image processing, factory/Slack
+  // notification, mold-reuse detection — runs ONLY in the Supabase stripe-webhook
+  // on `checkout.session.completed`, which this path never fires. Enabling it as
+  // written would bill the customer's card WITHOUT fulfilling the order. Re-enable
+  // only after (a) a `payment_intent.succeeded` fulfillment handler exists in
+  // supabase/functions/stripe-webhook and (b) the daily-cap is enforced atomically
+  // in the DB (a SELECT-sum then charge is racy across concurrent requests).
+  // Until then the agent flow falls back to the hosted Checkout URL, which
+  // fulfills correctly via the existing webhook.
+  const offSessionEnabled = process.env.AGENT_OFF_SESSION_ENABLED === 'true'
+  const agentOffSession = (agentKey && offSessionEnabled) ? await tryOffSessionCharge(agentKey, cartItems, shippingAddress).catch((e) => {
     console.error('[ai.order] off-session charge path error:', e)
     return null
   }) : null
@@ -302,9 +314,24 @@ async function tryOffSessionCharge(
     agentKeyId: keyRow.id,
   })
 
-  // Fetch the amount_total the session was created with (authoritative).
+  // Fetch the amount_total the session was created with (authoritative — this
+  // is exactly what will be charged and stored as orders.total_price, and it
+  // INCLUDES shipping, which the pre-session estimate above omits).
   const session = await stripe.checkout.sessions.retrieve(result.sessionId)
   const amountTotal = session.amount_total ?? approxTotal
+
+  // Re-enforce the daily cap against the authoritative charge amount. The
+  // earlier estimate excluded shipping/modifiers, so a borderline order could
+  // slip past it. NOTE: this is still not atomic across concurrent requests —
+  // true enforcement requires a DB transaction (see route gating comment).
+  if (spentToday + amountTotal > (keyRow.daily_cap_jpy ?? 0)) {
+    try { await supabase.from('orders').delete().eq('id', result.dbOrderId) } catch { /* best-effort cleanup */ }
+    return {
+      ok: false,
+      error: `Daily spending cap exceeded (cap=¥${keyRow.daily_cap_jpy}, spent=¥${spentToday}, requested=¥${amountTotal}).`,
+      status: 402,
+    }
+  }
 
   try {
     const pi = await stripe.paymentIntents.create({

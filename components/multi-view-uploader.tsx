@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ImageUploader } from '@/components/image-uploader'
 import { type DesignImageEntry } from '@/lib/cart'
 
@@ -34,6 +34,26 @@ export function MultiViewUploader({
     }
     return initial
   })
+
+  // Per-view editable preview blob URLs, owned here so they survive the
+  // per-view ImageUploader remount on tab switch (the uploader is keyed by
+  // activeViewId). Each blob is the ORIGINAL uploaded image, so seeding it back
+  // restores in-place editing without re-compositing. Revoked on unmount.
+  const [viewPreviewUrls, setViewPreviewUrls] = useState<Record<string, string | null>>({})
+  const viewPreviewUrlsRef = useRef(viewPreviewUrls)
+  viewPreviewUrlsRef.current = viewPreviewUrls
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(viewPreviewUrlsRef.current)) {
+        if (url) URL.revokeObjectURL(url)
+      }
+    }
+  }, [])
+  const handleViewPreviewUrlChange = useCallback((viewId: string, url: string | null) => {
+    // The uploader revokes the previous blob before reporting a new one, so we
+    // only need to track the latest URL per view here.
+    setViewPreviewUrls((prev) => ({ ...prev, [viewId]: url }))
+  }, [])
 
   const computeAndNotify = useCallback(
     (nextStates: Record<string, ViewState>) => {
@@ -138,6 +158,9 @@ export function MultiViewUploader({
           currentFileName={viewStates[activeViewId]?.fileName ?? null}
           selectedShape={selectedShape}
           onPreviewChange={handleViewPreviewChange}
+          seedPreviewUrl={viewPreviewUrls[activeViewId] ?? null}
+          onPreviewUrlChange={(url) => handleViewPreviewUrlChange(activeViewId, url)}
+          initiallyConfirmed={isViewCompleted(activeViewId)}
         />
       )}
     </div>

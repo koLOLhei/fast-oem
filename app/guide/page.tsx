@@ -2,6 +2,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { BookOpen, ArrowRight, HelpCircle, Palette, Upload, CheckCircle, Truck } from 'lucide-react'
 import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -191,10 +192,7 @@ export default function GuidePage() {
   const bcJsonLd = bcJsonLdFn([{ name: 'グッズ製作ガイド' }])
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([howToJsonLd, faqJsonLd, bcJsonLd]) }}
-      />
+      <JsonLd data={[howToJsonLd, faqJsonLd, bcJsonLd]} />
 
       <div className="py-12 md:py-16 bg-background min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

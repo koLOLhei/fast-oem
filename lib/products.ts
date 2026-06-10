@@ -806,7 +806,12 @@ export function calculateUnitPrice(
     base = tier.unitPrice
   } else if (product.priceTiers.length === 0) {
     return 0
-  } else if (quantity < product.minQuantity) {
+  } else if (quantity < product.priceTiers[0].minQuantity) {
+    // Below the first tier → charge the first (highest) tier, mirroring the
+    // server (app/actions/stripe.ts:computeUnitPrice). Using product.minQuantity
+    // here instead diverged whenever minQuantity < priceTiers[0].minQuantity:
+    // the client under-quoted (cheapest tier) while the server charged the first
+    // tier, so the customer was billed more than displayed.
     base = product.priceTiers[0].unitPrice
   } else {
     base = product.priceTiers[product.priceTiers.length - 1].unitPrice
@@ -827,10 +832,17 @@ export function calculateUnitPrice(
     const option = product.options.find((o) => o.id === optionId)
     if (!option) continue
 
-    // number type: input value × pricePerUnit counts as additive
+    // number type: input value × pricePerUnit counts as additive.
+    // Mirror the server (app/actions/stripe.ts:computeUnitPrice) exactly —
+    // require finite and within [numberMin, numberMax] — so an out-of-range or
+    // non-finite value yields the same price client-side and server-side.
     if (option.type === 'number' && option.pricePerUnit) {
       const num = parseFloat(selectedValue)
-      if (!isNaN(num)) addTotal += Math.round(num * option.pricePerUnit)
+      const min = option.numberMin ?? 0
+      const max = option.numberMax ?? 100_000
+      if (!isNaN(num) && isFinite(num) && num >= min && num <= max) {
+        addTotal += Math.round(num * option.pricePerUnit)
+      }
       continue
     }
 

@@ -32,7 +32,7 @@ export async function GET() {
   lines.push('')
   lines.push(`更新日: ${new Date().toISOString().split('T')[0]}`)
   lines.push('')
-  lines.push('価格は税抜・円建て。サイズ修飾子は multiply（倍率）、add（加算）のどちらか。')
+  lines.push('価格は税込・円建て。サイズ修飾子は multiply（倍率）、add（加算）のどちらか。')
   lines.push('')
 
   for (const p of active) {

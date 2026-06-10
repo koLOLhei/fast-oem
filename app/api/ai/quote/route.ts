@@ -23,8 +23,8 @@
  *     "shippingFee": 8000,
  *     "subtotal": 68000,
  *     "taxRate": 0.1,
- *     "taxAmount": 6800,
- *     "grandTotal": 74800,
+ *     "taxAmount": 6182,
+ *     "grandTotal": 68000,
  *     "checkoutUrl": "https://fast-oem.soara-mu.jp/products/acrylic-keychain?quantity=500&...",
  *     "leadTimeDays": { "min": 15, "max": 30 },
  *     "notes": [...]
@@ -166,9 +166,13 @@ export async function POST(req: NextRequest) {
   const baseShipping = calculateShippingByQuantity(quantity)
   const shippingFee = (express ? calculateExpressShipping(baseShipping) : baseShipping) + shippingModifier
 
+  // Prices are tax-INCLUSIVE: Stripe charges exactly `subtotal` (no tax line,
+  // no automatic_tax) and the storefront labels totals 税込. So the grand total
+  // IS the subtotal; taxAmount is the consumption tax already embedded within it
+  // (subtotal − subtotal/1.1), reported for the customer's invoice breakdown.
   const subtotal = itemsTotal + moldFee + shippingFee
-  const taxAmount = Math.round(subtotal * TAX_RATE)
-  const grandTotal = subtotal + taxAmount
+  const taxAmount = Math.round(subtotal - subtotal / (1 + TAX_RATE))
+  const grandTotal = subtotal
 
   const checkoutUrl = new URL(`https://fast-oem.soara-mu.jp/products/${product.slug}`)
   checkoutUrl.searchParams.set('quantity', String(quantity))

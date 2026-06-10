@@ -32,19 +32,27 @@ export function AgentAccessClient({ userEmail }: Props) {
   const [freshSecret, setFreshSecret] = useState<{ id: string; secret: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [cardSetupForKey, setCardSetupForKey] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   async function refresh() {
     setLoading(true)
+    // try/catch (not just finally): a non-JSON error response (HTML 500, gateway
+    // error) makes res.json() reject; bare refresh() in useEffect would otherwise
+    // become an unhandled promise rejection.
     try {
       const res = await fetch('/api/mypage/agent-keys')
+      if (!res.ok) { setLoadError('キーの読み込みに失敗しました。時間をおいて再度お試しください。'); return }
       const json = await res.json()
       setKeys(json.keys ?? [])
+      setLoadError('')
+    } catch {
+      setLoadError('キーの読み込みに失敗しました。時間をおいて再度お試しください。')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => { void refresh() }, [])
 
   async function createKey() {
     if (creating) return
@@ -55,14 +63,17 @@ export function AgentAccessClient({ userEmail }: Props) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: newKeyName || 'Default Agent Key', dailyCapJpy: Number(newKeyCap) || 100000 }),
       })
-      const json = await res.json()
       if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
         alert('作成失敗: ' + (json.error ?? 'unknown'))
         return
       }
+      const json = await res.json()
       setFreshSecret({ id: json.id, secret: json.secret })
       setNewKeyName('')
       await refresh()
+    } catch {
+      alert('作成に失敗しました。通信状態を確認して再度お試しください。')
     } finally {
       setCreating(false)
     }
@@ -77,12 +88,17 @@ export function AgentAccessClient({ userEmail }: Props) {
 
   async function revoke(keyId: string) {
     if (!confirm('このキーを無効化します。AI エージェントが使用できなくなります。よろしいですか？')) return
-    await fetch('/api/mypage/agent-keys/revoke', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ agentKeyId: keyId }),
-    })
-    await refresh()
+    try {
+      const res = await fetch('/api/mypage/agent-keys/revoke', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ agentKeyId: keyId }),
+      })
+      if (!res.ok) { alert('無効化に失敗しました。'); return }
+      await refresh()
+    } catch {
+      alert('無効化に失敗しました。通信状態を確認して再度お試しください。')
+    }
   }
 
   return (
@@ -95,6 +111,12 @@ export function AgentAccessClient({ userEmail }: Props) {
             AIエージェント (Claude / GPT など) に自動発注させるための API キーを発行します。カードを事前登録すれば、エージェントが注文すると自動で決済が完了します。
           </p>
         </div>
+
+        {loadError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {loadError}
+          </div>
+        )}
 
         {/* Info card */}
         <Card className="border-blue-200 bg-blue-50/50">

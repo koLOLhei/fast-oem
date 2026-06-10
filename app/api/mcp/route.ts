@@ -24,6 +24,10 @@
  * are fast enough that streaming adds no value.
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { POST as aiOrderPOST } from '@/app/api/ai/order/route'
+import { POST as aiQuotePOST } from '@/app/api/ai/quote/route'
+import { GET as aiShippingGET } from '@/app/api/ai/shipping/route'
+import { GET as aiCatalogGET } from '@/app/api/ai/catalog.json/route'
 
 export const runtime = 'nodejs'
 
@@ -162,19 +166,33 @@ const TOOLS = [
   },
 ] as const
 
-// ── Tool implementations (fetch the public REST endpoints) ─────────────────
-async function fetchJson(url: string, init?: RequestInit) {
-  const res = await fetch(url, init)
-  const contentType = res.headers.get('content-type') ?? ''
-  const text = await res.text()
-  if (!res.ok) {
-    return { ok: false as const, status: res.status, body: text, contentType }
-  }
-  if (contentType.includes('json')) {
-    try { return { ok: true as const, status: res.status, json: JSON.parse(text) } }
-    catch { return { ok: false as const, status: res.status, body: text, contentType } }
-  }
-  return { ok: true as const, status: res.status, json: text }
+// ── Tool implementations ────────────────────────────────────────────────────
+// Invoke the AI route handlers IN-PROCESS rather than fetching the public URL.
+// A self-fetch to ${BASE}/api/ai/* would re-enter the Vercel edge and run
+// middleware again; because the inner request carries the platform egress IP
+// (not the agent's), the shared /api/ai rate-limit bucket would collapse all
+// MCP traffic onto one key and 429 the agent channel under modest load.
+// Calling the handler directly avoids the second middleware pass entirely while
+// keeping /api/ai rate-limited for genuinely external callers.
+function normalizeRes(res: Response) {
+  return res.text().then((text) => {
+    const contentType = res.headers.get('content-type') ?? ''
+    if (!res.ok) return { ok: false as const, status: res.status, body: text, contentType }
+    if (contentType.includes('json')) {
+      try { return { ok: true as const, status: res.status, json: JSON.parse(text) } }
+      catch { return { ok: false as const, status: res.status, body: text, contentType } }
+    }
+    return { ok: true as const, status: res.status, json: text as unknown }
+  })
+}
+
+async function callHandler(
+  handler: (req: NextRequest) => Promise<Response> | Response,
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: string },
+) {
+  const req = new NextRequest(url, init)
+  return normalizeRes(await handler(req))
 }
 
 async function runTool(
@@ -184,14 +202,14 @@ async function runTool(
 ): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
   try {
     if (name === 'get_catalog') {
-      const r = await fetchJson(`${BASE}/api/ai/catalog.json`)
+      const r = await callHandler(aiCatalogGET, `${BASE}/api/ai/catalog.json`)
       return {
         content: [{ type: 'text', text: JSON.stringify(r.ok ? r.json : { error: r.body }, null, 2) }],
         isError: !r.ok,
       }
     }
     if (name === 'get_quote') {
-      const r = await fetchJson(`${BASE}/api/ai/quote`, {
+      const r = await callHandler(aiQuotePOST, `${BASE}/api/ai/quote`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(args),
@@ -206,7 +224,7 @@ async function runTool(
         quantity: String(args.quantity),
         express: args.express ? 'true' : 'false',
       })
-      const r = await fetchJson(`${BASE}/api/ai/shipping?${q.toString()}`)
+      const r = await callHandler(aiShippingGET, `${BASE}/api/ai/shipping?${q.toString()}`)
       return {
         content: [{ type: 'text', text: JSON.stringify(r.ok ? r.json : { error: r.body }, null, 2) }],
         isError: !r.ok,
@@ -222,7 +240,7 @@ async function runTool(
       if (authHeader) headers.authorization = authHeader
       else if (inlineKey) headers.authorization = `Bearer ${inlineKey}`
 
-      const r = await fetchJson(`${BASE}/api/ai/order`, {
+      const r = await callHandler(aiOrderPOST, `${BASE}/api/ai/order`, {
         method: 'POST',
         headers,
         body: JSON.stringify(bodyArgs),

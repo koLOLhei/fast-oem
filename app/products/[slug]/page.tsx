@@ -8,6 +8,7 @@ import { getProductBySlugFromDb, getRelatedProducts } from '@/lib/products-db'
 import { ProductDetailClient } from './product-detail-client'
 
 import { getProductsFromDb } from '@/lib/products-db'
+import { JsonLd } from '@/components/json-ld'
 
 export const revalidate = 60
 
@@ -149,10 +150,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
 
       {/* Visible Breadcrumb */}
       <div className="bg-muted/30 border-b border-border">

@@ -44,8 +44,32 @@ export async function POST(req: NextRequest) {
       email: user.email ?? undefined,
       metadata: { agent_key_id: agentKeyId, user_id: user.id },
     })
-    customerId = customer.id
-    await svc.from('agent_api_keys').update({ stripe_customer_id: customerId }).eq('id', agentKeyId)
+    // Atomic claim: only persist when stripe_customer_id is still NULL. Without
+    // the `.is(null)` guard, two concurrent "save card" requests would each
+    // create a Customer and the second update would clobber the first, orphaning
+    // a Stripe Customer (and any card later attached to it).
+    const { data: claimed } = await svc
+      .from('agent_api_keys')
+      .update({ stripe_customer_id: customer.id })
+      .eq('id', agentKeyId)
+      .is('stripe_customer_id', null)
+      .select('stripe_customer_id')
+      .maybeSingle()
+    if (claimed?.stripe_customer_id === customer.id) {
+      customerId = customer.id
+    } else {
+      // A concurrent request won the race — reuse the persisted customer and
+      // discard the one we just created so it doesn't dangle.
+      const { data: fresh } = await svc
+        .from('agent_api_keys')
+        .select('stripe_customer_id')
+        .eq('id', agentKeyId)
+        .maybeSingle()
+      customerId = fresh?.stripe_customer_id ?? customer.id
+      if (customerId !== customer.id) {
+        try { await stripe.customers.del(customer.id) } catch { /* best-effort cleanup */ }
+      }
+    }
   }
 
   const si = await stripe.setupIntents.create({

@@ -24,28 +24,32 @@ export default async function MypagePage() {
     // email-only matching so the page still renders.
     const serviceClient = createServiceClient()
     const email = (user.email ?? '').toLowerCase()
-    const [profileRes, ordersRes] = await Promise.all([
-        serviceClient
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single(),
-        serviceClient
-            .from('orders')
-            .select(`*, order_items(product_name, quantity)`)
-            .or(`user_id.eq.${user.id},and(user_id.is.null,customer_info->>email.eq.${email})`)
-            .order('created_at', { ascending: false }),
+    const ordersSelect = `*, order_items(product_name, quantity)`
+    // Run two SCOPED queries instead of string-building a PostgREST .or() with the
+    // user email interpolated into an and(...) group. Splicing the email into
+    // filter syntax (as before) risked filter-injection on the RLS-bypassing
+    // service client — `.eq()` passes the value as a safely-encoded parameter.
+    const [profileRes, byUserRes, byEmailRes] = await Promise.all([
+        serviceClient.from('profiles').select('role').eq('id', user.id).single(),
+        serviceClient.from('orders').select(ordersSelect).eq('user_id', user.id).order('created_at', { ascending: false }),
+        serviceClient.from('orders').select(ordersSelect).is('user_id', null).eq('customer_info->>email', email).order('created_at', { ascending: false }),
     ])
     const { data: profile } = profileRes
-    let orders = ordersRes.data
-    if (!orders && (ordersRes.error as { code?: string })?.code === '42703') {
-        // user_id column missing → migration not applied yet. Legacy fallback.
+    let orders: typeof byUserRes.data
+    if ((byUserRes.error as { code?: string })?.code === '42703') {
+        // user_id column missing → migration not applied yet. Legacy email-only fallback.
         const fb = await serviceClient
             .from('orders')
-            .select(`*, order_items(product_name, quantity)`)
+            .select(ordersSelect)
             .eq('customer_info->>email', email)
             .order('created_at', { ascending: false })
         orders = fb.data
+    } else {
+        // Merge both result sets, de-dupe by id, newest first.
+        const seen = new Set<string>()
+        orders = [...(byUserRes.data ?? []), ...(byEmailRes.data ?? [])]
+            .filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     }
 
     // Redirect staff roles to their own portals — prevents accidental /mypage access

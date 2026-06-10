@@ -627,10 +627,19 @@ serve(async (req: Request) => {
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string,
         )
 
-        // True idempotency via event.id — the previous amount-based guard broke
-        // on multiple partial refunds of equal cumulative total.
-        const { alreadyProcessed } = await markEventProcessed(supabase, event)
-        if (alreadyProcessed) {
+        // Idempotency via event.id — but we intentionally do NOT *claim* the
+        // event until the DB write succeeds. Claiming first (the old behaviour)
+        // permanently swallowed the refund whenever the order row wasn't
+        // updatable yet — e.g. a refund delivered before checkout.session.completed
+        // set orders.payment_intent_id — because every Stripe re-delivery would
+        // then short-circuit on the already-recorded event id. Here we only READ
+        // first, and mark processed after a confirmed update.
+        const { data: priorEvent } = await supabase
+          .from('webhook_events')
+          .select('event_id')
+          .eq('event_id', event.id)
+          .maybeSingle()
+        if (priorEvent) {
           console.log(`[charge.refunded] ${event.id} already processed — skipping`)
         } else {
         // First fetch the current order status to avoid regressing shipped/completed orders
@@ -645,6 +654,8 @@ serve(async (req: Request) => {
         const alreadyRecorded = currentOrder?.refunded_amount === refundedAmount
         if (alreadyRecorded) {
           console.log(`[charge.refunded] Duplicate event for payment_intent ${paymentIntentId} — skipping (amount=${refundedAmount})`)
+          // Claim it now so we stop reprocessing this steady-state event.
+          await markEventProcessed(supabase, event)
         } else {
           // Determine the new status: full refund → 'refunded', partial refund → keep current status
           // Never regress from processing/shipped/completed back to 'paid'
@@ -666,19 +677,29 @@ serve(async (req: Request) => {
           if (refundErr || !refundedOrder) {
             console.error(`[charge.refunded] Failed to update order for payment_intent ${paymentIntentId}:`, refundErr)
             await sendAdminAlert(
-              '返金記録失敗',
-              `payment_intent_id: ${paymentIntentId}\n返金額: ¥${refundedAmount.toLocaleString('en')}\n注文が見つからないか更新失敗。手動確認が必要です。`,
+              '返金記録失敗（再試行されます）',
+              `payment_intent_id: ${paymentIntentId}\n返金額: ¥${refundedAmount.toLocaleString('en')}\n注文がまだ見つからないため記録できませんでした。Stripeが自動的に再送します。`,
             )
+            // Do NOT mark processed. Return 5xx so Stripe retries with backoff —
+            // by the next delivery the order's payment_intent_id should exist.
+            return new Response('Refund not yet applicable — will retry', { status: 503 })
           } else {
-            const orderNumber = refundedOrder.order_number ?? refundedOrder.id
-            const label = isFullRefund ? '全額返金' : '一部返金'
-            console.log(`[${orderNumber}] ${label} 記録: ¥${refundedAmount}`)
-            await sendSlackMessage(
-              `💸 *${label}* 注文番号: ${orderNumber}\n` +
-              `返金額: ¥${refundedAmount.toLocaleString('en-US')}\n` +
-              `合計: ¥${(refundedOrder.total_price ?? 0).toLocaleString('en-US')}\n` +
-              `Stripe charge ID: ${charge.id}`,
-            )
+            // Success — claim the event id so re-deliveries are idempotent, and
+            // only notify if THIS delivery won the claim. Concurrent duplicate
+            // deliveries both apply the (idempotent, absolute) update, so the
+            // claim is the single arbiter that prevents a double Slack alert.
+            const { alreadyProcessed } = await markEventProcessed(supabase, event)
+            if (!alreadyProcessed) {
+              const orderNumber = refundedOrder.order_number ?? refundedOrder.id
+              const label = isFullRefund ? '全額返金' : '一部返金'
+              console.log(`[${orderNumber}] ${label} 記録: ¥${refundedAmount}`)
+              await sendSlackMessage(
+                `💸 *${label}* 注文番号: ${orderNumber}\n` +
+                `返金額: ¥${refundedAmount.toLocaleString('en-US')}\n` +
+                `合計: ¥${(refundedOrder.total_price ?? 0).toLocaleString('en-US')}\n` +
+                `Stripe charge ID: ${charge.id}`,
+              )
+            }
           }
         }
         } // end event.id idempotency else-branch

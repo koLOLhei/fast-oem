@@ -463,11 +463,15 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
   // ── Step 1: Insert pending order into DB FIRST ──────────────────────────────
   let order: any = null
   let orderError: any = null
-  // If the user_id column hasn't been migrated yet in this environment, fall
-  // back to inserting without it (guest-style). This keeps checkout working
-  // for the window between code deploy and DB migration apply.
+  // If an optional column (user_id, agent_key_id) hasn't been migrated yet in
+  // this environment, fall back to inserting without it. This keeps checkout
+  // working for the window between code deploy and DB migration apply.
+  // agent_key_id MUST be persisted when present — the agent off-session daily
+  // spending cap is computed by summing orders WHERE agent_key_id = key; if it
+  // is not written the cap silently sums zero and never enforces.
   let skipUserId = false
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  let skipAgentKeyId = false
+  for (let attempt = 1; attempt <= 5; attempt++) {
     const payload: Record<string, unknown> = {
       stripe_session_id: `tmp_${orderId}`,
       order_number: orderId,
@@ -478,6 +482,7 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
       status: 'pending',
     }
     if (authenticatedUserId && !skipUserId) payload.user_id = authenticatedUserId
+    if (agentKeyId && !skipAgentKeyId) payload.agent_key_id = agentKeyId
 
     const result = await supabase
       .from('orders')
@@ -487,13 +492,21 @@ export async function startCheckoutSession(data: CheckoutSessionData) {
     order = result.data
     orderError = result.error
     if (!orderError) break
-    // 42703 = undefined_column — migration not yet applied
-    if (orderError.code === '42703' && !skipUserId) {
-      console.warn('[checkout] user_id column not found (migration pending); falling back to guest-style insert')
-      skipUserId = true
-      continue
+    // 42703 = undefined_column — migration not yet applied. Drop the newest
+    // optional column first (agent_key_id), then user_id, retrying each time.
+    if (orderError.code === '42703') {
+      if (agentKeyId && !skipAgentKeyId) {
+        console.warn('[checkout] agent_key_id column not found (migration pending); inserting without it')
+        skipAgentKeyId = true
+        continue
+      }
+      if (!skipUserId) {
+        console.warn('[checkout] user_id column not found (migration pending); falling back to guest-style insert')
+        skipUserId = true
+        continue
+      }
     }
-    if (orderError.code === '23505' && attempt < 3) {
+    if (orderError.code === '23505' && attempt < 5) {
       orderId = generateOrderId()
       console.warn(`[order_number collision] Retrying with new ID: ${orderId} (attempt ${attempt + 1})`)
       continue

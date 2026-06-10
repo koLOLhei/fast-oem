@@ -152,16 +152,31 @@ export async function applyGlobalPriceAdjustment(percent: number) {
         const tiers = (p.price_tiers as Array<{ minQuantity: number; maxQuantity: number; unitPrice: number }>) ?? []
         return { id: p.id, originalTiers: tiers, newTiers: tiers.map((t) => ({ ...t, unitPrice: Math.max(1, Math.round(t.unitPrice * multiplier)) })) }
     })
+    // IMPORTANT: supabase-js .update() RESOLVES with { error } on a DB failure
+    // (RLS/constraint/transient) — it does NOT reject. So we must inspect the
+    // resolved error field; throwing inside the callback makes allSettled mark
+    // the entry 'rejected' so the rollback logic below actually triggers.
     const results = await Promise.allSettled(
-        updates.map((u) => supabase.from('products').update({ price_tiers: u.newTiers }).eq('id', u.id))
+        updates.map(async (u) => {
+            const { error: updateError } = await supabase.from('products').update({ price_tiers: u.newTiers }).eq('id', u.id)
+            if (updateError) throw updateError
+        })
     )
     const failedIndices = results.flatMap((r, i) => r.status === 'rejected' ? [i] : [])
     if (failedIndices.length > 0) {
-        // Roll back the successfully updated products
+        // Roll back the successfully updated products (also checking resolved errors).
         const successIndices = results.flatMap((r, i) => r.status === 'fulfilled' ? [i] : [])
-        await Promise.allSettled(
-            successIndices.map((i) => supabase.from('products').update({ price_tiers: updates[i].originalTiers }).eq('id', updates[i].id))
+        const rollback = await Promise.allSettled(
+            successIndices.map(async (i) => {
+                const { error: rbError } = await supabase.from('products').update({ price_tiers: updates[i].originalTiers }).eq('id', updates[i].id)
+                if (rbError) throw rbError
+            })
         )
+        const rollbackFailures = rollback.filter((r) => r.status === 'rejected').length
+        console.error(`[applyGlobalPriceAdjustment] ${failedIndices.length}/${list.length} updates failed; rollback failures: ${rollbackFailures}`)
+        if (rollbackFailures > 0) {
+            throw new Error(`価格更新中に${failedIndices.length}件のエラーが発生し、${rollbackFailures}件は元に戻せませんでした。商品価格を確認してください。`)
+        }
         throw new Error(`価格更新中に${failedIndices.length}/${list.length}件でエラーが発生しました。変更はすべて元に戻しました。`)
     }
     revalidateTag('products', 'max')

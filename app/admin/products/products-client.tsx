@@ -209,7 +209,11 @@ export function ProductsClient({ initialProducts, factories }: ProductsClientPro
         startAdj(async () => {
             try {
                 await applyGlobalPriceAdjustment(pct)
-                setAdjMsg('✅ 全商品の価格を更新しました。ページを更新すると反映されます。')
+                // Reload so all in-memory product state (and any open draft) re-seeds
+                // from the DB. Without this, a subsequent edit-save would post the
+                // stale pre-adjustment tiers and silently revert the price change.
+                setAdjMsg('✅ 全商品の価格を更新しました。ページを再読み込みします…')
+                window.location.reload()
             } catch (e: any) {
                 setAdjMsg('❌ ' + (e.message ?? '更新に失敗しました'))
             }
@@ -1475,10 +1479,15 @@ const OptionsTab = React.memo(function OptionsTab({ draft, setDraft }: { draft: 
                                     <div className="grid grid-cols-12 gap-2 items-center">
                                         <div className="col-span-2">
                                             <label className="text-[10px] text-muted-foreground block mb-0.5">ID</label>
+                                            {/* Value IDs are load-bearing (stored on orders, referenced by
+                                                mold/complexity rules) and updateValue has no 'id' case, so
+                                                editing here was silently discarded. Make it read-only to
+                                                avoid the false impression that a rename takes effect. */}
                                             <input
-                                                className={`${smallInput} font-mono text-xs`}
+                                                readOnly
+                                                title="値IDは変更できません（注文・型・複雑度ルールから参照されるため）"
+                                                className={`${smallInput} font-mono text-xs bg-muted/50 text-muted-foreground cursor-not-allowed`}
                                                 value={val.id}
-                                                onChange={(e) => updateValue(opt.id, val.id, 'id', e.target.value)}
                                                 placeholder="id"
                                             />
                                         </div>

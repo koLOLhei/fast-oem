@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle, Heart, Palette, Package, Zap } from 'lucide-re
 import { Breadcrumb, breadcrumbJsonLd } from '@/components/breadcrumb'
 import { getProductsFromDb } from '@/lib/products-db'
 import { ProductCard } from '@/components/product-card'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -58,10 +59,7 @@ export default async function OshikatsuPage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, serviceJsonLd]) }}
-      />
+      <JsonLd data={[bcJsonLd, serviceJsonLd]} />
       <div className="bg-background min-h-screen">
         {/* Hero */}
         <section className="bg-gradient-to-br from-pink-50 via-purple-50/50 to-[#00c8c8]/5 py-16 md:py-24">

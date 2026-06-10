@@ -52,6 +52,7 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: 'Bytespider', allow: ['/', ...AI_ALLOW], disallow: COMMON_DISALLOW },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
-    host: BASE_URL,
+    // The Host directive expects a bare hostname, not a scheme-prefixed URL.
+    host: new URL(BASE_URL).host,
   }
 }

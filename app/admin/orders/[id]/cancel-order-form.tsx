@@ -9,9 +9,13 @@ interface Props {
     orderNumber: string
     status: string
     totalPrice: number
+    /** Sum of NOT-yet-shipped items (line + mold + express). Only meaningful for
+     * partially_shipped orders, where the server refunds this amount — not the
+     * full total. Defaults to totalPrice when omitted. */
+    refundableSubtotal?: number
 }
 
-export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Props) {
+export function CancelOrderForm({ orderId, orderNumber, status, totalPrice, refundableSubtotal }: Props) {
     const [open, setOpen] = useState(false)
     const [reason, setReason] = useState('')
     const [cancellationFee, setCancellationFee] = useState('')
@@ -21,6 +25,10 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
 
     const isCancellable = (CANCELLABLE_STATUSES as readonly string[]).includes(status)
     const needsRefund = status !== 'pending'
+    const isPartiallyShipped = status === 'partially_shipped'
+    // For partially_shipped orders the server refunds only the unshipped items'
+    // value, so the preview/validation must use that subtotal — not totalPrice.
+    const refundBase = isPartiallyShipped && refundableSubtotal != null ? refundableSubtotal : totalPrice
 
     if (!isCancellable) {
         return (
@@ -34,12 +42,12 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
     }
 
     const feeAmount = cancellationFee ? (parseInt(cancellationFee, 10) || 0) : 0
-    const refundAmount = needsRefund ? Math.max(0, totalPrice - feeAmount) : 0
+    const refundAmount = needsRefund ? Math.max(0, refundBase - feeAmount) : 0
 
     const handleCancel = () => {
         if (!reason.trim()) { setError('キャンセル理由を入力してください'); return }
         if (feeAmount < 0) { setError('キャンセル料は0以上を入力してください'); return }
-        if (feeAmount > totalPrice) { setError('キャンセル料は注文金額を超えることはできません'); return }
+        if (feeAmount > refundBase) { setError('キャンセル料は返金対象額を超えることはできません'); return }
         if (!confirmed) { setError('確認チェックボックスにチェックを入れてください'); return }
         setError('')
         startTransition(async () => {
@@ -77,7 +85,13 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 leading-relaxed">
                             <strong>⚠ 返金について</strong><br />
                             この注文はすでに決済済みです（¥{totalPrice.toLocaleString('ja-JP')}）。
-                            キャンセル実行時に Stripe から<strong>全額自動返金</strong>を発行します。
+                            {isPartiallyShipped ? (
+                                <>
+                                    一部の商品が発送済みのため、Stripe からは<strong>未発送分のみ（¥{refundBase.toLocaleString('ja-JP')}）</strong>を返金します。発送済みの商品は返金対象外です。
+                                </>
+                            ) : (
+                                <>キャンセル実行時に Stripe から<strong>全額自動返金</strong>を発行します。</>
+                            )}
                             カード会社の処理により顧客への反映まで数営業日かかる場合があります。
                         </div>
                     )}
@@ -92,7 +106,7 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                                 <input
                                     type="number"
                                     min={0}
-                                    max={totalPrice}
+                                    max={refundBase}
                                     value={cancellationFee}
                                     onChange={(e) => { setCancellationFee(e.target.value); setError('') }}
                                     placeholder="0"
@@ -101,11 +115,11 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
                                 著作権侵害等によるキャンセルの場合、キャンセル料を差し引いた金額を返金します。
-                                0 または空欄で全額返金。
+                                0 または空欄で{isPartiallyShipped ? '未発送分を全額返金' : '全額返金'}。
                             </p>
                             {feeAmount > 0 && (
                                 <p className="text-xs text-amber-800 mt-1 font-semibold">
-                                    返金額: ¥{refundAmount.toLocaleString('ja-JP')}（注文額 ¥{totalPrice.toLocaleString('ja-JP')} − キャンセル料 ¥{feeAmount.toLocaleString('ja-JP')}）
+                                    返金額: ¥{refundAmount.toLocaleString('ja-JP')}（{isPartiallyShipped ? '未発送分' : '注文額'} ¥{refundBase.toLocaleString('ja-JP')} − キャンセル料 ¥{feeAmount.toLocaleString('ja-JP')}）
                                 </p>
                             )}
                         </div>
@@ -139,7 +153,9 @@ export function CancelOrderForm({ orderId, orderNumber, status, totalPrice }: Pr
                             {needsRefund
                                 ? feeAmount > 0
                                     ? `、キャンセル料 ¥${feeAmount.toLocaleString('ja-JP')} を差し引いて ¥${refundAmount.toLocaleString('ja-JP')} を返金する`
-                                    : '、全額返金を発行する'
+                                    : isPartiallyShipped
+                                        ? `、未発送分 ¥${refundBase.toLocaleString('ja-JP')} を返金する`
+                                        : '、全額返金を発行する'
                                 : 'キャンセルする'}ことを確認しました
                         </span>
                     </label>

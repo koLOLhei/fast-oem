@@ -19,6 +19,16 @@ interface ImageUploaderProps {
   aspect?: number
   onPreviewChange?: (dataUrl: string) => void
   onComplexityDetected?: (grade: string) => void
+  /** Parent-owned preview blob URL to seed the canvas with on mount. Used by
+   * the multi-view flow so a view's editable preview survives a tab-switch
+   * remount (the blob is the ORIGINAL image, so re-confirm stays clean). */
+  seedPreviewUrl?: string | null
+  /** Fired when the local preview blob URL changes, handing lifecycle ownership
+   * of the blob to the parent. When provided, this uploader does NOT revoke the
+   * blob on unmount (the parent persists/revokes it across remounts). */
+  onPreviewUrlChange?: (url: string | null) => void
+  /** Seed the confirmed banner when restoring an already-confirmed view. */
+  initiallyConfirmed?: boolean
 }
 
 export function ImageUploader({
@@ -29,28 +39,44 @@ export function ImageUploader({
   aspect = 1,
   onPreviewChange,
   onComplexityDetected,
+  seedPreviewUrl,
+  onPreviewUrlChange,
+  initiallyConfirmed,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
+  const [confirmed, setConfirmed] = useState(initiallyConfirmed ?? false)
   const canvasRef = useRef<DesignCanvasRef>(null)
   // Monotonic counter to discard stale upload results when the user picks a
   // new file before the previous upload resolves.
   const uploadGenerationRef = useRef(0)
 
   // Local blob URL for DesignCanvas preview — never leaves the browser.
-  // The parent stores only the Supabase storage path.
-  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
+  // The parent stores only the Supabase storage path. Seeded from the parent so
+  // a remounted view restores its editable canvas.
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(seedPreviewUrl ?? null)
 
-  // Revoke blob URL on unmount only.
-  // During the component lifetime, handleFile / handleRemove manage revocation.
+  // Set the preview blob URL and, when parent-managed, hand the URL to the
+  // parent so it can persist/revoke it across tab-switch remounts.
+  const onPreviewUrlChangeRef = useRef(onPreviewUrlChange)
+  onPreviewUrlChangeRef.current = onPreviewUrlChange
+  const setPreview = useCallback((url: string | null) => {
+    setLocalPreviewUrl(url)
+    onPreviewUrlChangeRef.current?.(url)
+  }, [])
+
+  // Revoke the blob URL on unmount ONLY when this uploader owns it (standalone
+  // single-view use). When parent-managed, the parent owns the blob lifecycle —
+  // revoking here would break the preview after a tab switch.
   const localPreviewUrlRef = useRef(localPreviewUrl)
   localPreviewUrlRef.current = localPreviewUrl
   useEffect(() => {
     return () => {
-      if (localPreviewUrlRef.current) URL.revokeObjectURL(localPreviewUrlRef.current)
+      if (!onPreviewUrlChangeRef.current && localPreviewUrlRef.current) {
+        URL.revokeObjectURL(localPreviewUrlRef.current)
+      }
     }
   }, [])
 
@@ -84,7 +110,7 @@ export function ImageUploader({
       const oldUrl = localPreviewUrlRef.current
       if (oldUrl) URL.revokeObjectURL(oldUrl)
       const blobUrl = URL.createObjectURL(file)
-      setLocalPreviewUrl(blobUrl)
+      setPreview(blobUrl)
 
       const isStale = () => generation !== uploadGenerationRef.current
 
@@ -117,7 +143,7 @@ export function ImageUploader({
           if (isHollow) {
             setError('中身が空洞のデザインは型抜きで製造できません。空洞のない画像をアップロードしてください。')
             URL.revokeObjectURL(blobUrl)
-            setLocalPreviewUrl(null)
+            setPreview(null)
             // Remove the uploaded file from storage
             await supabase.storage.from('designs').remove([storagePath])
             setIsUploading(false)
@@ -147,7 +173,7 @@ export function ImageUploader({
           setError('画像のアップロードに失敗しました。もう一度お試しください。')
           // Clean up blob URL on failure
           URL.revokeObjectURL(blobUrl)
-          setLocalPreviewUrl(null)
+          setPreview(null)
         } else {
           URL.revokeObjectURL(blobUrl)
         }
@@ -155,7 +181,7 @@ export function ImageUploader({
         if (!isStale()) setIsUploading(false)
       }
     },
-    [onImageSelect, selectedShape, onComplexityDetected],
+    [onImageSelect, selectedShape, onComplexityDetected, setPreview],
   )
 
   const handleConfirmLayout = useCallback(async () => {
@@ -176,11 +202,14 @@ export function ImageUploader({
         throw new Error(`PNGのアップロードに失敗しました: ${pngUploadErr.message}`)
       }
 
-      // Update local preview to the composite image
-      const oldUrl = localPreviewUrlRef.current
-      if (oldUrl) URL.revokeObjectURL(oldUrl)
-      const compositeBlobUrl = URL.createObjectURL(pngBlob)
-      setLocalPreviewUrl(compositeBlobUrl)
+      // Keep DesignCanvas sourced from the ORIGINAL uploaded image — do NOT swap
+      // its source to the exported composite. The export bakes in the frame
+      // border and a flat white background; re-pointing the canvas at it meant a
+      // second 「確定」 (which the UI explicitly invites) drew the composite inside
+      // the frame AGAIN — doubling the border and turning the die-cut transparent
+      // background permanently opaque, corrupting the delivery file. The canvas
+      // already shows a framed live preview from the original, so no swap is
+      // needed; re-confirming now always re-exports from the pristine source.
 
       // Export PDF
       const pdfBlob = await canvasRef.current.exportPDF()
@@ -208,7 +237,7 @@ export function ImageUploader({
   const handleRemove = useCallback(async () => {
     const oldUrl = localPreviewUrlRef.current
     if (oldUrl) URL.revokeObjectURL(oldUrl)
-    setLocalPreviewUrl(null)
+    setPreview(null)
 
     // Delete uploaded file from Supabase Storage to avoid orphans
     if (currentImage) {
@@ -220,7 +249,7 @@ export function ImageUploader({
     onImageSelect(null, null, null)
     setError(null)
     setConfirmed(false)
-  }, [onImageSelect, currentImage])
+  }, [onImageSelect, currentImage, setPreview])
 
   // The image URL to feed into DesignCanvas — always a browser-loadable URL
   const canvasImageUrl = localPreviewUrl
@@ -276,6 +305,42 @@ export function ImageUploader({
           </div>
         </div>
 
+        {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl"><p className="text-sm text-destructive text-center">{error}</p></div>}
+      </div>
+    )
+  }
+
+  // currentImage exists (already uploaded/confirmed for this face) but the live
+  // editable preview is gone — e.g. this uploader was remounted on a multi-view
+  // tab switch, or reopened from the cart. Show a "configured" state instead of
+  // an empty dropzone, which otherwise looks like the upload was lost and leads
+  // users to re-upload (orphaning the prior file).
+  if (currentImage && !canvasImageUrl) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
+          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-green-800">この面のデザインは設定済みです</p>
+            <p className="text-xs text-green-600">変更する場合は画像を選び直してください。</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 max-w-[400px] mx-auto">
+          <label className="w-full">
+            <input
+              type="file" className="sr-only"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+            />
+            <Button variant="outline" asChild className="w-full h-10 rounded-xl"><span>別の画像を選択</span></Button>
+          </label>
+          <Button
+            variant="ghost" size="sm" onClick={handleRemove}
+            className="h-9 rounded-xl text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <X className="h-3.5 w-3.5 mr-1" />削除
+          </Button>
+        </div>
         {error && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl"><p className="text-sm text-destructive text-center">{error}</p></div>}
       </div>
     )

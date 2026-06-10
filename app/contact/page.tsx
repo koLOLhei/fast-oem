@@ -4,6 +4,7 @@ import { Mail, Clock, MessageCircle, ArrowRight, HelpCircle, Package } from 'luc
 import { Button } from '@/components/ui/button'
 import { Breadcrumb, breadcrumbJsonLd as bcJsonLdFn } from '@/components/breadcrumb'
 import ContactForm from './contact-form'
+import { JsonLd } from '@/components/json-ld'
 
 const BASE_URL = 'https://fast-oem.soara-mu.jp'
 
@@ -51,10 +52,7 @@ export default function ContactPage() {
   const bcJsonLd = bcJsonLdFn([{ name: 'お問い合わせ' }], '/contact')
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([bcJsonLd, contactPointJsonLd]) }}
-      />
+      <JsonLd data={[bcJsonLd, contactPointJsonLd]} />
     <div className="py-12 md:py-16 bg-background min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <Breadcrumb items={[{ name: 'お問い合わせ' }]} />

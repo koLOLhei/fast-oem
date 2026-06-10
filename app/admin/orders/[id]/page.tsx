@@ -58,6 +58,11 @@ export default async function OrderDetailPage({
     // `isSafeStorageUrl` still guards against open-redirect, but signed URLs are
     // the primary access control mechanism once the bucket is set to private.
     const rawItems = typedOrder.order_items ?? []
+    // Sum of not-yet-shipped items — this is what adminCancelOrder actually
+    // refunds for partially_shipped orders (mirrors app/actions/factory.ts).
+    const refundableSubtotal = rawItems
+        .filter((i) => i.status !== 'shipped')
+        .reduce((sum, i) => sum + (i.unit_price ?? 0) * (i.quantity ?? 1) + (i.mold_fee ?? 0) + (i.express_delivery_fee ?? 0), 0)
     const allPaths = rawItems.flatMap((item) => [
         item.converted_design_url as string | null,
         item.delivery_pdf_url as string | null,
@@ -258,6 +263,7 @@ export default async function OrderDetailPage({
                 orderNumber={typedOrder.order_number ?? order.id}
                 status={order.status}
                 totalPrice={order.total_price}
+                refundableSubtotal={refundableSubtotal}
             />
 
             {/* Order Items with Factory Assignment */}

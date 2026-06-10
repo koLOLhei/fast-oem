@@ -68,7 +68,10 @@ export function PriceSummary({
         <div className="flex-1 min-w-0">
           <p className="text-[10px] text-muted-foreground leading-tight">合計（税込）</p>
           <p className="text-base font-bold text-primary truncate">
-            {formatPrice(Math.round((totalPriceItems + (moldFee || 0) + (shippingExtra || 0) + (shippingFee || 0)) * 1.1))}
+            {/* Prices are already tax-inclusive — must match the main card
+                (totalPrice + shippingFee) and what Stripe actually charges.
+                The previous *1.1 over-stated the total by 10%. */}
+            {formatPrice(totalPrice + (shippingFee || 0))}
           </p>
         </div>
         <button
