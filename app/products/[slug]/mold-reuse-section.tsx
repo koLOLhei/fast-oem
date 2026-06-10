@@ -33,7 +33,7 @@ export function MoldReuseSection({
     <>
       {/* Prominent repeat order CTA banner */}
       {!moldReuseValid && (
-        <div className="mb-4 rounded-xl border-2 border-[#00c8c8] bg-[#00c8c8]/5 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="mb-4 rounded-xl border-2 border-[#1e73be] bg-[#1e73be]/5 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
             <p className="font-bold text-[#007a7a] text-sm">
               🔁 リピート注文の方（型代免除）はこちら
@@ -48,7 +48,7 @@ export function MoldReuseSection({
               el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
               el?.querySelector('input')?.focus()
             }}
-            className="shrink-0 px-4 py-2 rounded-lg bg-[#00c8c8] text-white text-sm font-bold hover:bg-[#00b0b0] transition-colors"
+            className="shrink-0 px-4 py-2 rounded-lg bg-[#1e73be] text-white text-sm font-bold hover:bg-[#1a66a8] transition-colors"
           >
             注文番号を入力する ↓
           </button>
@@ -57,11 +57,11 @@ export function MoldReuseSection({
 
       <Card
         id="mold-reuse-section"
-        className="mb-8 border-2 border-[#ffe135]/30 bg-gradient-to-r from-[#ffe135]/5 to-transparent"
+        className="mb-8 border-2 border-[#f5a623]/30 bg-gradient-to-r from-[#f5a623]/5 to-transparent"
       >
         <CardContent className="p-6">
           <div className="flex items-start gap-3 mb-4">
-            <Info className="w-5 h-5 text-[#ff7b54] flex-shrink-0 mt-0.5" />
+            <Info className="w-5 h-5 text-[#9a6400] flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="font-semibold text-foreground text-lg mb-2">
                 型代について（初回のみ {formatPrice(moldFee)}）
@@ -95,7 +95,7 @@ export function MoldReuseSection({
                 disabled={
                   !moldOrderId.trim() || !moldEmail.trim() || checkingMold
                 }
-                className="sm:w-auto bg-[#00c8c8] hover:bg-[#00b0b0] text-white"
+                className="sm:w-auto bg-[#1e73be] hover:bg-[#1a66a8] text-white"
               >
                 {checkingMold ? '確認中...' : '型の再利用を確認'}
               </Button>

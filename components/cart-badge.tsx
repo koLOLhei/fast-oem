@@ -24,11 +24,11 @@ export function CartBadge() {
       <Button
         variant="ghost"
         size="icon"
-        className="relative h-11 w-11 rounded-xl hover:bg-[#ffe135]/20 border-2 border-transparent hover:border-[#ffe135]"
+        className="relative h-11 w-11 rounded-xl hover:bg-[#f5a623]/20 border-2 border-transparent hover:border-[#f5a623]"
       >
         <ShoppingCart className="h-6 w-6" />
         {showBadge && (
-          <span className="absolute -top-2 -right-2 bg-[#ff7b54] text-white text-[10px] font-black min-w-[1.25rem] h-5 px-1 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+          <span className="absolute -top-2 -right-2 bg-[#1e73be] text-white text-[10px] font-black min-w-[1.25rem] h-5 px-1 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
             {cart.totalItems > 99 ? '99+' : cart.totalItems}
           </span>
         )}

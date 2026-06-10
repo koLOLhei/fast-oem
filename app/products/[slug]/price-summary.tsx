@@ -82,8 +82,6 @@ export function PriceSummary({
           🛒 カートに追加
         </button>
       </div>
-      {/* Spacer to prevent mobile content overlap with the fixed CTA */}
-      <div className="lg:hidden h-16" aria-hidden="true" />
 
       {complexityBlock && (
         <div className="rounded-xl border-2 border-red-300 bg-red-50 p-4 flex items-start gap-3">
@@ -117,7 +115,7 @@ export function PriceSummary({
                   <p className="text-sm text-muted-foreground">
                     型代（初回のみ）
                   </p>
-                  <p className="text-lg font-semibold text-[#ff7b54]">
+                  <p className="text-lg font-semibold text-[#9a6400]">
                     {formatPrice(moldFee)}
                   </p>
                 </div>

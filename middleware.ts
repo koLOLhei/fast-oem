@@ -197,7 +197,15 @@ export async function middleware(request: NextRequest) {
     // blocked, and the endpoint self-protects via signature verification.
     const isRateLimitedRoute = RATE_LIMITED_PREFIXES.some((p) => pathname.startsWith(p))
 
-    if (isRateLimitedRoute && await isRateLimited(clientIp)) {
+    // API routes are throttled on every method. For page routes, only throttle
+    // MUTATING requests (form/server-action POSTs) — plain GET/HEAD browsing of
+    // /contact, /login, /checkout, etc. must not consume the shared per-IP budget,
+    // or normal navigation could trip the limiter.
+    const method = request.method
+    const isApiRoute = pathname.startsWith('/api/')
+    const shouldRateLimit = isRateLimitedRoute && (isApiRoute || (method !== 'GET' && method !== 'HEAD'))
+
+    if (shouldRateLimit && await isRateLimited(clientIp)) {
         return new NextResponse('Too Many Requests', {
             status: 429,
             headers: { 'Retry-After': '60' },

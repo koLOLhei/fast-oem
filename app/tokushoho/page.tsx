@@ -86,7 +86,7 @@ export default function TokushohoPage() {
         </div>
 
         <p className="text-xs text-muted-foreground mt-8 text-center">
-          ご不明な点は <a href="mailto:contact@soara-mu.com" className="text-[#00c8c8] hover:underline">contact@soara-mu.com</a> までお問い合わせください。
+          ご不明な点は <a href="mailto:contact@soara-mu.com" className="text-[#1e73be] hover:underline">contact@soara-mu.com</a> までお問い合わせください。
         </p>
       </div>
     </div>

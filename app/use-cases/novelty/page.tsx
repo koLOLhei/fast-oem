@@ -62,7 +62,7 @@ export default async function NoveltyPage() {
       <JsonLd data={[bcJsonLd, serviceJsonLd]} />
       <div className="bg-background min-h-screen">
         {/* Hero */}
-        <section className="bg-gradient-to-br from-[#1e3a5f]/5 via-[#00c8c8]/5 to-[#ffe135]/5 py-16 md:py-24">
+        <section className="bg-gradient-to-br from-[#1e3a5f]/5 via-[#1e73be]/5 to-[#f5a623]/5 py-16 md:py-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <Breadcrumb items={[{ name: '企業ノベルティ製作' }]} />
             <div className="text-center">
@@ -72,7 +72,7 @@ export default async function NoveltyPage() {
               </div>
               <h1 className="text-3xl md:text-5xl font-black text-foreground leading-tight">
                 企業ノベルティ・販促グッズ製作
-                <span className="block text-[#00c8c8] mt-2">小ロット対応・領収書発行可</span>
+                <span className="block text-[#1e73be] mt-2">小ロット対応・領収書発行可</span>
               </h1>
               <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 展示会・キャンペーン・社内イベント向けのオリジナルノベルティを簡単に製作。
@@ -81,7 +81,7 @@ export default async function NoveltyPage() {
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-[#00c8c8] hover:bg-[#00b0b0] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg transition-all hover:-translate-y-1"
+                  className="inline-flex items-center justify-center gap-2 bg-[#1e73be] hover:bg-[#1a66a8] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg transition-all hover:-translate-y-1"
                 >
                   商品を選んで作成開始
                   <ArrowRight className="h-5 w-5" />
@@ -104,8 +104,8 @@ export default async function NoveltyPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {benefits.map((b) => (
                 <div key={b.title} className="flex items-start gap-4 p-6 bg-muted/30 rounded-2xl">
-                  <div className="w-12 h-12 rounded-xl bg-[#00c8c8]/10 flex items-center justify-center shrink-0">
-                    <b.icon className="h-6 w-6 text-[#00c8c8]" />
+                  <div className="w-12 h-12 rounded-xl bg-[#1e73be]/10 flex items-center justify-center shrink-0">
+                    <b.icon className="h-6 w-6 text-[#1e73be]" />
                   </div>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{b.title}</h3>
@@ -145,7 +145,7 @@ export default async function NoveltyPage() {
             <div className="text-center mt-10">
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 text-[#00c8c8] font-bold text-lg hover:text-[#00b0b0] transition-colors"
+                className="inline-flex items-center gap-2 text-[#1e73be] font-bold text-lg hover:text-[#1a66a8] transition-colors"
               >
                 すべての商品を見る <ArrowRight className="h-5 w-5" />
               </Link>
@@ -168,20 +168,20 @@ export default async function NoveltyPage() {
               </p>
               <p>
                 インボイス制度に対応した適格請求書（領収書PDF）を注文ページからダウンロードいただけるため、経理処理もスムーズです。
-                大口のご注文や特別なご要望がある場合は、<Link href="/contact" className="text-[#00c8c8] font-bold hover:underline">お問い合わせ</Link>ください。
+                大口のご注文や特別なご要望がある場合は、<Link href="/contact" className="text-[#1e73be] font-bold hover:underline">お問い合わせ</Link>ください。
               </p>
             </div>
           </div>
         </section>
 
         {/* CTA */}
-        <section className="py-16 bg-[#00c8c8]">
+        <section className="py-16 bg-[#1e73be]">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <h2 className="text-2xl md:text-4xl font-black text-white mb-4">ノベルティ製作を始めましょう</h2>
             <p className="text-white/80 mb-8">デザインデータをアップロードするだけ。見積もり不要で簡単に発注できます。</p>
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 bg-white text-[#00c8c8] h-14 px-10 text-lg font-black rounded-full shadow-2xl hover:scale-105 transition-all"
+              className="inline-flex items-center gap-2 bg-white text-[#1e73be] h-14 px-10 text-lg font-black rounded-full shadow-2xl hover:scale-105 transition-all"
             >
               今すぐ作成する <ArrowRight className="h-5 w-5" />
             </Link>

@@ -62,7 +62,7 @@ export default async function OshikatsuPage() {
       <JsonLd data={[bcJsonLd, serviceJsonLd]} />
       <div className="bg-background min-h-screen">
         {/* Hero */}
-        <section className="bg-gradient-to-br from-pink-50 via-purple-50/50 to-[#00c8c8]/5 py-16 md:py-24">
+        <section className="bg-gradient-to-br from-pink-50 via-purple-50/50 to-[#1e73be]/5 py-16 md:py-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <Breadcrumb items={[{ name: '推し活グッズ製作' }]} />
             <div className="text-center">

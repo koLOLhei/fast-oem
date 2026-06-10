@@ -23,8 +23,8 @@ const cases = [
   {
     icon: Users,
     category: '同人サークル',
-    color: 'bg-[#ff7b54]/10 text-[#ff7b54]',
-    borderColor: 'border-[#ff7b54]/30',
+    color: 'bg-[#f5a623]/10 text-[#9a6400]',
+    borderColor: 'border-[#f5a623]/30',
     title: 'コミケ頒布用アクリルキーホルダー',
     product: 'アクリルキーホルダー',
     quantity: '50個',
@@ -35,8 +35,8 @@ const cases = [
   {
     icon: Building2,
     category: '企業ノベルティ',
-    color: 'bg-[#00c8c8]/10 text-[#00c8c8]',
-    borderColor: 'border-[#00c8c8]/30',
+    color: 'bg-[#1e73be]/10 text-[#1e73be]',
+    borderColor: 'border-[#1e73be]/30',
     title: '展示会配布用ピンバッジ',
     product: 'ピンバッジ',
     quantity: '200個',
@@ -59,8 +59,8 @@ const cases = [
   {
     icon: Users,
     category: '同人サークル',
-    color: 'bg-[#ff7b54]/10 text-[#ff7b54]',
-    borderColor: 'border-[#ff7b54]/30',
+    color: 'bg-[#f5a623]/10 text-[#9a6400]',
+    borderColor: 'border-[#f5a623]/30',
     title: 'オンリーイベント向けラバーキーホルダー',
     product: 'ラバーキーホルダー',
     quantity: '100個',
@@ -71,8 +71,8 @@ const cases = [
   {
     icon: Building2,
     category: '企業ノベルティ',
-    color: 'bg-[#00c8c8]/10 text-[#00c8c8]',
-    borderColor: 'border-[#00c8c8]/30',
+    color: 'bg-[#1e73be]/10 text-[#1e73be]',
+    borderColor: 'border-[#1e73be]/30',
     title: '店舗キャンペーン用アクリルキーホルダー',
     product: 'アクリルキーホルダー',
     quantity: '500個',
@@ -94,7 +94,7 @@ export default function CasesPage() {
 
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#ffe135]/20 rounded-full text-[#b8a000] text-sm font-bold mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#f5a623]/20 rounded-full text-[#92400e] text-sm font-bold mb-4">
               <Star className="h-4 w-4" />
               CASES
             </div>
@@ -133,7 +133,7 @@ export default function CasesPage() {
                   {/* Feedback */}
                   <div className="bg-muted/30 rounded-xl p-5">
                     <div className="flex items-start gap-3">
-                      <Quote className="h-5 w-5 text-[#ffe135] shrink-0 mt-0.5" />
+                      <Quote className="h-5 w-5 text-[#9a6400] shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm text-foreground/80 leading-relaxed italic">{c.feedback}</p>
                         <p className="text-xs text-muted-foreground mt-3 font-medium">--- {c.person}</p>
@@ -147,7 +147,7 @@ export default function CasesPage() {
 
           {/* CTA */}
           <div className="mt-16 text-center">
-            <div className="inline-block p-8 bg-gradient-to-br from-[#ff7b54]/5 to-[#00c8c8]/5 rounded-3xl border border-primary/20">
+            <div className="inline-block p-8 bg-gradient-to-br from-[#f5a623]/5 to-[#1e73be]/5 rounded-3xl border border-primary/20">
               <h3 className="text-xl font-bold text-foreground mb-2">あなたもオリジナルグッズを作りませんか？</h3>
               <p className="text-muted-foreground text-sm mb-6">
                 商品を選んでデザインをアップロードするだけ。小ロット50個〜対応（缶バッジは100個〜）。
@@ -155,7 +155,7 @@ export default function CasesPage() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   href="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-11 px-6 rounded-xl font-bold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-[#1e73be] hover:bg-[#1a66a8] text-white h-11 px-6 rounded-xl font-bold transition-colors"
                 >
                   商品を選んで作成開始 <ArrowRight className="h-4 w-4" />
                 </Link>

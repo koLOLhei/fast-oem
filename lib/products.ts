@@ -5,6 +5,12 @@ export interface PriceTier {
   discountPercent?: number
 }
 
+// Must match MAX_CHECKBOX_VALUES in lib/validation.ts. The server caps the
+// number of selected checkbox values it prices (DoS/overflow guard); the client
+// pricing helpers below must apply the SAME cap so the displayed/quoted price
+// matches what checkout actually charges.
+const MAX_CHECKBOX_VALUES = 50
+
 export interface PriceModifier {
   type: 'add' | 'multiply'
   value: number // 'add': extra yen per unit, 'multiply': multiplier (e.g. 1.2 = +20%)
@@ -854,7 +860,7 @@ export function calculateUnitPrice(
     }
 
     if (option.type === 'checkbox' || option.multiSelect) {
-      for (const id of selectedValue.split(',').filter(Boolean)) {
+      for (const id of selectedValue.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)) {
         collectFromValue(option.values.find((v) => v.id === id || v.label === id))
       }
       continue
@@ -949,7 +955,7 @@ export function calculateMoldFee(
 
     // checkbox: check all selected values
     if (option.type === 'checkbox' || option.multiSelect) {
-      for (const id of selectedValue.split(',').filter(Boolean)) {
+      for (const id of selectedValue.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)) {
         const val = option.values.find((v) => v.id === id || v.label === id)
         if (val?.requiresMold) {
           anyRequiresMold = true
@@ -995,7 +1001,7 @@ export function calculateShippingModifier(
     }
 
     if (option.type === 'checkbox' || option.multiSelect) {
-      for (const id of selectedValue.split(',').filter(Boolean)) {
+      for (const id of selectedValue.split(',').filter(Boolean).slice(0, MAX_CHECKBOX_VALUES)) {
         collectModifier(option.values.find((v) => v.id === id || v.label === id))
       }
     } else {

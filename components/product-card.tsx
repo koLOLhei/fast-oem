@@ -5,88 +5,74 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { type Product, formatPrice } from '@/lib/products'
 
-const cardColors = [
-  { border: 'border-[#00c8c8]', bg: 'bg-[#00c8c8]', light: 'bg-[#00c8c8]/10' },
-  { border: 'border-[#ffe135]', bg: 'bg-[#ffe135]', light: 'bg-[#ffe135]/20' },
-  { border: 'border-[#ff7b54]', bg: 'bg-[#ff7b54]', light: 'bg-[#ff7b54]/10' },
-  { border: 'border-[#7ed957]', bg: 'bg-[#7ed957]', light: 'bg-[#7ed957]/10' },
-  { border: 'border-[#a78bfa]', bg: 'bg-[#a78bfa]', light: 'bg-[#a78bfa]/10' },
-]
-
 interface ProductCardProps {
   product: Product
   index?: number
 }
 
-export function ProductCard({ product, index = 0 }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const lastTier = product.priceTiers.length > 0 ? product.priceTiers[product.priceTiers.length - 1] : null
   const lowestPrice = lastTier?.unitPrice
   const lowestQuantity = lastTier?.minQuantity
-  const color = cardColors[index % cardColors.length]
 
   return (
     <Link href={`/products/${product.slug}`} className="block group">
-      <Card className={`overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-3 border-4 ${color.border} bg-white h-full rounded-3xl`}>
-        <div className="aspect-[4/3] relative overflow-hidden">
+      <Card className="overflow-hidden h-full rounded-2xl border-border bg-card shadow-card transition-all duration-300 group-hover:shadow-float group-hover:-translate-y-1.5 group-hover:border-primary/30 p-0">
+        <div className="aspect-[4/3] relative overflow-hidden bg-muted">
           {product.imageUrl ? (
             <Image
               src={product.imageUrl}
               alt={`${product.name} - OEM製作・オリジナルグッズ | FAST OEM`}
               fill
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
-            <div className={`w-full h-full ${color.light} flex items-center justify-center`}>
-              <Package className="h-16 w-16 text-muted-foreground/40" />
+            <div className="w-full h-full flex items-center justify-center">
+              <Package className="h-14 w-14 text-muted-foreground/30" />
             </div>
           )}
-          {/* Colored badge */}
-          <div className={`absolute top-4 left-4 ${color.bg} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg`}>
-            {product.features[0]}
-          </div>
+          {product.features[0] && (
+            <span className="absolute top-3 left-3 bg-background/90 backdrop-blur text-primary text-xs font-bold px-3 py-1.5 rounded-full shadow-card ring-1 ring-border">
+              {product.features[0]}
+            </span>
+          )}
         </div>
-        <CardContent className="p-6">
-          <h3 className="font-black text-xl text-foreground group-hover:text-[#00c8c8] transition-colors">
+
+        <CardContent className="p-5">
+          <h3 className="font-bold text-lg text-foreground tracking-tight group-hover:text-primary transition-colors">
             {product.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
             {product.shortDescription}
           </p>
 
-          {/* Price Display */}
           {lowestPrice != null && (
-            <div className={`mt-4 pt-4 border-t-2 border-dashed ${color.border}/30`}>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-[#ff7b54]">
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xs text-muted-foreground font-medium">1個</span>
+                <span className="text-2xl font-extrabold text-foreground tracking-tight">
                   {formatPrice(lowestPrice)}
                 </span>
-                <span className="text-sm text-muted-foreground font-medium">〜/個</span>
+                <span className="text-sm text-muted-foreground font-medium">〜</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {lowestQuantity}個以上の場合
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {lowestQuantity}個以上のご注文時（税込）
               </p>
             </div>
           )}
 
-          {/* Features Tags */}
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex flex-wrap gap-1.5 mt-4">
             {product.features.slice(1, 4).map((feature) => (
-              <span
-                key={feature}
-                className={`px-3 py-1.5 ${color.light} text-foreground text-xs rounded-full font-medium`}
-              >
+              <span key={feature} className="px-2.5 py-1 bg-secondary text-secondary-foreground text-xs rounded-md font-medium">
                 {feature}
               </span>
             ))}
           </div>
 
-          {/* CTA */}
-          <Button
-            className={`w-full mt-5 h-12 rounded-xl ${color.bg} hover:opacity-90 text-white font-bold text-base transition-all shadow-lg`}
-          >
-            作成する
-            <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+          <Button className="w-full mt-5 h-11 rounded-lg bg-primary hover:bg-brand-blue-dark text-primary-foreground font-bold transition-colors">
+            この商品を作成
+            <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
         </CardContent>
       </Card>

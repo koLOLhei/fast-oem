@@ -59,7 +59,7 @@ export default function ContactPage() {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00c8c8]/10 rounded-full text-[#00c8c8] text-sm font-bold mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1e73be]/10 rounded-full text-[#1e73be] text-sm font-bold mb-4">
             <Mail className="h-4 w-4" />
             CONTACT
           </div>
@@ -81,8 +81,8 @@ export default function ContactPage() {
           <div className="grid sm:grid-cols-2 gap-3">
             {topics.map((t) => (
               <div key={t.label} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-                <div className="w-8 h-8 rounded-lg bg-[#00c8c8]/10 flex items-center justify-center shrink-0">
-                  <t.icon className="h-4 w-4 text-[#00c8c8]" />
+                <div className="w-8 h-8 rounded-lg bg-[#1e73be]/10 flex items-center justify-center shrink-0">
+                  <t.icon className="h-4 w-4 text-[#1e73be]" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-foreground">{t.label}</p>
@@ -94,7 +94,7 @@ export default function ContactPage() {
         </div>
 
         {/* Email fallback card */}
-        <div className="bg-gradient-to-br from-[#00c8c8] to-[#0099a0] rounded-2xl p-6 md:p-8 text-white shadow-lg mb-8">
+        <div className="bg-gradient-to-br from-[#1e73be] to-[#0099a0] rounded-2xl p-6 md:p-8 text-white shadow-lg mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Mail className="h-5 w-5" />
             <span className="text-sm font-bold opacity-80">メールでのお問い合わせ</span>
@@ -127,7 +127,7 @@ export default function ContactPage() {
         </div>
 
         {/* お問い合わせ時に記載いただくと便利な情報 */}
-        <div className="bg-[#ffe135]/10 border border-[#ffe135]/30 rounded-2xl p-6 mb-8">
+        <div className="bg-[#f5a623]/10 border border-[#f5a623]/30 rounded-2xl p-6 mb-8">
           <h2 className="font-bold text-foreground mb-3">
             ✉️ メール送信時にご記載いただくと、よりスムーズにご対応できます
           </h2>

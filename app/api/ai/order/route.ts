@@ -349,8 +349,11 @@ async function tryOffSessionCharge(
       },
     })
 
-    // Link PI back to the order so the webhook (checkout.session.completed)
-    // finalizes the same row.
+    // Record the PaymentIntent on the order. NOTE: a standalone off-session
+    // PaymentIntent does NOT fire checkout.session.completed, so the webhook's
+    // fulfillment side effects (email / image processing / factory notify) do
+    // NOT run for this path — this is exactly why AGENT_OFF_SESSION_ENABLED is
+    // off by default (see the gating comment at the top of POST).
     await supabase
       .from('orders')
       .update({ payment_intent_id: pi.id, status: 'paid' })

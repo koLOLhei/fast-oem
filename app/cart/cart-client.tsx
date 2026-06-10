@@ -188,7 +188,7 @@ export function CartClient() {
                               {formatPrice(item.unitPrice)} x {item.quantity}個
                             </p>
                             {item.moldFee && item.moldFee > 0 && (
-                              <p className="text-xs text-[#ff7b54] font-medium mt-1">
+                              <p className="text-xs text-[#9a6400] font-medium mt-1">
                                 + 型代 {formatPrice(item.moldFee)}
                                 {item.moldOrderId && ' (再利用)'}
                               </p>

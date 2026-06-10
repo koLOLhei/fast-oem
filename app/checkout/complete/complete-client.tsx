@@ -145,11 +145,11 @@ export function CompleteClient() {
         )}
 
         {/* Status URL */}
-        <Card className="mb-6 border-[#00c8c8]/40 bg-[#00c8c8]/5">
+        <Card className="mb-6 border-[#1e73be]/40 bg-[#1e73be]/5">
           <CardContent className="p-6 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#00c8c8]/20 flex items-center justify-center flex-shrink-0">
-                <ExternalLink className="h-4 w-4 text-[#00c8c8]" />
+              <div className="w-8 h-8 rounded-full bg-[#1e73be]/20 flex items-center justify-center flex-shrink-0">
+                <ExternalLink className="h-4 w-4 text-[#1e73be]" />
               </div>
               <div>
                 <p className="font-semibold text-foreground text-sm">注文状況の確認URL</p>
@@ -171,7 +171,7 @@ export function CompleteClient() {
                   <input
                     readOnly
                     value={statusUrl}
-                    className="flex-1 text-xs font-mono bg-white border border-[#00c8c8]/30 rounded-lg px-3 py-2 text-foreground truncate"
+                    className="flex-1 text-xs font-mono bg-white border border-[#1e73be]/30 rounded-lg px-3 py-2 text-foreground truncate"
                     onFocus={(e) => e.target.select()}
                   />
                   <button
@@ -180,14 +180,14 @@ export function CompleteClient() {
                       setCopiedUrl(true)
                       setTimeout(() => setCopiedUrl(false), 2000)
                     }}
-                    className="shrink-0 px-3 py-2 text-xs font-medium bg-[#00c8c8] hover:bg-[#00b0b0] text-white rounded-lg transition"
+                    className="shrink-0 px-3 py-2 text-xs font-medium bg-[#1e73be] hover:bg-[#1a66a8] text-white rounded-lg transition"
                   >
                     {copiedUrl ? '✓ コピー済み' : 'コピー'}
                   </button>
                 </div>
                 <Link
                   href={statusUrl}
-                  className="inline-flex items-center gap-1 text-xs text-[#00c8c8] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-[#1e73be] hover:underline"
                 >
                   注文状況を今すぐ確認する
                   <ExternalLink className="h-3 w-3" />
@@ -203,11 +203,11 @@ export function CompleteClient() {
 
         {/* Mold re-use notice */}
         {hasMoldItems && (
-          <Card className="mb-6 border-[#ff7b54]/30 bg-[#ff7b54]/5">
+          <Card className="mb-6 border-[#f5a623]/30 bg-[#f5a623]/5">
             <CardContent className="p-5">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#ff7b54]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <RefreshCw className="h-4 w-4 text-[#ff7b54]" />
+                <div className="w-8 h-8 rounded-full bg-[#f5a623]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <RefreshCw className="h-4 w-4 text-[#9a6400]" />
                 </div>
                 <div>
                   <p className="font-semibold text-foreground text-sm mb-1">金型の再利用について</p>

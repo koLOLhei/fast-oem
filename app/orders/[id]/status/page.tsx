@@ -191,7 +191,7 @@ export default async function OrderStatusPage({
 
                 {/* Estimated delivery */}
                 {displayStatus === 'pending' && (
-                    <div className="rounded-xl border border-[#00c8c8]/40 bg-[#00c8c8]/5 p-4 flex items-center gap-3 text-sm">
+                    <div className="rounded-xl border border-[#1e73be]/40 bg-[#1e73be]/5 p-4 flex items-center gap-3 text-sm">
                         <span className="text-2xl">🚚</span>
                         <div>
                             <p className="text-xs text-muted-foreground">お届け目安</p>
@@ -205,7 +205,7 @@ export default async function OrderStatusPage({
                     </div>
                 )}
                 {!['pending', 'shipped', 'completed', 'cancelled', 'refunded'].includes(displayStatus) && (
-                    <div className="rounded-xl border border-[#00c8c8]/40 bg-[#00c8c8]/5 p-4 flex items-center gap-3 text-sm">
+                    <div className="rounded-xl border border-[#1e73be]/40 bg-[#1e73be]/5 p-4 flex items-center gap-3 text-sm">
                         <span className="text-2xl">🚚</span>
                         <div>
                             <p className="text-xs text-muted-foreground">お届け予定日</p>

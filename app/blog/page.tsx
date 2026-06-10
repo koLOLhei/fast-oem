@@ -48,7 +48,7 @@ export default function BlogPage() {
 
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00c8c8]/10 rounded-full text-[#00c8c8] text-sm font-bold mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1e73be]/10 rounded-full text-[#1e73be] text-sm font-bold mb-4">
               <BookOpen className="h-4 w-4" />
               COLUMN
             </div>

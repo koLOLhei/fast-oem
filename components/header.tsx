@@ -12,54 +12,47 @@ import { CartBadge } from '@/components/cart-badge'
 import { MobileMenu } from '@/components/mobile-menu'
 import { getProductsFromDb } from '@/lib/products-db'
 
+const navLinkClass =
+  'text-foreground/80 hover:text-primary hover:bg-secondary transition-colors h-10 px-3.5 rounded-lg flex items-center text-sm font-semibold'
+
 export async function Header() {
   const products = await getProductsFromDb()
   const productNav = products.map((p) => ({ slug: p.slug, name: p.name }))
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">
+    <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 py-3">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform overflow-hidden">
-              <Image src="/logo.png" alt="FAST OEM logo" width={44} height={44} className="w-full h-full object-contain" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-black text-xl text-foreground leading-none">
-                FAST OEM
-              </span>
-              <span className="text-[10px] text-[#00c8c8] font-bold leading-none mt-1">
-                オリジナルグッズ製作
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <span className="w-10 h-10 rounded-xl bg-white ring-1 ring-border flex items-center justify-center overflow-hidden shadow-card transition-transform group-hover:-translate-y-0.5">
+              <Image src="/logo.png" alt="FAST OEM logo" width={40} height={40} className="w-full h-full object-contain" />
+            </span>
+            <span className="flex flex-col">
+              <span className="font-extrabold text-lg text-foreground leading-none tracking-tight">FAST OEM</span>
+              <span className="text-[10px] text-brand-blue font-bold leading-none mt-1 tracking-wide">オリジナルグッズ製作</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-0.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl font-bold"
-                >
+                <Button variant="ghost" className={`${navLinkClass} gap-1`}>
                   商品一覧
-                  <ChevronDown className="ml-1 h-4 w-4" />
+                  <ChevronDown className="h-4 w-4 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 rounded-xl border-2 border-[#00c8c8]/20">
+              <DropdownMenuContent align="start" className="w-56 rounded-xl border-border shadow-float">
                 <DropdownMenuItem asChild>
-                  <Link href="/products" className="cursor-pointer font-bold text-[#00c8c8]">
+                  <Link href="/products" className="cursor-pointer font-bold text-primary">
                     すべての商品
                   </Link>
                 </DropdownMenuItem>
-                <div className="h-px bg-[#ffe135] my-1" />
+                <div className="h-px bg-border my-1" />
                 {productNav.map((product) => (
                   <DropdownMenuItem key={product.slug} asChild>
-                    <Link
-                      href={`/products/${product.slug}`}
-                      className="cursor-pointer hover:text-[#ff7b54] transition-colors"
-                    >
+                    <Link href={`/products/${product.slug}`} className="cursor-pointer">
                       {product.name}
                     </Link>
                   </DropdownMenuItem>
@@ -67,40 +60,20 @@ export async function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link
-              href="/guide"
-              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
-            >
-              製作ガイド
-            </Link>
-            <Link
-              href="/cases"
-              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
-            >
-              製作事例
-            </Link>
-            <Link
-              href="/blog"
-              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
-            >
-              コラム
-            </Link>
-            <Link
-              href="/contact"
-              className="text-foreground hover:text-[#00c8c8] hover:bg-[#00c8c8]/10 transition-colors h-11 px-4 rounded-xl flex items-center text-sm font-bold"
-            >
-              お問い合わせ
-            </Link>
+            <Link href="/guide" className={navLinkClass}>製作ガイド</Link>
+            <Link href="/cases" className={navLinkClass}>製作事例</Link>
+            <Link href="/blog" className={navLinkClass}>コラム</Link>
+            <Link href="/contact" className={navLinkClass}>お問い合わせ</Link>
           </nav>
 
           {/* Cart & CTA */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             <Link
               href="/mypage"
-              className="hidden md:flex items-center justify-center h-11 w-11 rounded-xl hover:bg-[#00c8c8]/10 transition-colors"
+              className="hidden md:flex items-center justify-center h-10 w-10 rounded-lg text-foreground/70 hover:text-primary hover:bg-secondary transition-colors"
               title="マイページ"
             >
-              <User className="h-5 w-5 text-foreground" />
+              <User className="h-5 w-5" />
               <span className="sr-only">マイページ</span>
             </Link>
 
@@ -108,12 +81,11 @@ export async function Header() {
 
             <Button
               asChild
-              className="hidden sm:flex bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-11 px-6 rounded-xl shadow-lg shadow-[#ff7b54]/30 font-bold border-2 border-white"
+              className="hidden sm:flex bg-primary hover:bg-brand-blue-dark text-primary-foreground h-10 px-5 rounded-lg font-bold shadow-brand"
             >
               <Link href="/products">今すぐ作成</Link>
             </Button>
 
-            {/* Mobile Menu Button + Panel */}
             <MobileMenu products={productNav} />
           </div>
         </div>

@@ -3,75 +3,92 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * FAST OEM design tokens — anchored on the SOARA brand:
+ *   blue  #1E73BE  (primary)
+ *   amber #F5A623  (accent)
+ * Direction: "refined pop" — lively but curated, generous whitespace, one
+ * confident accent, tight consistent radius, soft layered shadows.
+ */
 :root {
-  --background: oklch(0.995 0 0);
-  --foreground: oklch(0.25 0.02 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.02 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.02 240);
-  --primary: oklch(0.7 0.18 195);
-  --primary-foreground: oklch(0.2 0.02 195);
-  --secondary: oklch(0.92 0.15 95);
-  --secondary-foreground: oklch(0.3 0.08 95);
-  --muted: oklch(0.96 0.01 95);
-  --muted-foreground: oklch(0.5 0.02 240);
-  --accent: oklch(0.7 0.16 50);
-  --accent-foreground: oklch(0.25 0.05 50);
-  --destructive: oklch(0.6 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.02 95);
-  --input: oklch(0.96 0.01 95);
-  --ring: oklch(0.7 0.18 195);
-  --chart-1: oklch(0.7 0.18 195);
-  --chart-2: oklch(0.85 0.18 95);
-  --chart-3: oklch(0.7 0.16 50);
-  --chart-4: oklch(0.65 0.18 145);
-  --chart-5: oklch(0.6 0.15 280);
-  --radius: 1rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* ---- SOARA brand scale ---- */
+  --brand-blue: #1e73be;
+  --brand-blue-dark: #1a66a8;
+  --brand-blue-deep: #124e7e;
+  --brand-blue-soft: #eaf2fa;
+  --brand-amber: #f5a623;
+  --brand-amber-dark: #db9112;
+  --brand-amber-soft: #fdf2dc;
+  --brand-ink: #14181f;
+
+  --background: #ffffff;
+  --foreground: #14181f;
+  --card: #ffffff;
+  --card-foreground: #14181f;
+  --popover: #ffffff;
+  --popover-foreground: #14181f;
+  --primary: #1e73be;
+  --primary-foreground: #ffffff;
+  --secondary: #eef4fb;
+  --secondary-foreground: #124e7e;
+  --muted: #f4f6f9;
+  --muted-foreground: #5b6675;
+  --accent: #f5a623;
+  --accent-foreground: #3a2900;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e6eaf0;
+  --input: #e6eaf0;
+  --ring: #1e73be;
+  --chart-1: #1e73be;
+  --chart-2: #f5a623;
+  --chart-3: #2bb4a8;
+  --chart-4: #7c5cff;
+  --chart-5: #ef6f53;
+  --radius: 0.75rem;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #14181f;
+  --sidebar-primary: #1e73be;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef4fb;
+  --sidebar-accent-foreground: #124e7e;
+  --sidebar-border: #e6eaf0;
+  --sidebar-ring: #1e73be;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #0c1014;
+  --foreground: #f2f5f8;
+  --card: #11161c;
+  --card-foreground: #f2f5f8;
+  --popover: #11161c;
+  --popover-foreground: #f2f5f8;
+  --primary: #4aa3e6;
+  --primary-foreground: #061018;
+  --secondary: #1a222b;
+  --secondary-foreground: #cfe1f2;
+  --muted: #1a222b;
+  --muted-foreground: #93a1b2;
+  --accent: #f5a623;
+  --accent-foreground: #241900;
+  --destructive: #f0573f;
+  --destructive-foreground: #ffffff;
+  --border: #232c36;
+  --input: #232c36;
+  --ring: #4aa3e6;
+  --chart-1: #4aa3e6;
+  --chart-2: #f5a623;
+  --chart-3: #2bb4a8;
+  --chart-4: #9d86ff;
+  --chart-5: #ef6f53;
+  --sidebar: #11161c;
+  --sidebar-foreground: #f2f5f8;
+  --sidebar-primary: #4aa3e6;
+  --sidebar-primary-foreground: #061018;
+  --sidebar-accent: #1a222b;
+  --sidebar-accent-foreground: #cfe1f2;
+  --sidebar-border: #232c36;
+  --sidebar-ring: #4aa3e6;
 }
 
 @theme inline {
@@ -101,10 +118,20 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  /* brand helpers usable as bg-brand-amber / text-brand-blue-deep, etc. */
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-blue-deep: var(--brand-blue-deep);
+  --color-brand-blue-soft: var(--brand-blue-soft);
+  --color-brand-amber: var(--brand-amber);
+  --color-brand-amber-dark: var(--brand-amber-dark);
+  --color-brand-amber-soft: var(--brand-amber-soft);
+  --color-brand-ink: var(--brand-ink);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -121,5 +148,62 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--brand-blue) 22%, transparent);
+  }
+}
+
+/* ---- Refined-pop helper utilities (token-driven, brand-safe) ---- */
+@layer components {
+  /* Soft layered card shadow + a stronger floating variant */
+  .shadow-card {
+    box-shadow:
+      0 1px 2px rgb(20 24 31 / 0.04),
+      0 12px 28px -14px rgb(20 24 31 / 0.16);
+  }
+  .shadow-float {
+    box-shadow:
+      0 2px 6px rgb(20 24 31 / 0.05),
+      0 28px 56px -20px rgb(20 24 31 / 0.22);
+  }
+  .shadow-brand {
+    box-shadow: 0 16px 40px -16px color-mix(in oklab, var(--brand-blue) 55%, transparent);
+  }
+
+  /* Brand gradient surfaces / text. Endpoints kept dark enough that white text
+     clears WCAG AA over the whole surface, and the gradient-text amber endpoint
+     is darkened (#9a6400, ~4.97:1 on white) so both halves stay legible. */
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-blue-deep), var(--brand-blue));
+  }
+  .text-gradient-brand {
+    background-image: linear-gradient(120deg, var(--brand-blue), #9a6400);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Subtle dotted grid backdrop for hero / section accents */
+  .bg-dotgrid {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--brand-blue) 16%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+
+  /* Small uppercase eyebrow label */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brand-blue);
   }
 }

@@ -160,7 +160,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full h-12 bg-[#00c8c8] hover:bg-[#00b0b0] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow"
+        className="w-full h-12 bg-[#1e73be] hover:bg-[#1a66a8] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow"
       >
         {isPending ? (
           <>

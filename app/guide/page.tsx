@@ -24,22 +24,22 @@ const products = [
     name: 'アクリルキーホルダー',
     slug: 'acrylic-keychain',
     description: '透明感のあるアクリル素材にフルカラー印刷。推しグッズ・同人グッズの定番アイテム。軽くて丈夫、両面印刷にも対応しています。',
-    color: 'border-[#ffe135]',
-    bg: 'bg-[#ffe135]/10',
+    color: 'border-[#f5a623]',
+    bg: 'bg-[#f5a623]/10',
   },
   {
     name: '缶バッジ',
     slug: 'can-badge',
     description: '鮮やかなフルカラー印刷が映える缶バッジ。イベント・ノベルティ・コレクションに最適。安全ピンタイプで簡単に装着できます。',
-    color: 'border-[#ff7b54]',
-    bg: 'bg-[#ff7b54]/10',
+    color: 'border-[#f5a623]',
+    bg: 'bg-[#f5a623]/10',
   },
   {
     name: 'ピンバッジ',
     slug: 'pin-badge',
     description: '金属の質感が高級感を演出するピンバッジ。企業ノベルティやブランドグッズに人気。エナメル仕上げで美しい発色を実現します。',
-    color: 'border-[#00c8c8]',
-    bg: 'bg-[#00c8c8]/10',
+    color: 'border-[#1e73be]',
+    bg: 'bg-[#1e73be]/10',
   },
   {
     name: 'ラバーキーホルダー',
@@ -166,25 +166,25 @@ const stepsData = [
     icon: Palette,
     title: 'デザイン作成',
     description: 'グッズに印刷するデザイン画像を用意します。PNG・JPG・SVGなど主要な画像形式に対応。解像度は300dpi以上を推奨します。',
-    color: 'bg-[#00c8c8]',
+    color: 'bg-[#1e73be]',
   },
   {
     icon: Upload,
     title: 'アップロード',
     description: '商品ページでデザイン画像をドラッグ＆ドロップでアップロード。プレビューで仕上がりイメージを確認できます。',
-    color: 'bg-[#ffe135]',
+    color: 'bg-[#9a6400]',
   },
   {
     icon: CheckCircle,
     title: '注文・決済',
     description: 'サイズ・数量・オプションを選択し、クレジットカードで安全にお支払い。会員登録なしでもご注文いただけます。',
-    color: 'bg-[#ff7b54]',
+    color: 'bg-[#124e7e]',
   },
   {
     icon: Truck,
     title: 'お届け',
     description: '製造完了後、指定住所へ配送します。通常15〜30営業日（目安3〜4週間）でお届け。特急オプションもご用意しています。',
-    color: 'bg-[#7ed957]',
+    color: 'bg-[#2e7d32]',
   },
 ]
 
@@ -200,7 +200,7 @@ export default function GuidePage() {
 
           {/* Header */}
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#00c8c8]/10 rounded-full text-[#00c8c8] text-sm font-bold mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1e73be]/10 rounded-full text-[#1e73be] text-sm font-bold mb-4">
               <BookOpen className="h-4 w-4" />
               GUIDE
             </div>
@@ -242,7 +242,7 @@ export default function GuidePage() {
                 >
                   <h3 className="text-xl font-bold text-foreground mb-3">{product.name}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">{product.description}</p>
-                  <span className="inline-flex items-center text-sm font-bold text-[#00c8c8]">
+                  <span className="inline-flex items-center text-sm font-bold text-[#1e73be]">
                     詳しく見る <ArrowRight className="ml-1 h-4 w-4" />
                   </span>
                 </Link>
@@ -352,8 +352,8 @@ export default function GuidePage() {
               {faqItems.map((item) => (
                 <div key={item.q} className="bg-white rounded-2xl p-6 border-2 border-foreground/5 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#00c8c8]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <HelpCircle className="h-4 w-4 text-[#00c8c8]" />
+                    <div className="w-8 h-8 rounded-full bg-[#1e73be]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <HelpCircle className="h-4 w-4 text-[#1e73be]" />
                     </div>
                     <div>
                       <h3 className="font-bold text-foreground mb-2">{item.q}</h3>
@@ -367,7 +367,7 @@ export default function GuidePage() {
 
           {/* CTA */}
           <section className="text-center">
-            <div className="bg-gradient-to-br from-[#00c8c8]/10 to-[#ffe135]/10 rounded-2xl p-10 md:p-14 border-2 border-[#00c8c8]/20">
+            <div className="bg-gradient-to-br from-[#1e73be]/10 to-[#f5a623]/10 rounded-2xl p-10 md:p-14 border-2 border-[#1e73be]/20">
               <h2 className="text-2xl md:text-3xl font-black text-foreground mb-4">
                 今すぐグッズを作る
               </h2>
@@ -376,7 +376,7 @@ export default function GuidePage() {
               </p>
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg shadow-[#ff7b54]/20 transition-all hover:shadow-xl hover:-translate-y-1"
+                className="inline-flex items-center gap-2 bg-[#1e73be] hover:bg-[#1a66a8] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg shadow-[#1e73be]/20 transition-all hover:shadow-xl hover:-translate-y-1"
               >
                 商品を選んで作成開始
                 <ArrowRight className="h-5 w-5" />

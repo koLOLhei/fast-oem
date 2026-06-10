@@ -61,7 +61,7 @@ export default function ShippingPage() {
         {/* 納期セクション */}
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-[#00c8c8] rounded-full" />
+            <span className="w-1.5 h-6 bg-[#1e73be] rounded-full" />
             商品別 納期の目安
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
@@ -75,13 +75,13 @@ export default function ShippingPage() {
                   <th className="text-left px-5 py-3 font-bold text-foreground">商品</th>
                   <th className="px-5 py-3 font-bold text-foreground text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Clock className="h-4 w-4 text-[#00c8c8]" />
+                      <Clock className="h-4 w-4 text-[#1e73be]" />
                       標準納期
                     </div>
                   </th>
                   <th className="px-5 py-3 font-bold text-foreground text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Zap className="h-4 w-4 text-[#ff7b54]" />
+                      <Zap className="h-4 w-4 text-[#9a6400]" />
                       特急納期
                     </div>
                   </th>
@@ -94,7 +94,7 @@ export default function ShippingPage() {
                     <td className="px-5 py-4 text-center text-muted-foreground">{p.standard}</td>
                     <td className="px-5 py-4 text-center">
                       {p.expressAvailable ? (
-                        <span className="inline-flex items-center gap-1 text-[#ff7b54] font-medium">
+                        <span className="inline-flex items-center gap-1 text-[#9a6400] font-medium">
                           <Zap className="h-3.5 w-3.5" />
                           {p.express}
                         </span>
@@ -109,8 +109,8 @@ export default function ShippingPage() {
           </div>
 
           {/* 特急オプション説明 */}
-          <div className="mt-4 flex items-start gap-3 p-4 bg-[#ff7b54]/5 border border-[#ff7b54]/20 rounded-xl">
-            <Zap className="h-5 w-5 text-[#ff7b54] shrink-0 mt-0.5" />
+          <div className="mt-4 flex items-start gap-3 p-4 bg-[#f5a623]/5 border border-[#f5a623]/20 rounded-xl">
+            <Zap className="h-5 w-5 text-[#9a6400] shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-bold text-foreground">特急オプションについて</p>
               <p className="text-muted-foreground mt-1">
@@ -125,7 +125,7 @@ export default function ShippingPage() {
         {/* 送料セクション */}
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-[#ffe135] rounded-full" />
+            <span className="w-1.5 h-6 bg-[#f5a623] rounded-full" />
             送料（数量ベース）
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
@@ -150,8 +150,8 @@ export default function ShippingPage() {
             </table>
           </div>
 
-          <div className="mt-4 flex items-start gap-3 p-4 bg-[#ff7b54]/5 border border-[#ff7b54]/20 rounded-xl">
-            <Zap className="h-5 w-5 text-[#ff7b54] shrink-0 mt-0.5" />
+          <div className="mt-4 flex items-start gap-3 p-4 bg-[#f5a623]/5 border border-[#f5a623]/20 rounded-xl">
+            <Zap className="h-5 w-5 text-[#9a6400] shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-bold text-foreground">特急便の送料</p>
               <p className="text-muted-foreground mt-1">
@@ -168,12 +168,12 @@ export default function ShippingPage() {
         {/* 配送業者・方法 */}
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-[#ff7b54] rounded-full" />
+            <span className="w-1.5 h-6 bg-[#f5a623] rounded-full" />
             配送業者・方法
           </h2>
           <div className="p-5 bg-card border border-border rounded-2xl">
             <div className="flex items-start gap-3">
-              <Truck className="h-5 w-5 text-[#ff7b54] shrink-0 mt-0.5" />
+              <Truck className="h-5 w-5 text-[#9a6400] shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-bold text-foreground mb-1">ヤマト運輸・佐川急便（工場による）</p>
                 <p className="text-muted-foreground leading-relaxed">
@@ -188,19 +188,19 @@ export default function ShippingPage() {
         {/* 注文状況の確認 */}
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-[#a78bfa] rounded-full" />
+            <span className="w-1.5 h-6 bg-[#1e73be] rounded-full" />
             注文状況の確認方法
           </h2>
           <div className="space-y-3">
             <div className="flex items-start gap-4 p-4 bg-card border border-border rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] font-black text-sm flex items-center justify-center shrink-0">1</div>
+              <div className="w-8 h-8 rounded-full bg-[#1e73be]/10 text-[#1e73be] font-black text-sm flex items-center justify-center shrink-0">1</div>
               <div className="text-sm">
                 <p className="font-bold text-foreground">注文確認メールを確認</p>
                 <p className="text-muted-foreground">ご注文完了後、ご登録のメールアドレスに注文確認メールをお送りします。</p>
               </div>
             </div>
             <div className="flex items-start gap-4 p-4 bg-card border border-border rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] font-black text-sm flex items-center justify-center shrink-0">2</div>
+              <div className="w-8 h-8 rounded-full bg-[#1e73be]/10 text-[#1e73be] font-black text-sm flex items-center justify-center shrink-0">2</div>
               <div className="text-sm">
                 <p className="font-bold text-foreground">専用URLから注文状況を確認</p>
                 <p className="text-muted-foreground">
@@ -210,7 +210,7 @@ export default function ShippingPage() {
               </div>
             </div>
             <div className="flex items-start gap-4 p-4 bg-card border border-border rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-[#a78bfa]/10 text-[#a78bfa] font-black text-sm flex items-center justify-center shrink-0">3</div>
+              <div className="w-8 h-8 rounded-full bg-[#1e73be]/10 text-[#1e73be] font-black text-sm flex items-center justify-center shrink-0">3</div>
               <div className="text-sm">
                 <p className="font-bold text-foreground">発送時に追跡番号をお知らせ</p>
                 <p className="text-muted-foreground">
@@ -221,12 +221,12 @@ export default function ShippingPage() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-start gap-3 p-4 bg-[#ffe135]/10 border border-[#ffe135]/30 rounded-xl">
+          <div className="mt-4 flex items-start gap-3 p-4 bg-[#f5a623]/10 border border-[#f5a623]/30 rounded-xl">
             <Search className="h-5 w-5 text-foreground/60 shrink-0 mt-0.5" />
             <p className="text-sm text-foreground/80">
               <span className="font-bold">URLを紛失した場合：</span>
               ご注文完了メールを再確認いただくか、注文番号とメールアドレスを添えて
-              <a href="mailto:contact@soara-mu.com" className="text-[#00c8c8] font-bold hover:underline ml-1">contact@soara-mu.com</a>
+              <a href="mailto:contact@soara-mu.com" className="text-[#1e73be] font-bold hover:underline ml-1">contact@soara-mu.com</a>
               までお問い合わせください。
             </p>
           </div>
@@ -235,7 +235,7 @@ export default function ShippingPage() {
         {/* 受け取り・不在時 */}
         <section className="mb-10">
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-[#00c8c8] rounded-full" />
+            <span className="w-1.5 h-6 bg-[#1e73be] rounded-full" />
             受け取りについて
           </h2>
           <div className="p-5 bg-card border border-border rounded-2xl text-sm text-muted-foreground leading-relaxed space-y-2">
@@ -247,8 +247,8 @@ export default function ShippingPage() {
 
         {/* CTA */}
         <div className="mt-12 text-center">
-          <div className="inline-block p-8 bg-gradient-to-br from-[#00c8c8]/5 to-[#00c8c8]/10 rounded-3xl border border-[#00c8c8]/20">
-            <Package className="h-10 w-10 text-[#00c8c8] mx-auto mb-4" />
+          <div className="inline-block p-8 bg-gradient-to-br from-[#1e73be]/5 to-[#1e73be]/10 rounded-3xl border border-[#1e73be]/20">
+            <Package className="h-10 w-10 text-[#1e73be] mx-auto mb-4" />
             <h3 className="text-xl font-bold text-foreground mb-2">ご不明な点はお気軽に</h3>
             <p className="text-muted-foreground text-sm mb-6">
               納期・配送に関するご質問はお問い合わせください
@@ -256,7 +256,7 @@ export default function ShippingPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href="/contact"
-                className="inline-flex items-center justify-center h-11 px-6 rounded-xl bg-[#00c8c8] hover:bg-[#00c8c8]/90 text-white font-bold transition-colors"
+                className="inline-flex items-center justify-center h-11 px-6 rounded-xl bg-[#1e73be] hover:bg-[#1e73be]/90 text-white font-bold transition-colors"
               >
                 お問い合わせ
               </Link>

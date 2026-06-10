@@ -120,7 +120,7 @@ export default function RootLayout({
 
 function HeaderFallback() {
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#ffe135]">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#f5a623]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18 py-3">
           <div className="w-11 h-11 bg-gray-100 rounded-xl animate-pulse" />

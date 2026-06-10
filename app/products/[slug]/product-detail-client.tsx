@@ -523,7 +523,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   }
 
   return (
-    <div className="py-6 md:py-10 bg-background min-h-screen">
+    <div className="pt-6 md:pt-10 pb-28 lg:pb-10 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Draft Restored Toast */}
         {draftRestored && !editing && (

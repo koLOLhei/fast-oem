@@ -62,17 +62,17 @@ export default async function DoujinPage() {
       <JsonLd data={[bcJsonLd, serviceJsonLd]} />
       <div className="bg-background min-h-screen">
         {/* Hero */}
-        <section className="bg-gradient-to-br from-[#ff7b54]/10 via-[#ffe135]/5 to-[#00c8c8]/10 py-16 md:py-24">
+        <section className="bg-gradient-to-br from-[#f5a623]/10 via-[#f5a623]/5 to-[#1e73be]/10 py-16 md:py-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <Breadcrumb items={[{ name: '同人グッズ製作' }]} />
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#ff7b54]/10 rounded-full text-[#ff7b54] text-sm font-bold mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#f5a623]/10 rounded-full text-[#9a6400] text-sm font-bold mb-6">
                 <Sparkles className="h-4 w-4" />
                 同人サークル・個人クリエイター向け
               </div>
               <h1 className="text-3xl md:text-5xl font-black text-foreground leading-tight">
                 同人グッズ製作
-                <span className="block text-[#ff7b54] mt-2">小ロット50個〜・格安・短納期</span>
+                <span className="block text-[#9a6400] mt-2">小ロット50個〜・格安・短納期</span>
               </h1>
               <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 コミケ・即売会・オンラインショップ向けの同人グッズを簡単に製作。
@@ -81,7 +81,7 @@ export default async function DoujinPage() {
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   href="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-[#ff7b54] hover:bg-[#ff6b3d] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg transition-all hover:-translate-y-1"
+                  className="inline-flex items-center justify-center gap-2 bg-[#1e73be] hover:bg-[#1a66a8] text-white h-14 px-10 text-lg font-bold rounded-full shadow-lg transition-all hover:-translate-y-1"
                 >
                   商品を選んで作成開始
                   <ArrowRight className="h-5 w-5" />
@@ -104,8 +104,8 @@ export default async function DoujinPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {benefits.map((b) => (
                 <div key={b.title} className="flex items-start gap-4 p-6 bg-muted/30 rounded-2xl">
-                  <div className="w-12 h-12 rounded-xl bg-[#ff7b54]/10 flex items-center justify-center shrink-0">
-                    <b.icon className="h-6 w-6 text-[#ff7b54]" />
+                  <div className="w-12 h-12 rounded-xl bg-[#f5a623]/10 flex items-center justify-center shrink-0">
+                    <b.icon className="h-6 w-6 text-[#9a6400]" />
                   </div>
                   <div>
                     <h3 className="font-bold text-foreground text-lg">{b.title}</h3>
@@ -145,7 +145,7 @@ export default async function DoujinPage() {
             <div className="text-center mt-10">
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 text-[#00c8c8] font-bold text-lg hover:text-[#00b0b0] transition-colors"
+                className="inline-flex items-center gap-2 text-[#1e73be] font-bold text-lg hover:text-[#1a66a8] transition-colors"
               >
                 すべての商品を見る <ArrowRight className="h-5 w-5" />
               </Link>
@@ -176,13 +176,13 @@ export default async function DoujinPage() {
         </section>
 
         {/* CTA */}
-        <section className="py-16 bg-[#ff7b54]">
+        <section className="py-16 bg-[#1e73be]">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <h2 className="text-2xl md:text-4xl font-black text-white mb-4">あなたの作品をグッズにしよう</h2>
             <p className="text-white/80 mb-8">デザインをアップロードするだけ。最短約2週間で届きます。</p>
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 bg-white text-[#ff7b54] h-14 px-10 text-lg font-black rounded-full shadow-2xl hover:scale-105 transition-all"
+              className="inline-flex items-center gap-2 bg-white text-[#9a6400] h-14 px-10 text-lg font-black rounded-full shadow-2xl hover:scale-105 transition-all"
             >
               今すぐ作成する <ArrowRight className="h-5 w-5" />
             </Link>
