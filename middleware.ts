@@ -14,9 +14,12 @@ import { Ratelimit } from '@upstash/ratelimit'
  * `/api/ai` and `/api/mcp` mint real DB orders + Stripe sessions on every call
  * and are otherwise unauthenticated, so they MUST be throttled (the per-email
  * cap inside startCheckoutSession is bypassable by varying the email).
+ * `/api/mypage` issues agent API keys and creates Stripe SetupIntents on every
+ * POST — an unbounded authenticated user could otherwise mint keys / inflate
+ * the Stripe customer table.
  * `/contact` is included so the public contact form (a server action POSTing to
  * the page URL) can't be used to flood outbound email. */
-const RATE_LIMITED_PREFIXES = ['/checkout', '/admin', '/api/admin', '/api/ai', '/api/mcp', '/api/receipts', '/api/invoices', '/api/orders', '/contact', '/login', '/signup', '/reset-password'] as const
+const RATE_LIMITED_PREFIXES = ['/checkout', '/admin', '/api/admin', '/api/ai', '/api/mcp', '/api/mypage', '/api/receipts', '/api/invoices', '/api/orders', '/contact', '/login', '/signup', '/reset-password'] as const
 
 /**
  * Pre-parsed IP allowlist entries from ADMIN_ALLOWED_IPS env var.
@@ -110,9 +113,13 @@ function isIpAllowed(ip: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Upstash Redis rate limiting (production) with in-memory fallback
+// Upstash Redis rate limiting (production) with in-memory fallback (dev only).
 // Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in .env.local
 // to enable distributed rate limiting across edge instances.
+// In production, Upstash is REQUIRED — the in-memory fallback is per-instance
+// and effectively multiplies the rate cap by the number of running edges,
+// which silently defeats the whole point of the limiter. Crash early instead
+// of letting throttling become a no-op under real load.
 // ---------------------------------------------------------------------------
 const redis =
     process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
@@ -121,6 +128,16 @@ const redis =
               token: process.env.UPSTASH_REDIS_REST_TOKEN,
           })
         : null
+
+if (!redis && process.env.NODE_ENV === 'production') {
+    // Throwing at module-eval time is intentional: any request that reaches the
+    // middleware would otherwise silently fall through to the per-instance
+    // in-memory limiter. Fail-fast at startup is louder and safer.
+    throw new Error(
+        '[middleware] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN must be set in production. ' +
+        'The in-memory rate-limit fallback is per-instance and unsafe across edges.',
+    )
+}
 
 const ratelimit = redis
     ? new Ratelimit({
@@ -234,6 +251,18 @@ export async function middleware(request: NextRequest) {
         }
     )
 
+    // Build a redirect that preserves any session cookies refreshed by
+    // supabase.auth.getUser() below. NextResponse.redirect() creates a fresh
+    // response, so if we don't manually copy cookies the refreshed JWT never
+    // reaches the client and the next request loops on the expired token.
+    const redirectWithCookies = (url: URL): NextResponse => {
+        const r = NextResponse.redirect(url)
+        for (const cookie of response.cookies.getAll()) {
+            r.cookies.set(cookie)
+        }
+        return r
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
 
     const isAdminRoute = pathname.startsWith('/admin')
@@ -241,7 +270,7 @@ export async function middleware(request: NextRequest) {
     const isMypageRoute = pathname.startsWith('/mypage')
 
     if (!user && (isAdminRoute || isFactoryRoute || isMypageRoute)) {
-        return NextResponse.redirect(new URL('/login', request.url))
+        return redirectWithCookies(new URL('/login', request.url))
     }
 
     if (user && (isAdminRoute || isFactoryRoute)) {
@@ -254,7 +283,7 @@ export async function middleware(request: NextRequest) {
 
         // No profile row — redirect to login (not silently to /)
         if (!profile) {
-            return NextResponse.redirect(new URL('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'), request.url))
+            return redirectWithCookies(new URL('/login?message=' + encodeURIComponent('アカウント情報が見つかりません。管理者にお問い合わせください'), request.url))
         }
 
         const typedProfile = profile as { role: string; is_active: boolean }
@@ -263,23 +292,23 @@ export async function middleware(request: NextRequest) {
 
         // Block deactivated accounts
         if (!isActive) {
-            return NextResponse.redirect(new URL('/login?error=account_disabled', request.url))
+            return redirectWithCookies(new URL('/login?error=account_disabled', request.url))
         }
 
         // Wrong role for /admin — allow admin and super_admin; redirect others
         if (isAdminRoute && role !== 'admin' && role !== 'super_admin') {
             if (role === 'factory') {
-                return NextResponse.redirect(new URL('/factory', request.url))
+                return redirectWithCookies(new URL('/factory', request.url))
             }
-            return NextResponse.redirect(new URL('/login', request.url))
+            return redirectWithCookies(new URL('/login', request.url))
         }
 
         // Wrong role for /factory — send admin/super_admin/customer to their own portal
         if (isFactoryRoute && role !== 'factory') {
             if (role === 'admin' || role === 'super_admin') {
-                return NextResponse.redirect(new URL('/admin', request.url))
+                return redirectWithCookies(new URL('/admin', request.url))
             }
-            return NextResponse.redirect(new URL('/login', request.url))
+            return redirectWithCookies(new URL('/login', request.url))
         }
     }
 

@@ -1,24 +1,61 @@
 'use server'
 
 import { Resend } from 'resend'
+import { Redis } from '@upstash/redis'
+import { Ratelimit } from '@upstash/ratelimit'
 import { escapeHtml } from '@/lib/utils'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL ?? 'contact@soara-mu.com'
 
-/** Simple in-memory rate limit (per-process). */
-const submissions = new Map<string, number[]>()
+// ── Rate limit (Upstash in prod, per-process fallback in dev) ──────────────
+// The middleware already throttles per-IP; this per-email layer catches the
+// case where a single attacker rotates IPs to spam from the same address.
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000 // 10 minutes
 const RATE_LIMIT_MAX = 3 // max 3 submissions per window
 
-function isRateLimited(email: string): boolean {
-  const now = Date.now()
+const _redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      })
+    : null
+
+const _emailRatelimit = _redis
+  ? new Ratelimit({
+      redis: _redis,
+      // Same shape as the middleware limiter, namespaced under "contact:email"
+      // so it doesn't collide with the per-IP buckets.
+      limiter: Ratelimit.slidingWindow(RATE_LIMIT_MAX, '10 m'),
+      analytics: false,
+      prefix: 'contact:email',
+    })
+  : null
+
+if (!_redis && process.env.NODE_ENV === 'production') {
+  // Same rationale as middleware.ts — fail fast rather than fall through to a
+  // per-instance limiter that silently allows N× traffic across edges.
+  throw new Error(
+    '[contact-form] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN must be set in production.',
+  )
+}
+
+const _submissions = new Map<string, number[]>()
+
+async function isRateLimited(email: string): Promise<boolean> {
   const key = email.toLowerCase().trim()
-  const history = (submissions.get(key) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  if (_emailRatelimit) {
+    const { success } = await _emailRatelimit.limit(key)
+    return !success
+  }
+  // Dev fallback only — production refuses to start without Upstash above.
+  const now = Date.now()
+  const history = (_submissions.get(key) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
   if (history.length >= RATE_LIMIT_MAX) return true
   history.push(now)
-  submissions.set(key, history)
+  _submissions.set(key, history)
   return false
 }
 
@@ -61,7 +98,7 @@ export async function submitContactForm(data: ContactFormData): Promise<{ succes
   }
 
   // ── Rate limit ──────────────────────────────────────────────────────
-  if (isRateLimited(email)) {
+  if (await isRateLimited(email)) {
     return { success: false, error: '短時間に複数回送信されています。しばらく経ってから再度お試しください。' }
   }
 

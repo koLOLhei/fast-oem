@@ -43,7 +43,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Order cancelled' }, { status: 410 })
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
+    // Use the same fallback as the rest of the codebase (see ai/order/route.ts)
+    // so the link is always absolute, even when NEXT_PUBLIC_SITE_URL is unset.
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fast-oem.soara-mu.jp').replace(/\/$/, '')
     const statusUrl = `${siteUrl}/orders/${order.id}/status?token=${order.access_token}`
 
     return NextResponse.json({ orderId: order.id, statusUrl })

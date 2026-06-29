@@ -186,18 +186,28 @@ export async function POST(req: NextRequest) {
   // and return a completed order. Otherwise, fall back to hosted checkout URL.
   const authHeader = req.headers.get('authorization') ?? ''
   const agentKey = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : null
-  // Off-session auto-charging is DISABLED unless AGENT_OFF_SESSION_ENABLED=true.
+  // Off-session auto-charging is DISABLED unless BOTH env flags are set:
+  //   AGENT_OFF_SESSION_ENABLED=true
+  //   AGENT_OFF_SESSION_ACK_UNSAFE=true   ← explicit acknowledgement
+  //
   // The standalone PaymentIntent below charges the saved card, but order
   // fulfillment — confirmation email, design-image processing, factory/Slack
   // notification, mold-reuse detection — runs ONLY in the Supabase stripe-webhook
   // on `checkout.session.completed`, which this path never fires. Enabling it as
-  // written would bill the customer's card WITHOUT fulfilling the order. Re-enable
-  // only after (a) a `payment_intent.succeeded` fulfillment handler exists in
-  // supabase/functions/stripe-webhook and (b) the daily-cap is enforced atomically
-  // in the DB (a SELECT-sum then charge is racy across concurrent requests).
-  // Until then the agent flow falls back to the hosted Checkout URL, which
-  // fulfills correctly via the existing webhook.
-  const offSessionEnabled = process.env.AGENT_OFF_SESSION_ENABLED === 'true'
+  // written would bill the customer's card WITHOUT fulfilling the order.
+  //
+  // Additionally, the daily-cap check below is NOT atomic — concurrent requests
+  // can both pass the SELECT-sum and each charge up to the cap, doubling the
+  // effective limit. True enforcement requires a DB transaction (advisory lock
+  // on agent_key_id, or an UPSERT on a daily ledger table with a CHECK constraint).
+  //
+  // Re-enable only after (a) a `payment_intent.succeeded` fulfillment handler
+  // exists in supabase/functions/stripe-webhook, AND (b) the daily-cap is
+  // enforced atomically in the DB. The dual-env requirement makes accidental
+  // toggling impossible.
+  const offSessionEnabled =
+    process.env.AGENT_OFF_SESSION_ENABLED === 'true' &&
+    process.env.AGENT_OFF_SESSION_ACK_UNSAFE === 'true'
   const agentOffSession = (agentKey && offSessionEnabled) ? await tryOffSessionCharge(agentKey, cartItems, shippingAddress).catch((e) => {
     console.error('[ai.order] off-session charge path error:', e)
     return null
