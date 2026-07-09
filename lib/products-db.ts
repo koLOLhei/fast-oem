@@ -52,6 +52,8 @@ function rowToProduct(row: any): Product {
         requiresMold: row.requires_mold,
         moldFee: row.mold_fee,
         moldFeeRules: row.mold_fee_rules ?? [],
+        moldFeeSizeMultipliers: row.mold_fee_size_multipliers ?? undefined,
+        moldFeeComplexityMultipliers: row.mold_fee_complexity_multipliers ?? undefined,
         leadTimeDays: row.lead_time_days,
         expressDeliveryFee: row.express_delivery_fee ?? 0,
         notificationEmail: row.notification_email ?? '',

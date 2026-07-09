@@ -27,6 +27,17 @@ export interface MoldFeeRule {
   moldFee: number
 }
 
+/**
+ * Continuous multipliers applied on top of the resolved base mold fee.
+ * If either map is present, the base fee is multiplied by the matching entry.
+ * Missing entries default to 1.0. Result is rounded to the nearest ¥500.
+ *
+ * SECURITY: complexity is user-uploaded-image-derived and therefore untrusted
+ * on the wire. Server-side price validation must re-derive it (see
+ * app/actions/stripe.ts) before applying moldFeeComplexityMultipliers.
+ */
+export type ComplexityGradeLetter = 'A' | 'B' | 'C' | 'D' | 'E'
+
 export interface ImageView {
   id: string        // e.g. 'front', 'side', 'back'
   label: string     // e.g. '正面', '横', '後面'
@@ -95,6 +106,10 @@ export interface Product {
   requiresMold?: boolean
   moldFee?: number              // one-time mold creation fee in JPY
   moldFeeRules?: MoldFeeRule[]  // conditional mold fee (size/quantity based)
+  /** size id (e.g. '40mm') → multiplier. Applied AFTER moldFeeRules and option-level fees. */
+  moldFeeSizeMultipliers?: Record<string, number>
+  /** complexity grade (A–E) → multiplier. Requires server-side re-analysis to be safe. */
+  moldFeeComplexityMultipliers?: Partial<Record<ComplexityGradeLetter, number>>
   leadTimeDays?: number         // standard lead time in business days (14–30)
   expressDeliveryFee?: number   // flat fee for 10-day express delivery (0 = unavailable)
   notificationEmail?: string    // factory order email; falls back to FACTORY_DEFAULT_EMAIL if empty
@@ -436,6 +451,24 @@ export const PRODUCTS: Product[] = [
     category: 'badge',
     requiresMold: true,
     moldFee: 10000,
+    // 型代スケール: サイズは面積比 (40mm=1.0)、複雑度は工具パス時間比。
+    // 最終額は roundMoldFee で ¥500 単位に丸める。
+    moldFeeSizeMultipliers: {
+      '20mm': 0.65,
+      '30mm': 0.82,
+      '40mm': 1.00,
+      '50mm': 1.22,
+      '60mm': 1.48,
+      '70mm': 1.78,
+      '80mm': 2.10,
+    },
+    moldFeeComplexityMultipliers: {
+      A: 1.00,
+      B: 1.10,
+      C: 1.25,
+      D: 1.50,
+      E: 1.80,
+    },
     isActive: true,
     leadTimeDays: 30,
     expressDeliveryFee: 0,
@@ -546,6 +579,23 @@ export const PRODUCTS: Product[] = [
     category: 'keychain',
     requiresMold: true,
     moldFee: 7000,
+    // 型代スケール: ラバーは 50mm 基準。金属型より材料費比が低いので
+    // ピンバッジより緩やかな傾き。複雑度は同一。
+    moldFeeSizeMultipliers: {
+      '40mm': 0.75,
+      '50mm': 1.00,
+      '60mm': 1.28,
+      '70mm': 1.58,
+      '80mm': 1.92,
+      '100mm': 2.65,
+    },
+    moldFeeComplexityMultipliers: {
+      A: 1.00,
+      B: 1.10,
+      C: 1.25,
+      D: 1.50,
+      E: 1.80,
+    },
     isActive: true,
     leadTimeDays: 30,
     expressDeliveryFee: 0,
@@ -890,12 +940,53 @@ export function getDiscountPercent(product: Product, quantity: number): number |
 }
 
 /**
+ * Round mold fee to the nearest ¥500 for a clean price display.
+ * Never rounds a >0 fee down to 0.
+ */
+function roundMoldFee(fee: number): number {
+  if (fee <= 0) return 0
+  return Math.max(500, Math.round(fee / 500) * 500)
+}
+
+/**
+ * Apply size and complexity multipliers on top of a resolved base mold fee.
+ *
+ * Size multiplier: looked up in product.moldFeeSizeMultipliers by the selected
+ * size option value id (defaults to 1.0 if unset or missing).
+ * Complexity multiplier: looked up in product.moldFeeComplexityMultipliers by
+ * the resolved complexity grade — see IMPORTANT note above (server-side only
+ * for pricing; client display is best-effort).
+ */
+function applyMoldMultipliers(
+  product: Product,
+  baseFee: number,
+  selectedOptions?: Record<string, string>,
+): number {
+  if (baseFee <= 0) return 0
+
+  const sizeId = selectedOptions?.['size']
+  const sizeMul: number =
+    (sizeId ? product.moldFeeSizeMultipliers?.[sizeId] : undefined) ?? 1.0
+
+  const complexityRaw = selectedOptions?.['complexity']
+  const complexityKey = (typeof complexityRaw === 'string' ? complexityRaw.toUpperCase() : '') as ComplexityGradeLetter
+  const complexityMul: number =
+    product.moldFeeComplexityMultipliers?.[complexityKey] ?? 1.0
+
+  return roundMoldFee(baseFee * sizeMul * complexityMul)
+}
+
+/**
  * Calculate mold fee based on selected option values.
  * Option-value-level mold settings take priority over product-level.
  * If no option values specify mold settings, falls back to product-level.
  *
- * Returns { requiresMold, moldFee } where moldFee is the total across
- * all selected options that require molds (supports multi-mold products).
+ * Continuous multipliers (moldFeeSizeMultipliers / moldFeeComplexityMultipliers)
+ * are applied AFTER the base fee is resolved — they let a product scale mold
+ * cost by size (larger = more mold material / machining) and design complexity
+ * (more intricate = more tool-path time) without redefining every rule.
+ *
+ * Returns { requiresMold, moldFee } where moldFee is the final rounded fee.
  */
 export function calculateMoldFee(
   product: Product,
@@ -903,9 +994,10 @@ export function calculateMoldFee(
   quantity?: number,
 ): { requiresMold: boolean; moldFee: number } {
   if (!selectedOptions) {
+    const base = product.moldFee ?? 0
     return {
       requiresMold: product.requiresMold ?? false,
-      moldFee: product.moldFee ?? 0,
+      moldFee: applyMoldMultipliers(product, base, selectedOptions),
     }
   }
 
@@ -915,18 +1007,19 @@ export function calculateMoldFee(
     const sizeValue = selectedOptions['size']
     const qty = quantity ?? 0
     for (const rule of rules) {
-      if (rule.conditionType === 'fixed') {
-        return { requiresMold: true, moldFee: rule.moldFee }
-      }
-      if (rule.conditionType === 'size' && sizeValue === rule.conditionValue) {
-        return { requiresMold: true, moldFee: rule.moldFee }
-      }
-      if (rule.conditionType === 'quantity' && rule.conditionValue) {
+      let matched = false
+      if (rule.conditionType === 'fixed') matched = true
+      else if (rule.conditionType === 'size' && sizeValue === rule.conditionValue) matched = true
+      else if (rule.conditionType === 'quantity' && rule.conditionValue) {
         const [minStr, maxStr] = rule.conditionValue.split('-')
         const min = parseInt(minStr, 10)
         const max = parseInt(maxStr, 10)
-        if (qty >= min && qty <= max) {
-          return { requiresMold: true, moldFee: rule.moldFee }
+        if (qty >= min && qty <= max) matched = true
+      }
+      if (matched) {
+        return {
+          requiresMold: true,
+          moldFee: applyMoldMultipliers(product, rule.moldFee, selectedOptions),
         }
       }
     }
@@ -939,9 +1032,10 @@ export function calculateMoldFee(
   )
 
   if (!hasOptionLevelMold) {
+    const base = product.moldFee ?? 0
     return {
       requiresMold: product.requiresMold ?? false,
-      moldFee: product.moldFee ?? 0,
+      moldFee: applyMoldMultipliers(product, base, selectedOptions),
     }
   }
 
@@ -972,7 +1066,10 @@ export function calculateMoldFee(
     }
   }
 
-  return { requiresMold: anyRequiresMold, moldFee: totalMoldFee }
+  return {
+    requiresMold: anyRequiresMold,
+    moldFee: applyMoldMultipliers(product, totalMoldFee, selectedOptions),
+  }
 }
 
 /**

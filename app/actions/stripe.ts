@@ -8,6 +8,7 @@ import { type ShippingAddress, generateOrderId } from '@/lib/order'
 import type { CustomerInfo } from '@/lib/database.types'
 import { sendSlackMessage } from '@/lib/slack'
 import { type Product, calculateMoldFee, calculateShippingModifier, checkComplexityRestriction } from '@/lib/products'
+import { analyzeComplexityServer } from '@/lib/complexity-analyzer.server'
 import { calculateShippingByQuantity, calculateExpressShipping } from '@/lib/shipping'
 import { calculateTotalQuantity } from '@/lib/cart'
 import { MAX_UNIT_PRICE_JPY, MAX_CHECKBOX_VALUES } from '@/lib/validation'
@@ -146,7 +147,7 @@ async function validateAndRepricItems(
   const productIds = [...new Set(items.map((i) => i.productId))]
   const { data: masterRows, error: masterError } = await supabase
     .from('products')
-    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, express_delivery_fee, min_quantity, max_quantity, fixed_unit_price, complexity_rules, is_3d, is_active')
+    .select('id, price_tiers, options, requires_mold, mold_fee, mold_fee_rules, mold_fee_size_multipliers, mold_fee_complexity_multipliers, express_delivery_fee, min_quantity, max_quantity, fixed_unit_price, complexity_rules, is_3d, is_active')
     .in('id', productIds)
     .eq('is_active', true)
 
@@ -218,6 +219,32 @@ async function validateAndRepricItems(
     }
   }
 
+  // ── Server-side complexity re-analysis for mold-fee pricing ──────────────────
+  // When a product uses moldFeeComplexityMultipliers, the client-supplied
+  // complexity grade would let a tamperer set A to save on the mold. Re-derive
+  // the grade from the uploaded design image with sharp; on failure, drop the
+  // grade so calculateMoldFee falls back to multiplier=1.0 (never inflate
+  // silently — surprising the customer at checkout is worse than eating a bit
+  // of margin on a few borderline orders).
+  const serverComplexityByCartItemId: Record<string, string | null> = {}
+  await Promise.all(
+    items.map(async (item) => {
+      const master = masterMap[item.productId]
+      if (!master?.mold_fee_complexity_multipliers) return
+      const url = item.designImage
+      if (!url) {
+        console.warn(JSON.stringify({
+          evt: 'security.mold_complexity_no_image',
+          productId: item.productId,
+          customerEmail,
+        }))
+        return
+      }
+      const grade = await analyzeComplexityServer(url)
+      serverComplexityByCartItemId[item.id] = grade
+    }),
+  )
+
   const validatedItems: CartItem[] = items.map((item) => {
     const master = masterMap[item.productId]
     if (!master) {
@@ -244,9 +271,23 @@ async function validateAndRepricItems(
       requiresMold: master.requires_mold,
       moldFee: master.mold_fee,
       moldFeeRules: master.mold_fee_rules ?? [],
+      moldFeeSizeMultipliers: master.mold_fee_size_multipliers ?? undefined,
+      moldFeeComplexityMultipliers: master.mold_fee_complexity_multipliers ?? undefined,
       complexityRules: master.complexity_rules ?? [],
       is3d: master.is_3d ?? false,
     } as Product
+
+    // Replace the client-supplied complexity with server-verified value when the
+    // product prices by complexity. `null` means we couldn't verify — drop the
+    // key so calculateMoldFee treats it as multiplier 1.0.
+    if (master.mold_fee_complexity_multipliers) {
+      const serverGrade = serverComplexityByCartItemId[item.id]
+      if (serverGrade) {
+        selectedOptionsMap.complexity = serverGrade
+      } else {
+        delete selectedOptionsMap.complexity
+      }
+    }
 
     // Complexity restriction check (server-side enforcement)
     const complexityBlock = checkComplexityRestriction(masterProduct, selectedOptionsMap)
