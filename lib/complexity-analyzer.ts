@@ -224,6 +224,122 @@ export async function detectHollow(imageUrl: string): Promise<boolean> {
   return false
 }
 
+/**
+ * Composite an image with all *interior* transparent regions (holes fully
+ * enclosed by opaque pixels) filled with the given color. Outer background —
+ * transparent pixels reachable from the image border — is left transparent so
+ * the die-cut silhouette stays visible.
+ *
+ * Used to accurately preview the finished product: the factory cannot cut small
+ * interior holes out of an acrylic / pin / rubber piece, so those regions are
+ * unified with the base material colour. Returning a data URL so the caller
+ * can drop it straight into <img src>.
+ *
+ * Returns null if the image has no interior holes (caller should just use the
+ * original image) or if canvas processing fails.
+ */
+export async function fillInteriorHoles(
+  imageUrl: string,
+  fillColor: string,
+): Promise<string | null> {
+  try {
+    const img = await loadImage(imageUrl)
+    // Preserve the original resolution for a crisp preview — hole detection at
+    // 200x200 is only used to gate; the actual fill runs at native size.
+    const width = img.naturalWidth || img.width
+    const height = img.naturalHeight || img.height
+    if (!width || !height) return null
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    ctx.drawImage(img, 0, 0, width, height)
+    const imgData = ctx.getImageData(0, 0, width, height)
+    const data = imgData.data
+    const total = width * height
+
+    // Flood-fill outside transparent pixels from border. Anything not reached
+    // that is transparent is an interior hole.
+    const isTransparent = (i: number) => data[i * 4 + 3] <= 128
+    const outside = new Uint8Array(total)
+    const queue: number[] = []
+    for (let x = 0; x < width; x++) {
+      const top = x
+      const bottom = (height - 1) * width + x
+      if (isTransparent(top) && !outside[top]) { outside[top] = 1; queue.push(top) }
+      if (isTransparent(bottom) && !outside[bottom]) { outside[bottom] = 1; queue.push(bottom) }
+    }
+    for (let y = 0; y < height; y++) {
+      const left = y * width
+      const right = y * width + (width - 1)
+      if (isTransparent(left) && !outside[left]) { outside[left] = 1; queue.push(left) }
+      if (isTransparent(right) && !outside[right]) { outside[right] = 1; queue.push(right) }
+    }
+    while (queue.length > 0) {
+      const idx = queue.pop()!
+      const x = idx % width
+      const y = (idx - x) / width
+      const neighbors = [
+        y > 0 ? idx - width : -1,
+        y < height - 1 ? idx + width : -1,
+        x > 0 ? idx - 1 : -1,
+        x < width - 1 ? idx + 1 : -1,
+      ]
+      for (const n of neighbors) {
+        if (n >= 0 && isTransparent(n) && !outside[n]) {
+          outside[n] = 1
+          queue.push(n)
+        }
+      }
+    }
+
+    // Parse fill colour once — supports #rgb / #rrggbb.
+    const rgb = hexToRgb(fillColor) ?? { r: 255, g: 255, b: 255 }
+
+    let filledCount = 0
+    for (let i = 0; i < total; i++) {
+      if (isTransparent(i) && !outside[i]) {
+        // Interior hole — paint with base material colour.
+        data[i * 4] = rgb.r
+        data[i * 4 + 1] = rgb.g
+        data[i * 4 + 2] = rgb.b
+        data[i * 4 + 3] = 255
+        filledCount++
+      }
+    }
+
+    if (filledCount === 0) return null // no interior holes — signal caller to reuse original
+    ctx.putImageData(imgData, 0, 0)
+    return canvas.toDataURL('image/png')
+  } catch (err) {
+    console.warn('[fillInteriorHoles] failed:', (err as Error).message)
+    return null
+  }
+}
+
+/** Parse "#rgb" or "#rrggbb" (with or without leading #). Returns null on failure. */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const s = hex.replace(/^#/, '').trim()
+  if (/^[0-9a-f]{3}$/i.test(s)) {
+    return {
+      r: parseInt(s[0] + s[0], 16),
+      g: parseInt(s[1] + s[1], 16),
+      b: parseInt(s[2] + s[2], 16),
+    }
+  }
+  if (/^[0-9a-f]{6}$/i.test(s)) {
+    return {
+      r: parseInt(s.slice(0, 2), 16),
+      g: parseInt(s.slice(2, 4), 16),
+      b: parseInt(s.slice(4, 6), 16),
+    }
+  }
+  return null
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image()

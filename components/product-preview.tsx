@@ -1,8 +1,10 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 import { Eye, CheckCircle } from 'lucide-react'
 import { type Product, type PreviewOverlay } from '@/lib/products'
+import { fillInteriorHoles } from '@/lib/complexity-analyzer'
 
 interface ProductPreviewProps {
   product: Product
@@ -174,6 +176,39 @@ export function ProductPreview({
   const backText = selectedOptions['back_text']
   const hasBackPrint = backPrint && backPrint !== 'none'
 
+  // Interior-hole fill for die-cut: 中抜き部分は素材色で埋まる仕様。
+  // fillInteriorHoles は「中抜き穴が実在するとき」だけ非 null を返すので、
+  // 穴が無い普通のデザインでは原画像がそのまま使われる（無駄な再描画なし）。
+  const bgColor = selectedOptions['background_color'] || ''
+  const holeFillActive = selectedShape === 'die-cut' && !!bgColor && !!designImage && !isCanvasComposite
+  const [filledDesign, setFilledDesign] = useState<string | null>(null)
+  const [hasHoles, setHasHoles] = useState(false)
+  useEffect(() => {
+    if (!holeFillActive || !designImage) {
+      setFilledDesign(null)
+      setHasHoles(false)
+      return
+    }
+    let cancelled = false
+    fillInteriorHoles(designImage, bgColor)
+      .then((url) => {
+        if (cancelled) return
+        setFilledDesign(url)
+        setHasHoles(!!url)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFilledDesign(null)
+        setHasHoles(false)
+      })
+    return () => { cancelled = true }
+  }, [holeFillActive, designImage, bgColor])
+
+  // Preferred image source: hole-filled version when available, else raw upload.
+  // Non-null: only referenced inside the `showDesign` branch below, which itself
+  // already gates on designImage being present.
+  const effectiveDesign = (filledDesign ?? designImage) as string
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -259,7 +294,7 @@ export function ProductPreview({
                 <ShapeMask shapeId={selectedShape}>
                   <div className={`w-full h-full relative ${selectedShape === 'die-cut' ? '' : 'bg-white shadow-xl overflow-hidden'}`}>
                     <img
-                      src={designImage}
+                      src={effectiveDesign}
                       alt="あなたのデザイン"
                       className={`w-full h-full object-contain ${selectedShape === 'die-cut' ? 'drop-shadow-xl' : ''}`}
                       style={cutLineActive ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
@@ -278,7 +313,7 @@ export function ProductPreview({
             </div>
 
             {/* Feature badges (white border, white ink, back print) */}
-            {(cutLineActive || hasWhiteInk || hasBackPrint) && (
+            {(cutLineActive || hasWhiteInk || hasBackPrint || hasHoles) && (
               <div className="absolute top-4 right-4 flex flex-col gap-1.5 items-end z-20 max-w-[60%]">
                 {cutLineActive && (
                   <span className="px-2.5 py-1 bg-white/95 text-foreground text-[10px] font-bold rounded-full shadow-md border border-border">
@@ -287,6 +322,23 @@ export function ProductPreview({
                       whiteBorder === 'normal' ? '1mm' :
                       whiteBorder === 'thick' ? '2mm' : '3mm'
                     }
+                  </span>
+                )}
+                {hasHoles && (
+                  <span
+                    className="px-2.5 py-1 text-[10px] font-bold rounded-full shadow-md border flex items-center gap-1.5"
+                    style={{
+                      backgroundColor: bgColor,
+                      color: '#111',
+                      borderColor: 'rgba(0,0,0,0.15)',
+                    }}
+                    title={`中抜き部分は素材色 (${bgColor}) で埋まります`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-black/20 inline-block"
+                      style={{ backgroundColor: bgColor }}
+                    />
+                    中抜き→素材色で充填
                   </span>
                 )}
                 {whiteBack === 'white' && (
@@ -388,10 +440,18 @@ export function ProductPreview({
           入稿データについて
         </h4>
         {selectedShape === 'die-cut' ? (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            型抜きの場合、アップロードした画像の<strong className="text-foreground">透明部分がそのままカットライン</strong>になります。
-            背景透過のPNG画像をご入稿ください。
-          </p>
+          <div className="text-xs text-muted-foreground leading-relaxed space-y-2">
+            <p>
+              型抜きの場合、アップロードした画像の<strong className="text-foreground">透明部分がそのままカットライン</strong>になります。
+              背景透過のPNG画像をご入稿ください。
+            </p>
+            <p>
+              <strong className="text-foreground">中抜き（デザインの内側にある穴）</strong>は、
+              素材の切り抜きが困難なため<strong className="text-foreground">「背景素材の色」で埋めて一体化</strong>します。
+              「O」の中や、キャラクターの脇の隙間なども素材色になります。
+              完全に切り分けたい場合はデザインを2つに分けてご発注ください。
+            </p>
+          </div>
         ) : (
           <p className="text-xs text-muted-foreground leading-relaxed">
             <strong className="text-foreground">{getShapeName(selectedShape)}</strong>の形状でカットされます。
