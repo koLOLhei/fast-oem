@@ -152,12 +152,17 @@ export function ProductPreview({
   const { overlays, texture, chainColor } = collectOverlays(product, selectedOptions)
   const isKeychain = product.category === 'keychain' || product.id.includes('keychain')
 
-  // White border (素材の縁取り) — applies to ALL shapes, not just die-cut
+  // Cut-line width (旧: 白フチ) — visualises the die-cut outline. Applied only
+  // when shape=die-cut; for solid shapes the filter would be hidden by the
+  // shape background anyway, so gate on shape to skip the (moderately expensive)
+  // stacked-drop-shadow filter on the fast path.
   const whiteBorder = selectedOptions['white_border'] || 'none'
   const borderPx =
     whiteBorder === 'thin' ? 4 :
     whiteBorder === 'normal' ? 8 :
-    whiteBorder === 'thick' ? 14 : 0
+    whiteBorder === 'thick' ? 14 :
+    whiteBorder === 'extra' ? 20 : 0
+  const cutLineActive = borderPx > 0 && selectedShape === 'die-cut'
 
   // White ink (back/middle) for visual cue
   const whiteBack = selectedOptions['white_back']
@@ -225,7 +230,7 @@ export function ProductPreview({
                     src={designImage}
                     alt="あなたのデザイン"
                     className="w-full h-full object-contain drop-shadow-xl"
-                    style={borderPx > 0 ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
+                    style={cutLineActive ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
                   />
                   {/* 鏡像配置（同じデザインを裏面）プレビュー */}
                   {backPrint === 'same_shape' && (
@@ -257,6 +262,7 @@ export function ProductPreview({
                       src={designImage}
                       alt="あなたのデザイン"
                       className={`w-full h-full object-contain ${selectedShape === 'die-cut' ? 'drop-shadow-xl' : ''}`}
+                      style={cutLineActive ? { filter: buildWhiteOutlineFilter(borderPx) } : undefined}
                     />
                   </div>
                 </ShapeMask>
@@ -272,11 +278,15 @@ export function ProductPreview({
             </div>
 
             {/* Feature badges (white border, white ink, back print) */}
-            {(borderPx > 0 || hasWhiteInk || hasBackPrint) && (
+            {(cutLineActive || hasWhiteInk || hasBackPrint) && (
               <div className="absolute top-4 right-4 flex flex-col gap-1.5 items-end z-20 max-w-[60%]">
-                {borderPx > 0 && (
+                {cutLineActive && (
                   <span className="px-2.5 py-1 bg-white/95 text-foreground text-[10px] font-bold rounded-full shadow-md border border-border">
-                    白フチ：{whiteBorder === 'thin' ? '細め' : whiteBorder === 'normal' ? '普通' : '太め'}
+                    カットライン：{
+                      whiteBorder === 'thin' ? '0.5mm' :
+                      whiteBorder === 'normal' ? '1mm' :
+                      whiteBorder === 'thick' ? '2mm' : '3mm'
+                    }
                   </span>
                 )}
                 {whiteBack === 'white' && (

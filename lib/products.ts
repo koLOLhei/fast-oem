@@ -11,6 +11,33 @@ export interface PriceTier {
 // matches what checkout actually charges.
 const MAX_CHECKBOX_VALUES = 50
 
+/**
+ * Shared cut-line width option for all die-cut products (acrylic, pin badge,
+ * rubber keychain). Rendered only when shape='die-cut'. Preview applies a
+ * matching white outline filter — see buildWhiteOutlineFilter in product-preview.
+ *
+ * Kept as id='white_border' for backward compatibility with existing orders
+ * whose order_items.options JSONB references that id.
+ */
+const CUT_LINE_WIDTH_VALUES = [
+  { id: 'none', label: 'なし（デザインぴったり）' },
+  { id: 'thin', label: '0.5mm', priceModifier: { type: 'add' as const, value: 5 } },
+  { id: 'normal', label: '1mm（推奨）', priceModifier: { type: 'add' as const, value: 8 } },
+  { id: 'thick', label: '2mm', priceModifier: { type: 'add' as const, value: 12 } },
+  { id: 'extra', label: '3mm', priceModifier: { type: 'add' as const, value: 16 } },
+]
+
+const CUT_LINE_WIDTH_OPTION_BASE = {
+  id: 'white_border',
+  name: 'カットライン幅（白フチ）',
+  type: 'list' as const,
+  required: false,
+  description: '型抜きの外周に沿って残す白フチの幅。デザインぎりぎりでカットするか、フチを残すかを選べます。',
+  parentId: 'shape',
+  showWhen: ['die-cut'],
+  values: CUT_LINE_WIDTH_VALUES,
+}
+
 export interface PriceModifier {
   type: 'add' | 'multiply'
   value: number // 'add': extra yen per unit, 'multiply': multiplier (e.g. 1.2 = +20%)
@@ -271,19 +298,7 @@ export const PRODUCTS: Product[] = [
           { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
-      {
-        id: 'white_border',
-        name: '白フチ（素材の縁取り）',
-        type: 'list',
-        required: false,
-        description: '素材の輪郭に沿って、デザインを保護する白い縁取りを追加します（全形状対応）',
-        values: [
-          { id: 'none', label: 'なし' },
-          { id: 'thin', label: '細め（約0.5mm）', priceModifier: { type: 'add', value: 5 } },
-          { id: 'normal', label: '普通（約1mm）', priceModifier: { type: 'add', value: 8 } },
-          { id: 'thick', label: '太め（約2mm）', priceModifier: { type: 'add', value: 12 } },
-        ],
-      },
+      { ...CUT_LINE_WIDTH_OPTION_BASE },
       {
         id: 'back_print',
         name: '裏面印刷（透明部分への印刷）',
@@ -536,6 +551,7 @@ export const PRODUCTS: Product[] = [
           { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
+      { ...CUT_LINE_WIDTH_OPTION_BASE },
       {
         id: 'resin_coating',
         name: '樹脂コーティング',
@@ -671,6 +687,7 @@ export const PRODUCTS: Product[] = [
           { id: '9:16', label: '9:16（ワイド縦）' },
         ],
       },
+      { ...CUT_LINE_WIDTH_OPTION_BASE },
       {
         id: 'background_color',
         name: '背景色',
