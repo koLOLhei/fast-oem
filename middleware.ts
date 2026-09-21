@@ -193,8 +193,39 @@ async function isRateLimited(ip: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// 受注停止（リニューアル準備中）: 全ページ・全APIを 503 で閉じる暫定措置。
+// Stripe webhook と拡張子付きの静的ファイルのみ通す。
+// ---------------------------------------------------------------------------
+const SUSPENDED_HTML = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>サイトリニューアルのお知らせ | FAST OEM</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f4f6f9;color:#14181f;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;padding:24px;box-sizing:border-box}
+main{max-width:560px;background:#fff;border:1px solid #e6eaf0;border-radius:16px;padding:40px 32px;text-align:center}
+h1{font-size:22px;margin:0 0 16px}p{line-height:1.8;color:#5b6675;margin:0 0 12px}a{color:#1e73be}</style></head>
+<body><main><h1>サイトリニューアルのお知らせ</h1>
+<p>FAST OEM は現在、Webからのご注文受付を停止し、サイトをリニューアルしています。</p>
+<p>お問い合わせは <a href="mailto:contact@soara-mu.com">contact@soara-mu.com</a> までご連絡ください。</p>
+<p style="font-size:13px;margin-top:24px">運営：株式会社SOARA</p></main></body></html>`
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+
+    if (!pathname.startsWith('/api/webhooks/')) {
+        if (pathname.startsWith('/api/') || pathname.startsWith('/.well-known/')) {
+            return NextResponse.json(
+                { error: 'service_suspended', message: 'FAST OEM は現在ご注文の受付を停止しています。' },
+                { status: 503, headers: { 'Retry-After': '3600', 'Cache-Control': 'no-store' } },
+            )
+        }
+    }
+    if (!pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(pathname)) {
+        return new NextResponse(SUSPENDED_HTML, {
+            status: 503,
+            headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '3600', 'Cache-Control': 'no-store' },
+        })
+    }
+
     const clientIp = getClientIp(request)
 
     // -- IP whitelisting for admin pages, factory pages, and admin API routes --
