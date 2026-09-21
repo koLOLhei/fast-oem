@@ -215,18 +215,8 @@ const QUOTE_TIPS = [
 const COMPANY_ROWS: [string, React.ReactNode][] = [
   ['会社名', COMPANY.name],
   ['サービス名', SITE_NAME],
-  ['代表者', `${COMPANY.representativeTitle}　${COMPANY.representative}`],
   ['設立', COMPANY.founded],
-  [
-    '所在地',
-    <ul key="offices" className="space-y-1">
-      {COMPANY.offices.map((o) => (
-        <li key={o.name}>
-          <span className="font-semibold text-foreground">{o.name}</span>　<Phrase>{o.address}</Phrase>
-        </li>
-      ))}
-    </ul>,
-  ],
+  ['拠点', COMPANY.locations],
   [
     '事業内容',
     <ul key="business" className="space-y-1">
@@ -270,16 +260,6 @@ const jsonLd = [
     logo: COMPANY.logo,
     email: CONTACT_EMAIL,
     foundingDate: COMPANY.foundingDate,
-    founder: { '@type': 'Person', name: COMPANY.representative, jobTitle: COMPANY.representativeTitle },
-    address: COMPANY.offices.map((o) => ({
-      '@type': 'PostalAddress',
-      name: o.name,
-      postalCode: o.postalCode,
-      addressRegion: o.region,
-      addressLocality: o.locality,
-      streetAddress: o.street,
-      addressCountry: 'JP',
-    })),
     contactPoint: {
       '@type': 'ContactPoint',
       name: `${SITE_NAME} お見積もり窓口`,
@@ -945,7 +925,7 @@ export default function HomePage() {
                 <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-4">
                   {CONTACT_EMAIL}
                 </a>
-                （{COMPANY.name}　{COMPANY.representativeTitle} {COMPANY.representative}／{COMPANY.address}）
+                （{COMPANY.name}）。当社の住所・代表者の氏名など法令で定める事項は、ご請求に応じて遅滞なくお知らせします。
               </li>
             </ol>
           </div>

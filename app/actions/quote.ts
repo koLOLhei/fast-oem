@@ -139,7 +139,6 @@ function buildAutoReply(data: QuoteValues) {
   const signature = [
     '────────────────────',
     `${SITE_NAME}（運営：${COMPANY.name}）`,
-    COMPANY.address,
     CONTACT_EMAIL,
     SITE_URL,
   ]
@@ -168,7 +167,7 @@ ${rows.map(([k, v]) => `<tr><th style="text-align:left;padding:10px 16px;color:#
 </table>
 <p style="margin:0 0 16px;font-size:14px;line-height:1.8;">現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積もりができます。</p>
 <p style="margin:0 0 24px;font-size:12px;line-height:1.7;color:#5b6675;">※本メールは自動送信です。お心当たりのない場合は、お手数ですが破棄してください。</p>
-<p style="margin:0;padding-top:16px;border-top:1px solid #e6eaf0;font-size:12px;line-height:1.8;color:#5b6675;">${SITE_NAME}（運営：${COMPANY.name}）<br>${COMPANY.address}<br><a href="mailto:${CONTACT_EMAIL}" style="color:#1e73be;">${CONTACT_EMAIL}</a><br><a href="${SITE_URL}" style="color:#1e73be;">${SITE_URL}</a></p>
+<p style="margin:0;padding-top:16px;border-top:1px solid #e6eaf0;font-size:12px;line-height:1.8;color:#5b6675;">${SITE_NAME}（運営：${COMPANY.name}）<br><a href="mailto:${CONTACT_EMAIL}" style="color:#1e73be;">${CONTACT_EMAIL}</a><br><a href="${SITE_URL}" style="color:#1e73be;">${SITE_URL}</a></p>
 </div></body></html>`
 
   return { text, html }

@@ -13,38 +13,14 @@ export const BUSINESS_HOURS = '平日 10:00〜18:00（土日祝・年末年始�
 export const REPLY_LEAD_TIME = '2〜3営業日以内'
 
 /**
- * 運営会社の情報。コーポレートサイト（soara-mu.jp）の会社概要・特商法表記・プライバシーポリシーと揃える。
- * 名称・住所がサイト間で食い違うと、検索エンジンが同じ会社だと判断しにくくなるため。
+ * 運営会社の情報。会社名・URL・ロゴはコーポレートサイト（soara-mu.jp）の構造化データと揃える。
+ * 代表者の氏名・住所はこのサイトには載せない（個人情報保護法上も、請求に応じて遅滞なく回答する形で足りる）。
  */
 export const COMPANY = {
   name: '株式会社SOARA',
-  representative: '小川 公平',
-  representativeTitle: '代表取締役',
   founded: '2024年10月30日',
   foundingDate: '2024-10-30',
-  postalCode: '152-0023',
-  region: '東京都',
-  locality: '目黒区',
-  street: '八雲2-12-6 GWY B1F',
-  address: '〒152-0023 東京都目黒区八雲2-12-6 GWY B1F',
-  offices: [
-    {
-      name: '東京支社',
-      address: '〒152-0023 東京都目黒区八雲2-12-6 GWY B1F',
-      postalCode: '152-0023',
-      region: '東京都',
-      locality: '目黒区',
-      street: '八雲2-12-6 GWY B1F',
-    },
-    {
-      name: '神奈川支社',
-      address: '〒221-0056 神奈川県横浜市神奈川区金港町5-14 クアドリフォリオ8F',
-      postalCode: '221-0056',
-      region: '神奈川県',
-      locality: '横浜市神奈川区',
-      street: '金港町5-14 クアドリフォリオ8F',
-    },
-  ],
+  locations: '東京・横浜',
   url: 'https://soara-mu.jp',
   logo: 'https://soara-mu.jp/images/logo.png',
   business: [
