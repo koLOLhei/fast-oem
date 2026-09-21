@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { COMPANY, CONTACT_EMAIL, SITE_NAME, SITE_TAGLINE } from '@/lib/site'
+import { COMPANY, SITE_NAME, SITE_TAGLINE } from '@/lib/site'
 import { container } from './styles'
 
 const LINKS = [
@@ -36,10 +36,6 @@ export function SiteFooter() {
             運営：
             <a href={COMPANY.url} target="_blank" rel="noopener" className="inline-block py-1 underline decoration-white/30 underline-offset-4 hover:text-white">
               {COMPANY.name}
-            </a>
-            <br />
-            <a href={`mailto:${CONTACT_EMAIL}`} className="inline-block py-1 hover:text-white">
-              {CONTACT_EMAIL}
             </a>
           </p>
         </div>

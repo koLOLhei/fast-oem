@@ -30,6 +30,8 @@ export type QuoteFormState = {
 
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
 const TO_EMAIL = process.env.CONTACT_EMAIL ?? CONTACT_EMAIL
+// 送信に失敗したときの案内先。メールアドレスは画面に出さず、運営会社サイトの問い合わせフォームを案内する
+const FALLBACK_CONTACT = `${COMPANY.name}のお問い合わせフォーム（${COMPANY.url}/contact）`
 
 // ── レート制限 ────────────────────────────────────────────────────────
 // 本番は Upstash（全インスタンス共通）。未設定時はインスタンス内メモリで代替し、
@@ -139,7 +141,6 @@ function buildAutoReply(data: QuoteValues) {
   const signature = [
     '────────────────────',
     `${SITE_NAME}（運営：${COMPANY.name}）`,
-    CONTACT_EMAIL,
     SITE_URL,
   ]
   const text = [
@@ -167,7 +168,7 @@ ${rows.map(([k, v]) => `<tr><th style="text-align:left;padding:10px 16px;color:#
 </table>
 <p style="margin:0 0 16px;font-size:14px;line-height:1.8;">現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積もりができます。</p>
 <p style="margin:0 0 24px;font-size:12px;line-height:1.7;color:#5b6675;">※本メールは自動送信です。お心当たりのない場合は、お手数ですが破棄してください。</p>
-<p style="margin:0;padding-top:16px;border-top:1px solid #e6eaf0;font-size:12px;line-height:1.8;color:#5b6675;">${SITE_NAME}（運営：${COMPANY.name}）<br><a href="mailto:${CONTACT_EMAIL}" style="color:#1e73be;">${CONTACT_EMAIL}</a><br><a href="${SITE_URL}" style="color:#1e73be;">${SITE_URL}</a></p>
+<p style="margin:0;padding-top:16px;border-top:1px solid #e6eaf0;font-size:12px;line-height:1.8;color:#5b6675;">${SITE_NAME}（運営：${COMPANY.name}）<br><a href="${SITE_URL}" style="color:#1e73be;">${SITE_URL}</a></p>
 </div></body></html>`
 
   return { text, html }
@@ -225,7 +226,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
     console.error('[quote] RESEND_API_KEY is not set')
     return {
       status: 'error',
-      message: `送信できませんでした。お手数ですが ${CONTACT_EMAIL} まで直接ご連絡ください。`,
+      message: `送信できませんでした。お手数ですが、${FALLBACK_CONTACT}からご連絡ください。`,
       values,
       submittedAt,
     }
@@ -250,7 +251,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
     console.error('[quote] failed to send internal email:', e instanceof Error ? e.message : e)
     return {
       status: 'error',
-      message: `送信に失敗しました。時間をおいて再度お試しいただくか、${CONTACT_EMAIL} まで直接ご連絡ください。`,
+      message: `送信に失敗しました。時間をおいて再度お試しいただくか、${FALLBACK_CONTACT}からご連絡ください。`,
       values,
       submittedAt,
     }

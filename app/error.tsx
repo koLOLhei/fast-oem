@@ -21,7 +21,7 @@ export default function Error({
                     <p className="text-muted-foreground text-sm">
                         申し訳ありません。予期しないエラーが発生しました。
                         <br />
-                        問題が続く場合は contact@soara-mu.com までご連絡ください。
+                        問題が続く場合は、時間をおいてから再度アクセスしてください。
                     </p>
                 </div>
                 <div className="flex gap-3 justify-center">

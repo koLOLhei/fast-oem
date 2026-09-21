@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react'
 import { ArrowRight, CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { submitQuoteRequest, type QuoteFormState } from '@/app/actions/quote'
 import { FREQUENCY_OPTIONS, GOODS_OPTIONS, LIMITS, QUANTITY_OPTIONS, type QuoteField } from '@/lib/quote'
-import { CONTACT_EMAIL, REPLY_LEAD_TIME } from '@/lib/site'
+import { REPLY_LEAD_TIME } from '@/lib/site'
 import { cn } from '@/lib/utils'
 
 declare global {
@@ -74,11 +74,7 @@ export function QuoteForm() {
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
           確認メールをお送りしました。{REPLY_LEAD_TIME}に担当者よりご連絡します。
           <br />
-          メールが届かない場合は、お手数ですが{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold text-primary underline underline-offset-4">
-            {CONTACT_EMAIL}
-          </a>{' '}
-          までご連絡ください。
+          確認メールが届かない場合は、迷惑メールフォルダもご確認ください。
         </p>
       </div>
     )

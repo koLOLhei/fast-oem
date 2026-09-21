@@ -15,7 +15,6 @@ import {
   Gift,
   Handshake,
   Layers,
-  Mail,
   Megaphone,
   Package,
   PackageX,
@@ -39,7 +38,6 @@ import { btnAccent, btnPrimary, container } from '@/components/lp/styles'
 import {
   BUSINESS_HOURS,
   COMPANY,
-  CONTACT_EMAIL,
   FAQS,
   PRODUCTS,
   REPLY_LEAD_TIME,
@@ -229,8 +227,8 @@ const COMPANY_ROWS: [string, React.ReactNode][] = [
   ],
   [
     'お問い合わせ',
-    <a key="mail" href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-4">
-      {CONTACT_EMAIL}
+    <a key="form" href="#contact" className="text-primary underline underline-offset-4">
+      お見積もり依頼フォーム
     </a>,
   ],
   ['受付時間', <Phrase key="hours">{BUSINESS_HOURS}</Phrase>],
@@ -258,13 +256,12 @@ const jsonLd = [
     name: COMPANY.name,
     url: COMPANY.url,
     logo: COMPANY.logo,
-    email: CONTACT_EMAIL,
     foundingDate: COMPANY.foundingDate,
     contactPoint: {
       '@type': 'ContactPoint',
       name: `${SITE_NAME} お見積もり窓口`,
       contactType: 'sales',
-      email: CONTACT_EMAIL,
+      url: `${SITE_URL}/#contact`,
       availableLanguage: 'ja',
       areaServed: 'JP',
       hoursAvailable: {
@@ -839,20 +836,6 @@ export default function HomePage() {
             <dl className="mt-8 space-y-4 text-sm">
               <div>
                 <dt className="flex items-center gap-2 text-white/75">
-                  <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  メールでのお問い合わせ
-                </dt>
-                <dd className="mt-1 pl-6 font-bold">
-                  <a
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    className="inline-block py-0.5 underline decoration-white/40 underline-offset-4 hover:decoration-white"
-                  >
-                    {CONTACT_EMAIL}
-                  </a>
-                </dd>
-              </div>
-              <div>
-                <dt className="flex items-center gap-2 text-white/75">
                   <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
                   受付時間
                 </dt>
@@ -922,10 +905,11 @@ export default function HomePage() {
               </li>
               <li>
                 <strong className="text-foreground">開示・訂正・削除などのご請求、お問い合わせ窓口：</strong>
-                <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-4">
-                  {CONTACT_EMAIL}
+                {COMPANY.name}（このページの
+                <a href="#contact" className="text-primary underline underline-offset-4">
+                  お見積もり依頼フォーム
                 </a>
-                （{COMPANY.name}）。当社の住所・代表者の氏名など法令で定める事項は、ご請求に応じて遅滞なくお知らせします。
+                の「ご相談内容」欄からご連絡ください）。当社の住所・代表者の氏名など法令で定める事項は、ご請求に応じて遅滞なくお知らせします。
               </li>
             </ol>
           </div>

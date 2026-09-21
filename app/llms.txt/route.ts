@@ -1,7 +1,7 @@
 /**
  * /llms.txt — AI（LLM）向けのサイト要約。llmstxt.org の慣習に沿った短い Markdown。
  */
-import { BUSINESS_HOURS, COMPANY, CONTACT_EMAIL, FAQS, PRODUCTS, SITE_NAME, SITE_URL } from '@/lib/site'
+import { BUSINESS_HOURS, COMPANY, FAQS, PRODUCTS, SITE_NAME, SITE_URL } from '@/lib/site'
 
 export const dynamic = 'force-static'
 
@@ -15,7 +15,7 @@ export function GET() {
 - 対応グッズ：${PRODUCTS.map((p) => p.name).join('、')}（その他は要相談）
 - 型代：ピンバッジ・ラバーキーホルダーは初回のみ（継続発注の間は型を保管）。アクリルキーホルダー・缶バッジは型代不要
 - 単発・1回限りの注文は受け付けていない
-- Webサイトからの直接注文（カート・決済）は停止中。見積もりはフォームまたはメールで受け付ける
+- Webサイトからの直接注文（カート・決済）は停止中。見積もりはフォームで受け付ける
 - 納品：日本全国
 
 ## 安くなる理由
@@ -32,7 +32,7 @@ ${FAQS.map((f) => `- Q: ${f.question}\n  A: ${f.answer}`).join('\n')}
 
 ## 依頼・問い合わせ
 - お見積もり依頼フォーム：${SITE_URL}/#contact
-- メール：${CONTACT_EMAIL}（${BUSINESS_HOURS}）
+- 受付時間：${BUSINESS_HOURS}
 - 運営会社：${COMPANY.name}／${COMPANY.url}
 
 ## 提供を終了したもの
