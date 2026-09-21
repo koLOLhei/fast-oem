@@ -2,54 +2,59 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 /** @type {import('next').NextConfig} */
 
-// Content-Security-Policy directives.
-// - 'self' allows same-origin resources
-// - Supabase: storage, auth, realtime, REST API
-// - Stripe: JS SDK and iframe for secure card input
-// - Sentry: error reporting
-// - Upstash: Redis (server-side only; listed in connect-src for completeness)
-// - fonts.googleapis.com / fonts.gstatic.com: Google Fonts
-const supabaseHost = 'https://utwvalzykfxdeuwnebne.supabase.co'
+// Content-Security-Policy。
+// 公開しているのは静的なLP1枚と見積りフォーム（Server Action = 同一オリジンへのPOST）のみ。
+// 外部に通信するのは Google Analytics だけ。
 const CSP = [
   "default-src 'self'",
-  // Scripts: self + Stripe (fraud detection) + Google Analytics/GTM + Next.js inline scripts
-  "script-src 'self' https://js.stripe.com https://www.googletagmanager.com 'unsafe-inline'",
-  // Styles: self + Google Fonts + inline (Tailwind/CSS-in-JS)
-  "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
-  // Fonts: self + Google Fonts CDN
-  `font-src 'self' https://fonts.gstatic.com data:`,
-  // Images: self + Supabase public storage + data URIs (design preview)
-  `img-src 'self' ${supabaseHost} data: blob:`,
-  // Frames: self (admin preview iframe) + Stripe checkout iframe
-  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
-  // Fetch/XHR: Supabase, Stripe, Sentry, Upstash
-  `connect-src 'self' ${supabaseHost} wss://utwvalzykfxdeuwnebne.supabase.co https://api.stripe.com https://*.sentry.io https://grand-muskox-79579.upstash.io https://www.google-analytics.com https://www.googletagmanager.com https://*.analytics.google.com`,
-  // Workers: none (blob: for potential future use)
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self' data:",
+  "img-src 'self' data: blob: https://www.google-analytics.com https://www.googletagmanager.com",
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com",
+  "frame-src 'none'",
   "worker-src 'none'",
-  // Objects/embeds: none
   "object-src 'none'",
-  // Upgrade insecure requests in production
-  "upgrade-insecure-requests",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+  'upgrade-insecure-requests',
 ].join('; ')
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=63072000; includeSubDomains; preload',
-  },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'X-XSS-Protection', value: '1; mode=block' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  {
-    key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=()',
-  },
-  {
-    key: 'Content-Security-Policy',
-    value: CSP,
-  },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Content-Security-Policy', value: CSP },
+]
+
+// 旧EC版のページ。内容が近いLP内のセクションへ、なければトップへ恒久リダイレクトする。
+// （/admin・/factory など非公開だったURLは対象にせず 404 のまま）
+const LEGACY_PAGES = [
+  ['/products/:path*', '/#products'],
+  ['/use-cases/:path*', '/#use-cases'],
+  ['/guide', '/#flow'],
+  ['/faq', '/#faq'],
+  ['/contact', '/#contact'],
+  ['/about', '/#company'],
+  ['/privacy', '/#privacy'],
+  ['/blog/:path*', '/'],
+  ['/cases', '/'],
+  ['/shipping', '/'],
+  ['/terms', '/'],
+  ['/tokushoho', '/'],
+  ['/cart', '/'],
+  ['/checkout/:path*', '/'],
+  ['/login', '/'],
+  ['/signup', '/'],
+  ['/reset-password/:path*', '/'],
+  ['/mypage/:path*', '/'],
+  ['/orders/:path*', '/'],
+  ['/auth/:path*', '/'],
+  ['/llms-full.txt', '/llms.txt'],
 ]
 
 const nextConfig = {
@@ -57,48 +62,30 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    optimizePackageImports: [
-      'lucide-react',
-      '@radix-ui/react-icons',
-      'date-fns',
-    ],
+    optimizePackageImports: ['lucide-react'],
+    // CSS（gzip 約9KB）をHTMLに埋め込み、表示をブロックする追加リクエストをなくす
+    inlineCss: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24 * 30,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'utwvalzykfxdeuwnebne.supabase.co',
-      },
-    ],
   },
-  // Ensure the Japanese font used by PDF generation (receipts/invoices) is always
-  // included in the build output. Without this, the font would be missing in
-  // serverless/edge deployments that strip non-JS assets from public/.
-  outputFileTracingIncludes: {
-    '/api/receipts/[id]': ['./public/fonts/NotoSansJP-Regular.ttf'],
-    '/api/invoices/[id]': ['./public/fonts/NotoSansJP-Regular.ttf'],
+  async redirects() {
+    return [
+      // vercel.app の本番エイリアスは独自ドメインへ寄せる（重複コンテンツ回避）
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'fast-oem.vercel.app' }],
+        destination: 'https://fast-oem.soara-mu.jp/:path*',
+        permanent: true,
+      },
+      ...LEGACY_PAGES.map(([source, destination]) => ({ source, destination, permanent: true })),
+    ]
   },
   async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: securityHeaders,
-      },
-      // Product pages use ISR (revalidate = 60). Let the CDN cache for 60s
-      // with stale-while-revalidate so pages are fast AND fresh.
-      // Previously this was no-store which defeated ISR entirely.
-      {
-        source: '/products/:slug*',
-        headers: [
-          { key: 'CDN-Cache-Control', value: 's-maxage=60, stale-while-revalidate=300' },
-          { key: 'Vercel-CDN-Cache-Control', value: 's-maxage=60, stale-while-revalidate=300' },
-        ],
-      },
-    ]
+    return [{ source: '/(.*)', headers: securityHeaders }]
   },
 }
 

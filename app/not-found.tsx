@@ -1,38 +1,33 @@
-import { Metadata } from 'next'
-import Link from 'next/link'
+import type { Metadata } from 'next'
+import { ArrowRight } from 'lucide-react'
+import { btnPrimary } from '@/components/lp/styles'
 
 export const metadata: Metadata = {
   title: 'ページが見つかりません',
-  description: 'お探しのページは存在しないか、移動した可能性があります。FAST OEMのトップページまたは商品一覧からお探しの情報をご確認ください。',
   robots: { index: false, follow: true },
 }
 
 export default function NotFound() {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-            <div className="text-center space-y-6 max-w-md">
-                <div className="space-y-2">
-                    <p className="text-6xl font-bold text-muted-foreground/40">404</p>
-                    <h1 className="text-2xl font-bold">ページが見つかりません</h1>
-                    <p className="text-muted-foreground text-sm">
-                        お探しのページは存在しないか、移動した可能性があります。
-                    </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Link
-                        href="/"
-                        className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition"
-                    >
-                        トップページへ戻る
-                    </Link>
-                    <Link
-                        href="/products"
-                        className="inline-block px-6 py-2.5 border border-border text-foreground rounded-lg text-sm font-semibold hover:bg-muted/50 transition"
-                    >
-                        商品一覧を見る
-                    </Link>
-                </div>
-            </div>
+  return (
+    <section className="flex min-h-[60vh] items-center justify-center bg-muted px-4 py-20">
+      <div className="max-w-lg text-center">
+        <p className="text-6xl font-black text-border">404</p>
+        <h1 className="mt-4 text-2xl font-black text-foreground">ページが見つかりません</h1>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          FAST OEM はサイトをリニューアルし、現在は定期発注のご相談のみ承っています。
+          <br />
+          以前の商品ページや注文ページは公開を終了しました。
+        </p>
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <a href="/" className={`${btnPrimary} h-12`}>
+            トップページへ
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </a>
+          <a href="/#contact" className="text-sm font-bold text-primary underline underline-offset-4">
+            定期発注のお見積り依頼はこちら
+          </a>
         </div>
-    )
+      </div>
+    </section>
+  )
 }

@@ -1,426 +1,915 @@
-import { Metadata } from 'next'
-import Link from 'next/link'
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import {
+  ArrowDown,
   ArrowRight,
-  Upload,
-  SlidersHorizontal,
-  CreditCard,
-  Truck,
+  Award,
+  Building2,
+  CalendarRange,
+  Check,
+  CircleCheck,
+  CircleX,
   Clock,
-  ShieldCheck,
+  Factory,
+  Gamepad2,
+  Gift,
+  Handshake,
+  Layers,
+  Mail,
+  Megaphone,
   Package,
-  Zap,
+  PackageX,
+  Plus,
+  RefreshCcw,
+  Repeat,
+  Sparkles,
+  Store,
+  TrendingUp,
+  Truck,
+  Warehouse,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ProductCard } from '@/components/product-card'
-import { getProductsFromDb } from '@/lib/products-db'
 import { JsonLd } from '@/components/json-ld'
+import { CostDiagram } from '@/components/lp/cost-diagram'
+import { MobileCta } from '@/components/lp/mobile-cta'
+import { PlanCard } from '@/components/lp/plan-card'
+import { QuoteForm } from '@/components/lp/quote-form'
+import { SectionHeading } from '@/components/lp/section-heading'
+import { btnAccent, btnPrimary, container } from '@/components/lp/styles'
+import {
+  BUSINESS_HOURS,
+  COMPANY,
+  CONTACT_EMAIL,
+  FAQS,
+  PRODUCTS,
+  REPLY_LEAD_TIME,
+  SITE_LAST_UPDATED,
+  SITE_NAME,
+  SITE_URL,
+} from '@/lib/site'
 
-const BASE_URL = 'https://fast-oem.soara-mu.jp'
+const TITLE = `定期発注でオリジナルグッズを格安OEM製作｜${SITE_NAME}`
+const DESCRIPTION =
+  'くり返し発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした定期発注価格でOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーに対応し、型代は初回のみ。ガチャ景品や継続ノベルティのコストを下げたい方へ。見積もり無料。'
+const SHARE_TITLE = 'くり返し作るオリジナルグッズを、定期発注でぐっと安く｜FAST OEM'
+const SHARE_DESCRIPTION =
+  '定期的に発注がある商品に限定したオリジナルグッズOEM。年間の発注見込みで単価を設計し、型代は初回のみ。見積もり無料。'
 
 export const metadata: Metadata = {
-  title: 'オリジナルグッズOEM製作｜小ロット50個〜対応（缶バッジは100個〜） FAST OEM',
-  description:
-    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット50個〜対応（缶バッジは100個〜）、格安・スピード納品。同人グッズ・ノベルティ・推しグッズ製作はFAST OEMへ。',
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
+  alternates: { canonical: '/' },
   openGraph: {
-    title: 'オリジナルグッズOEM製作｜小ロット50個〜 FAST OEM',
-    description:
-      'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティなら FAST OEM。',
-    url: BASE_URL,
-    images: [{ url: '/opengraph-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
+    type: 'website',
+    locale: 'ja_JP',
+    url: '/',
+    siteName: SITE_NAME,
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
   },
-  alternates: { canonical: BASE_URL },
+  twitter: {
+    card: 'summary_large_image',
+    title: SHARE_TITLE,
+    description: SHARE_DESCRIPTION,
+    images: ['/opengraph-image.jpg'],
+  },
 }
 
-const steps = [
-  { icon: Upload, title: 'データを入稿', description: 'デザイン画像をアップロードするだけ。' },
-  { icon: SlidersHorizontal, title: '仕様を選択', description: 'サイズ・数量・オプションを指定。' },
-  { icon: CreditCard, title: '注文・決済', description: 'クレジットカードで安全にお支払い。' },
-  { icon: Truck, title: '製造・配送', description: '15〜30営業日で全国へお届け。' },
+/* ── コンテンツ ─────────────────────────────────────────────── */
+
+const HERO_POINTS = [
+  '年間の発注見込みをもとに単価を設計',
+  '型代・版代は初回のみ。2回目からは同じ仕様で再生産',
+  '発注スケジュールに合わせた計画生産で、欠品を防ぐ',
 ]
 
-const features = [
-  { icon: Clock, title: '短納期', description: '通常15〜30営業日。特急は約2週間。' },
-  { icon: Package, title: '小ロット対応', description: '50個から発注可能（缶バッジは100個〜）。' },
-  { icon: ShieldCheck, title: '品質保証', description: '提携工場による検品・不良時再製作。' },
-  { icon: Zap, title: '簡単入稿', description: 'データをアップするだけで発注完了。' },
+const HERO_TILE: Record<string, string> = {
+  'can-badge': 'lg:translate-y-10',
+  'pin-badge': 'lg:hidden',
+  'rubber-keychain': 'lg:col-start-2 lg:row-start-2 lg:translate-y-10',
+}
+
+const FACTS = [
+  { icon: Package, label: '対応グッズ', value: 'アクリル・缶バッジ・ピンバッジ・ラバー' },
+  { icon: Layers, label: '型代', value: '初回のみ（継続中は型を保管）' },
+  { icon: Truck, label: '納品', value: '日本全国へお届け' },
+  { icon: Building2, label: '運営', value: '株式会社SOARA（横浜）' },
 ]
 
-const useCases = [
-  { href: '/use-cases/doujin', title: '同人グッズ製作', description: '即売会の頒布物に。小ロット50個〜で個人でも安心。' },
-  { href: '/use-cases/novelty', title: '企業ノベルティ製作', description: '展示会・販促向け。領収書・インボイス対応。' },
-  { href: '/use-cases/oshikatsu', title: '推し活グッズ製作', description: '写真・イラストでオリジナルの応援グッズを。' },
-]
-
-const organizationJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': ['Organization', 'LocalBusiness'],
-  name: 'FAST OEM',
-  legalName: '株式会社SOARA',
-  url: BASE_URL,
-  logo: `${BASE_URL}/logo.png`,
-  image: `${BASE_URL}/opengraph-image.png`,
-  description: 'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。',
-  foundingDate: '2024-10-30',
-  founder: {
-    '@type': 'Person',
-    name: '小川 公平',
-    jobTitle: '代表取締役',
-    url: `${BASE_URL}/about`,
+const PAINS = [
+  {
+    icon: RefreshCcw,
+    title: '発注のたびに、見積もり・入稿・校正をやり直している',
+    body: '同じ商品なのに、毎回ゼロからやり取りが発生していませんか。',
   },
-  numberOfEmployees: {
-    '@type': 'QuantitativeValue',
-    value: 10,
+  {
+    icon: TrendingUp,
+    title: '数量が少ない回は、単価が割高になる',
+    body: '1回ごとの数量で単価が決まるため、数量が少ない月ほど高くつきます。',
   },
-  email: 'contact@soara-mu.com',
-  priceRange: '¥40〜¥490',
-  currenciesAccepted: 'JPY',
-  paymentAccepted: 'Credit Card',
-  openingHours: 'Mo-Fr 10:00-18:00',
-  knowsAbout: [
-    'OEM製造',
-    'アクリルキーホルダー製作',
-    '缶バッジ製作',
-    'ピンバッジ製作',
-    'ラバーキーホルダー製作',
-    'オリジナルグッズ企画',
+  {
+    icon: PackageX,
+    title: '追加発注が間に合わず、欠品してしまった',
+    body: '景品や販売在庫の補充が遅れると、そのまま売上の機会損失につながります。',
+  },
+  {
+    icon: Warehouse,
+    title: '単価を下げるために、在庫を抱えすぎている',
+    body: 'まとめて発注すれば安くなる代わりに、保管場所と在庫リスクが増えていきます。',
+  },
+]
+
+const REASONS = [
+  {
+    icon: CalendarRange,
+    title: '年間の見込み数量で、単価を決める',
+    body: '1回ごとの数量ではなく、年間を通した発注の見込みをもとに単価を設計します。1回あたりは少なめでも、まとまった数量として扱えます。',
+  },
+  {
+    icon: Factory,
+    title: '工場の生産計画に組み込める',
+    body: '発注の時期と数量が前もってわかるので、工場は生産枠を計画的に確保できます。急ぎの割増や段取り替えのムダが減り、その分を単価に反映します。',
+  },
+  {
+    icon: Layers,
+    title: '型・版・仕様は「使い回し」',
+    body: '金型や印刷データ、仕様書は初回に確定すれば、2回目以降はそのまま再生産。毎回の初期費用や校正のやり取りがかかりません。',
+  },
+  {
+    icon: Handshake,
+    title: '工場と直接、材料もまとめて',
+    body: '提携工場と直接やり取りして、中間コストを抑えます。継続する数量を前提に、材料もまとめて手配できます。',
+  },
+]
+
+const COMPARE_ROWS = [
+  { label: '単価の決まり方', spot: '1回ごとの数量で決まる', recurring: '年間の発注見込みで設計' },
+  { label: '型代・版代', spot: '仕様の変更や型の保管切れで、再び発生することも', recurring: '初回のみ。継続中は型を保管' },
+  { label: '見積もり・入稿', spot: '毎回やり取りが必要', recurring: '2回目からは数量と納期の連絡だけ' },
+  { label: '納期', spot: '工場の空き状況しだい', recurring: 'スケジュールに合わせて計画生産' },
+  { label: '品質', spot: '回ごとに差が出ることも', recurring: '同じ仕様書・同じ工場で安定' },
+  { label: '在庫', spot: '安くするには、まとめて大量に', recurring: '必要な分を、必要な時期に' },
+]
+
+const USE_CASES = [
+  {
+    icon: Gift,
+    title: 'ガチャガチャ（カプセルトイ）の景品',
+    body: '補充のたびに同じ商品を発注するなら、定期発注の効果がもっとも大きい用途です。',
+  },
+  {
+    icon: Gamepad2,
+    title: 'クレーンゲーム・アミューズメント景品',
+    body: '景品の入れ替えサイクルに合わせて、計画的に生産・納品します。',
+  },
+  {
+    icon: Store,
+    title: '店頭・ECで売れ続ける定番グッズ',
+    body: 'ご当地グッズや観光土産、ショップのオリジナル商品の再生産に。',
+  },
+  {
+    icon: Megaphone,
+    title: '継続して配るノベルティ・販促品',
+    body: '来店特典や入会特典、定期キャンペーンなど、毎月使う販促品に。',
+  },
+  {
+    icon: Sparkles,
+    title: 'キャラクター・IPグッズの定番品',
+    body: 'シリーズの定番アイテムを、同じ品質で作り続けたいときに。',
+  },
+  {
+    icon: Award,
+    title: '社章・記念品',
+    body: '入社・周年・表彰など、毎年決まった時期に必要になるピンバッジに。',
+  },
+]
+
+const CONDITIONS_OK = [
+  '同じ商品（同一仕様）を、継続して発注いただけること（目安：年に複数回）',
+  '初回に仕様（サイズ・素材・形状）を確定し、2回目以降は同じ仕様で生産すること',
+  '発注の頻度と、1回あたりの数量の見込みを共有いただけること',
+]
+
+const CONDITIONS_NG = [
+  { text: '単発・1回限りのご注文' },
+  { text: 'Webサイトからの直接注文（カート・決済）', note: '現在、受付を停止しています' },
+]
+
+const FLOW = [
+  { title: 'お問い合わせ', body: 'フォームから、作りたいグッズと発注の頻度・数量の見込みをお知らせください。' },
+  { title: 'ヒアリング・お見積り', body: '仕様と発注スケジュールを確認し、定期発注の単価をご提案します。' },
+  { title: '仕様の確定・サンプル確認', body: '仕様書を作成し、必要に応じてサンプルで仕上がりを確認します。' },
+  { title: '初回の生産・納品', body: '確定した仕様で生産し、ご指定の場所へ納品します。' },
+  { title: '定期生産', body: '以降はスケジュールに沿って同じ仕様で生産。数量の増減もご相談いただけます。' },
+]
+
+const QUOTE_TIPS = [
+  '現在の仕入れ単価（比較のため）',
+  '既存品の写真や仕様（サイズ・素材など）',
+  '初回の希望納期と、その後の発注予定',
+]
+
+const COMPANY_ROWS: [string, React.ReactNode][] = [
+  ['会社名', COMPANY.name],
+  ['サービス名', SITE_NAME],
+  ['代表者', `${COMPANY.representativeTitle}　${COMPANY.representative}`],
+  ['設立', COMPANY.founded],
+  ['所在地', COMPANY.address],
+  [
+    '事業内容',
+    <ul key="business" className="space-y-1">
+      {COMPANY.business.map((b) => (
+        <li key={b}>{b}</li>
+      ))}
+    </ul>,
   ],
-  contactPoint: {
-    '@type': 'ContactPoint',
-    email: 'contact@soara-mu.com',
-    contactType: 'customer service',
-    availableLanguage: 'Japanese',
-    areaServed: 'JP',
-  },
-  address: {
-    '@type': 'PostalAddress',
-    addressLocality: '横浜市',
-    addressRegion: '神奈川県',
-    postalCode: '221-0056',
-    streetAddress: '神奈川区金港町5-14 クアドリフォリオ8階',
-    addressCountry: 'JP',
-  },
-  geo: {
-    '@type': 'GeoCoordinates',
-    latitude: 35.4657,
-    longitude: 139.6281,
-  },
-  areaServed: {
-    '@type': 'Country',
-    name: 'Japan',
-  },
-  sameAs: [
-    'https://soara-mu.jp',
+  [
+    'お問い合わせ',
+    <a key="mail" href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-4">
+      {CONTACT_EMAIL}
+    </a>,
   ],
-  parentOrganization: {
+  ['受付時間', BUSINESS_HOURS],
+  [
+    'コーポレートサイト',
+    <a key="corp" href={COMPANY.url} target="_blank" rel="noopener" className="text-primary underline underline-offset-4">
+      {COMPANY.url.replace('https://', '')}
+    </a>,
+  ],
+]
+
+/* ── 構造化データ ───────────────────────────────────────────── */
+
+const ORG_ID = `${SITE_URL}/#organization`
+const SERVICE_ID = `${SITE_URL}/#service`
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: '株式会社SOARA',
-    url: 'https://soara-mu.jp',
-  },
-}
-
-const siteNavigationJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'SiteNavigationElement',
-  name: 'メインナビゲーション',
-  hasPart: [
-    { '@type': 'WebPage', name: '商品一覧', url: `${BASE_URL}/products` },
-    { '@type': 'WebPage', name: 'グッズ製作ガイド', url: `${BASE_URL}/guide` },
-    { '@type': 'WebPage', name: 'よくある質問', url: `${BASE_URL}/faq` },
-    { '@type': 'WebPage', name: 'お問い合わせ', url: `${BASE_URL}/contact` },
-    { '@type': 'WebPage', name: '配送について', url: `${BASE_URL}/shipping` },
-    { '@type': 'WebPage', name: '用途別ガイド', url: `${BASE_URL}/use-cases` },
-    { '@type': 'WebPage', name: '同人グッズ製作', url: `${BASE_URL}/use-cases/doujin` },
-    { '@type': 'WebPage', name: '企業ノベルティ製作', url: `${BASE_URL}/use-cases/novelty` },
-    { '@type': 'WebPage', name: '推し活グッズ製作', url: `${BASE_URL}/use-cases/oshikatsu` },
-    { '@type': 'WebPage', name: '結婚式プチギフト製作', url: `${BASE_URL}/use-cases/wedding` },
-    { '@type': 'WebPage', name: '記念品・誕生日・退職祝い・卒業記念品 製作', url: `${BASE_URL}/use-cases/anniversary` },
-    { '@type': 'WebPage', name: 'イベント配布物・ファンミ・周年祭 グッズ製作', url: `${BASE_URL}/use-cases/event` },
-    { '@type': 'WebPage', name: '製作事例', url: `${BASE_URL}/cases` },
-    { '@type': 'WebPage', name: 'コラム', url: `${BASE_URL}/blog` },
-    { '@type': 'WebPage', name: '会社概要', url: `${BASE_URL}/about` },
-  ],
-}
-
-const websiteJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'FAST OEM',
-  url: BASE_URL,
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: {
-      '@type': 'EntryPoint',
-      urlTemplate: `${BASE_URL}/products?q={search_term_string}`,
+    '@id': ORG_ID,
+    name: SITE_NAME,
+    legalName: COMPANY.name,
+    url: SITE_URL,
+    logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon.png`, width: 512, height: 512 },
+    email: CONTACT_EMAIL,
+    foundingDate: COMPANY.foundingDate,
+    founder: { '@type': 'Person', name: COMPANY.representative, jobTitle: COMPANY.representativeTitle },
+    address: {
+      '@type': 'PostalAddress',
+      postalCode: COMPANY.postalCode,
+      addressRegion: COMPANY.region,
+      addressLocality: COMPANY.locality,
+      streetAddress: COMPANY.street,
+      addressCountry: 'JP',
     },
-    'query-input': 'required name=search_term_string',
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'sales',
+      email: CONTACT_EMAIL,
+      availableLanguage: 'ja',
+      areaServed: 'JP',
+      hoursAvailable: {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        opens: '10:00',
+        closes: '18:00',
+      },
+    },
+    sameAs: [COMPANY.url],
   },
-}
-
-const heroImages = [
-  { src: '/images/acrylic-keychain.jpg', alt: 'アクリルキーホルダー OEM製作 - 透明アクリルにフルカラー印刷、小ロット対応', tag: '人気No.1', ratio: 'aspect-square', priority: true },
-  { src: '/images/pin-badge.jpg', alt: 'ピンバッジ OEM製作 - 金属エナメル仕上げ、企業ノベルティに人気', ratio: 'aspect-[4/3]' },
-  { src: '/images/can-badge.jpg', alt: '缶バッジ OEM製作 - フルカラー印刷、同人・推し活に最適', ratio: 'aspect-[4/3]' },
-  { src: '/images/rubber-keychain.jpg', alt: 'ラバーキーホルダー OEM製作 - PVC素材で立体デザイン対応', tag: 'NEW', ratio: 'aspect-square' },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@id': `${SITE_URL}/#website`,
+    url: SITE_URL,
+    name: SITE_NAME,
+    inLanguage: 'ja',
+    publisher: { '@id': ORG_ID },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${SITE_URL}/#webpage`,
+    url: SITE_URL,
+    name: TITLE,
+    description: DESCRIPTION,
+    inLanguage: 'ja',
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    about: { '@id': SERVICE_ID },
+    primaryImageOfPage: { '@type': 'ImageObject', url: `${SITE_URL}/opengraph-image.jpg`, width: 1200, height: 630 },
+    dateModified: SITE_LAST_UPDATED,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    '@id': SERVICE_ID,
+    name: 'FAST OEM 定期発注プラン',
+    serviceType: 'オリジナルグッズのOEM製作（定期発注）',
+    description:
+      '定期的に発注があるオリジナルグッズに限定し、年間の発注見込みをもとに単価を設計するOEM製作サービス。型代は初回のみ。',
+    provider: { '@id': ORG_ID },
+    areaServed: { '@type': 'Country', name: 'JP' },
+    audience: {
+      '@type': 'BusinessAudience',
+      audienceType: '同じオリジナルグッズを継続して発注する法人・個人事業主',
+    },
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: '定期発注に対応しているグッズ',
+      itemListElement: PRODUCTS.map((p) => ({
+        '@type': 'Offer',
+        itemOffered: {
+          '@type': 'Service',
+          name: `${p.name}のOEM製作（定期発注）`,
+          description: p.description,
+          image: `${SITE_URL}${p.image}`,
+        },
+      })),
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${SITE_URL}/#faq`,
+    mainEntity: FAQS.map((f) => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: { '@type': 'Answer', text: f.answer },
+    })),
+  },
 ]
 
-export default async function HomePage() {
-  const products = await getProductsFromDb()
+/* ── ページ ────────────────────────────────────────────────── */
+
+export default function HomePage() {
   return (
-    <div className="bg-background">
-      <JsonLd data={[organizationJsonLd, websiteJsonLd, siteNavigationJsonLd]} />
+    <>
+      <JsonLd data={jsonLd} />
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-dotgrid opacity-60" aria-hidden="true" />
-        <div className="absolute -top-24 -right-24 w-[32rem] h-[32rem] rounded-full bg-primary/5 blur-3xl" aria-hidden="true" />
-        <div className="absolute -bottom-32 -left-20 w-[28rem] h-[28rem] rounded-full bg-accent/5 blur-3xl" aria-hidden="true" />
+      {/* ── Hero ───────────────────────────────────────────── */}
+      <section
+        id="hero"
+        aria-labelledby="hero-title"
+        className="relative overflow-hidden border-b border-border bg-gradient-to-b from-secondary via-background to-background"
+      >
+        <div
+          className="pointer-events-none absolute inset-0 bg-dotgrid opacity-60 [mask-image:linear-gradient(to_bottom,black_30%,transparent)]"
+          aria-hidden="true"
+        />
+        <div className={`${container} relative grid gap-12 py-12 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-14 lg:py-20`}>
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-xs font-bold text-primary shadow-card ring-1 ring-primary/15">
+              <Repeat className="h-3.5 w-3.5" aria-hidden="true" />
+              定期発注専用のオリジナルグッズOEM
+            </p>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div>
-              <span className="eyebrow">
-                <span className="w-6 h-px bg-primary" />
-                OEM オリジナルグッズ製作
-              </span>
-
-              <h1 className="mt-5 text-4xl md:text-5xl lg:text-[3.25rem] font-extrabold text-foreground tracking-tight leading-[1.18]">
-                オリジナルグッズ製作を、
+            <h1 id="hero-title" className="mt-6 font-black tracking-tight text-foreground">
+              <span className="block text-lg leading-snug sm:text-2xl lg:text-[1.65rem]">くり返し作るオリジナルグッズを、</span>
+              <span className="mt-1 block text-[2.7rem] leading-[1.22] sm:text-6xl lg:text-[4.2rem]">
+                定期発注で
                 <br />
-                <span className="text-gradient-brand">もっと速く、確実に。</span>
-              </h1>
+                <span className="marker">ぐっと安く。</span>
+              </span>
+            </h1>
 
-              <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl leading-relaxed">
-                アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーを、
-                小ロット50個から短納期で製作。データを入稿するだけで、すぐにご注文いただけます。
-              </p>
+            <p className="mt-6 max-w-xl text-base leading-[1.9] text-muted-foreground sm:text-lg">
+              FAST OEM は、定期的に発注がある商品だけを承るオリジナルグッズのOEMサービスです。発注の時期と数量が見込めるぶん工場の生産計画に組み込めるので、単発の発注よりも単価を下げてお作りできます。
+            </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button
-                  asChild
-                  size="lg"
-                  className="bg-primary hover:bg-brand-blue-dark text-primary-foreground h-12 px-7 text-base font-bold rounded-xl shadow-brand transition-all hover:-translate-y-0.5"
-                >
-                  <Link href="/products">
-                    商品を見て注文する
-                    <ArrowRight className="ml-1.5 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="h-12 px-6 text-base font-bold rounded-xl border-border hover:bg-secondary"
-                >
-                  <Link href="/guide">製作ガイドを見る</Link>
-                </Button>
-              </div>
+            <ul className="mt-6 space-y-2.5">
+              {HERO_POINTS.map((point) => (
+                <li key={point} className="flex items-start gap-2.5 text-[15px] font-bold leading-relaxed text-foreground">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
+                  </span>
+                  {point}
+                </li>
+              ))}
+            </ul>
 
-              <dl className="mt-10 grid grid-cols-3 gap-4 max-w-md border-t border-border pt-6">
-                <div>
-                  <dt className="text-2xl font-extrabold text-foreground tracking-tight">50個〜</dt>
-                  <dd className="text-xs text-muted-foreground mt-0.5">小ロット対応</dd>
-                </div>
-                <div>
-                  <dt className="text-2xl font-extrabold text-foreground tracking-tight">最短2週</dt>
-                  <dd className="text-xs text-muted-foreground mt-0.5">特急納期</dd>
-                </div>
-                <div>
-                  <dt className="text-2xl font-extrabold text-foreground tracking-tight">全国</dt>
-                  <dd className="text-xs text-muted-foreground mt-0.5">配送対応</dd>
-                </div>
-              </dl>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a href="#contact" className={`${btnPrimary} h-14`}>
+                無料で見積もりを依頼する
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </a>
+              <a
+                href="#reasons"
+                className="inline-flex h-14 items-center justify-center gap-1.5 rounded-xl px-5 text-base font-bold text-foreground/80 transition-colors hover:bg-white hover:text-primary"
+              >
+                安くなる理由を見る
+                <ArrowDown className="h-4 w-4" aria-hidden="true" />
+              </a>
             </div>
+            <p className="mt-3 text-sm text-muted-foreground">いまの仕入れ単価と比べてみてください。比べやすい形でお見積りします。</p>
+          </div>
 
-            {/* Hero image grid */}
-            <div className="relative hidden lg:block">
-              <div className="absolute inset-0 bg-brand-gradient rounded-[2rem] rotate-2 opacity-10" aria-hidden="true" />
-              <div className="relative grid grid-cols-2 gap-4">
-                <div className="space-y-4">
-                  {heroImages.slice(0, 2).map((img) => (
-                    <div key={img.src} className={`relative ${img.ratio} rounded-2xl overflow-hidden shadow-float ring-1 ring-border bg-muted`}>
-                      <Image
-                        src={img.src}
-                        alt={img.alt}
-                        fill
-                        priority={img.priority}
-                        fetchPriority={img.priority ? 'high' : undefined}
-                        loading={img.priority ? undefined : 'lazy'}
-                        sizes="(max-width: 1024px) 0px, 25vw"
-                        className="object-cover"
-                      />
-                      {img.tag && (
-                        <span className="absolute bottom-2.5 left-2.5 bg-accent text-accent-foreground text-xs font-bold px-2.5 py-1 rounded-full shadow-card">
-                          {img.tag}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            {/* スマホは4枚を横並び。PCは左下を空けて3枚にし、空いた枠に「定期発注の例」カードを重ねる */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-2 lg:gap-4 lg:pb-10">
+              {PRODUCTS.map((p, i) => (
+                <div
+                  key={p.slug}
+                  className={`relative aspect-square overflow-hidden rounded-xl bg-muted shadow-card ring-1 ring-border lg:rounded-2xl ${HERO_TILE[p.slug] ?? ''}`}
+                >
+                  <Image
+                    src={p.image}
+                    alt={p.alt}
+                    fill
+                    sizes="(min-width: 1024px) 250px, 25vw"
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    fetchPriority={i === 0 ? 'high' : undefined}
+                    className="object-cover"
+                  />
                 </div>
-                <div className="space-y-4 pt-8">
-                  {heroImages.slice(2, 4).map((img) => (
-                    <div key={img.src} className={`relative ${img.ratio} rounded-2xl overflow-hidden shadow-float ring-1 ring-border bg-muted`}>
-                      <Image
-                        src={img.src}
-                        alt={img.alt}
-                        fill
-                        loading="lazy"
-                        sizes="(max-width: 1024px) 0px, 25vw"
-                        className="object-cover"
-                      />
-                      {img.tag && (
-                        <span className="absolute bottom-2.5 right-2.5 bg-primary text-primary-foreground text-xs font-bold px-2.5 py-1 rounded-full shadow-card">
-                          {img.tag}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
+            <PlanCard className="relative z-10 mt-4 lg:absolute lg:bottom-0 lg:-left-8 lg:mt-0 lg:w-[20rem]" />
           </div>
         </div>
       </section>
 
-      {/* ── Features ─────────────────────────────────────────── */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="sr-only">FAST OEM の特長</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {features.map((feature) => (
-              <div key={feature.title} className="flex items-start gap-4 p-5 rounded-2xl bg-card border border-border shadow-card">
-                <span className="w-11 h-11 rounded-xl bg-secondary text-primary flex items-center justify-center flex-shrink-0">
-                  <feature.icon className="h-5 w-5" />
+      {/* ── 概要 ──────────────────────────────────────────── */}
+      <section aria-label="サービスの概要" className="border-b border-border bg-background">
+        <ul className={`${container} grid grid-cols-1 gap-5 py-8 min-[480px]:grid-cols-2 lg:grid-cols-4`}>
+          {FACTS.map((f) => (
+            <li key={f.label} className="flex items-center gap-3.5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                <f.icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p>
+                <span className="block text-xs font-bold text-muted-foreground">{f.label}</span>
+                <span className="mt-0.5 block text-sm font-bold leading-snug text-foreground">{f.value}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ── 課題 ──────────────────────────────────────────── */}
+      <section aria-labelledby="problem-title" className="py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="problem-title"
+            eyebrow="PROBLEM"
+            title={
+              <>
+                同じグッズを、毎回<span className="inline-block">「単発」で</span>
+                <span className="inline-block">発注していませんか？</span>
+              </>
+            }
+          />
+          <ul className="mx-auto mt-12 grid max-w-5xl gap-4 md:grid-cols-2">
+            {PAINS.map((p) => (
+              <li key={p.title} className="flex items-start gap-4 rounded-2xl bg-card p-6 shadow-card ring-1 ring-border">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                  <p.icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <h3 className="font-bold text-foreground">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{feature.description}</p>
+                  <h3 className="font-bold leading-snug text-foreground">{p.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Products ─────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-secondary/40 border-y border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="eyebrow justify-center">商品ラインナップ</span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
-              選べる4種類のグッズ
-            </h2>
-            <p className="mt-3 text-muted-foreground max-w-xl mx-auto">
-              用途に合わせて、最適な素材・仕様をお選びいただけます。
+          </ul>
+          <div className="mt-12 flex flex-col items-center text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-brand">
+              <ArrowDown className="h-6 w-6" aria-hidden="true" />
+            </span>
+            <p className="mt-5 text-xl font-black leading-relaxed tracking-tight text-foreground sm:text-3xl">
+              <span className="inline-block">くり返し発注する商品なら、</span>
+              <span className="inline-block">
+                <span className="text-primary">定期発注</span>にまとめて解決。
+              </span>
             </p>
           </div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index} />
+      {/* ── 安くなる理由 ─────────────────────────────────────── */}
+      <section id="reasons" aria-labelledby="reasons-title" className="border-y border-border bg-muted py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="reasons-title"
+            eyebrow="REASONS"
+            title={
+              <>
+                <span className="inline-block">定期発注だと安くなる、</span>
+                <span className="inline-block">4つの理由</span>
+              </>
+            }
+            lead="値引きではなく、「つくり方」を変えることで単価を下げます。"
+          />
+          <ol className="mt-12 grid gap-5 md:grid-cols-2">
+            {REASONS.map((r, i) => (
+              <li key={r.title} className="relative rounded-2xl bg-card p-6 shadow-card ring-1 ring-border sm:p-8">
+                <div className="flex items-center justify-between">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-brand">
+                    <r.icon className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    data-num={String(i + 1).padStart(2, '0')}
+                    className="text-4xl font-black tabular-nums leading-none text-border after:content-[attr(data-num)]"
+                  />
+                </div>
+                <h3 className="mt-5 text-lg font-black leading-snug tracking-tight text-foreground sm:text-xl">{r.title}</h3>
+                <p className="mt-2.5 text-[15px] leading-[1.85] text-muted-foreground">{r.body}</p>
+              </li>
             ))}
-          </div>
-
-          <div className="mt-12 text-center">
-            <Button
-              asChild
-              size="lg"
-              className="bg-foreground hover:bg-foreground/90 text-background h-12 px-8 rounded-xl font-bold"
-            >
-              <Link href="/products">
-                すべての商品を見る
-                <ArrowRight className="ml-1.5 h-5 w-5" />
-              </Link>
-            </Button>
+          </ol>
+          <div className="mt-10">
+            <CostDiagram />
           </div>
         </div>
       </section>
 
-      {/* ── How it works ─────────────────────────────────────── */}
-      <section id="how-it-works" className="py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="eyebrow justify-center">ご注文の流れ</span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
-              ご注文は4ステップ
-            </h2>
-            <p className="mt-3 text-muted-foreground">データ入稿から発注まで、オンラインで完結します。</p>
+      {/* ── 比較 ──────────────────────────────────────────── */}
+      <section id="compare" aria-labelledby="compare-title" className="py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="compare-title"
+            eyebrow="COMPARE"
+            title={
+              <>
+                <span className="inline-block">単発の発注と、</span>
+                <span className="inline-block">定期発注の違い</span>
+              </>
+            }
+          />
+          {/* スマホでは各行を「見出し（全幅）＋ 2列」に組み替える */}
+          <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl shadow-card ring-1 ring-border">
+            <table className="w-full border-collapse bg-card text-left text-[13px] max-sm:block sm:table-fixed sm:text-[15px]">
+              <caption className="sr-only">単発で発注する場合と、FAST OEMの定期発注の比較</caption>
+              <colgroup className="max-sm:hidden">
+                <col className="w-[24%]" />
+                <col />
+                <col />
+              </colgroup>
+              <thead className="max-sm:block">
+                <tr className="max-sm:grid max-sm:grid-cols-2">
+                  <td className="bg-muted max-sm:hidden" />
+                  <th scope="col" className="bg-muted px-3 py-3.5 text-center font-bold text-muted-foreground sm:px-5 sm:py-4">
+                    単発で発注
+                  </th>
+                  <th scope="col" className="bg-primary px-3 py-3.5 text-center font-bold text-primary-foreground sm:px-5 sm:py-4">
+                    定期発注<span className="text-[11px] font-semibold sm:text-xs">（FAST OEM）</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="max-sm:block">
+                {COMPARE_ROWS.map((row) => (
+                  <tr key={row.label} className="border-t border-border max-sm:grid max-sm:grid-cols-2">
+                    <th
+                      scope="row"
+                      className="bg-muted/60 px-3 py-4 align-top font-bold text-foreground max-sm:col-span-2 max-sm:py-2 sm:px-5"
+                    >
+                      {row.label}
+                    </th>
+                    <td className="px-3 py-4 align-top leading-relaxed text-muted-foreground sm:px-5">{row.spot}</td>
+                    <td className="bg-secondary/60 px-3 py-4 align-top font-bold leading-relaxed text-secondary-foreground sm:px-5">
+                      <span className="flex items-start gap-1.5">
+                        <CircleCheck className="mt-0.5 hidden h-4 w-4 shrink-0 text-primary sm:block" aria-hidden="true" />
+                        {row.recurring}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {steps.map((step, index) => (
-              <div key={step.title} className="relative p-6 rounded-2xl bg-card border border-border shadow-card">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-11 h-11 rounded-xl bg-secondary text-primary flex items-center justify-center">
-                    <step.icon className="h-5 w-5" />
-                  </span>
-                  <span className="text-4xl font-extrabold text-border tabular-nums leading-none">
-                    {String(index + 1).padStart(2, '0')}
+      {/* ── CTA ───────────────────────────────────────────── */}
+      <section aria-label="お見積りのご案内" className="relative overflow-hidden bg-brand-gradient py-14 text-white sm:py-16">
+        <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-15" aria-hidden="true" />
+        <div className={`${container} relative flex flex-col items-start gap-7 md:flex-row md:items-center md:justify-between`}>
+          <div>
+            <p className="text-[1.4rem] font-black leading-snug tracking-tight sm:text-3xl">
+              <span className="inline-block">いまの単価と、</span>
+              <span className="inline-block">定期発注の単価を</span>
+              <span className="inline-block">比べてみませんか。</span>
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
+              現在の仕入れ単価をお知らせいただければ、比較しやすい形でお見積りします。見積もりは無料です。
+            </p>
+          </div>
+          <a href="#contact" className={`${btnAccent} h-14 shrink-0`}>
+            無料で見積もりを依頼する
+            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </a>
+        </div>
+      </section>
+
+      {/* ── 対応グッズ ─────────────────────────────────────── */}
+      <section id="products" aria-labelledby="products-title" className="py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="products-title"
+            eyebrow="PRODUCTS"
+            title="定期発注に対応しているグッズ"
+            lead="どれも、同じ仕様でくり返し生産しやすいグッズです。"
+          />
+          <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {PRODUCTS.map((p) => (
+              <li key={p.slug} className="flex flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border">
+                <div className="relative aspect-[4/3] bg-muted">
+                  <Image
+                    src={p.image}
+                    alt={p.alt}
+                    fill
+                    sizes="(min-width: 1024px) 270px, (min-width: 640px) 45vw, 92vw"
+                    className="object-cover"
+                  />
+                  <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-primary shadow-card">
+                    {p.tag}
                   </span>
                 </div>
-                <h3 className="font-bold text-foreground text-lg tracking-tight">{step.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{step.description}</p>
-              </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="text-lg font-black tracking-tight text-foreground">{p.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.description}</p>
+                  <ul className="mt-4 space-y-1.5 border-t border-border pt-4 text-[13px] text-foreground/80">
+                    {p.specs.map((s) => (
+                      <li key={s} className="flex items-start gap-1.5">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} aria-hidden="true" />
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            上記以外のグッズも、継続した発注が見込める場合はご相談ください。
+          </p>
         </div>
       </section>
 
-      {/* ── Use cases ────────────────────────────────────────── */}
-      <section className="py-16 md:py-24 bg-secondary/40 border-y border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="eyebrow justify-center">用途から探す</span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
-              目的に合わせた製作プラン
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {useCases.map((uc) => (
-              <Link
-                key={uc.href}
-                href={uc.href}
-                className="group block p-7 bg-card rounded-2xl border border-border shadow-card hover:shadow-float hover:-translate-y-1 hover:border-primary/30 transition-all"
-              >
-                <h3 className="text-lg font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">{uc.title}</h3>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{uc.description}</p>
-                <span className="inline-flex items-center text-sm font-bold text-primary mt-4">
-                  詳しく見る
-                  <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+      {/* ── 向いている用途 ──────────────────────────────────── */}
+      <section id="use-cases" aria-labelledby="use-cases-title" className="border-y border-border bg-muted py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="use-cases-title"
+            eyebrow="USE CASES"
+            title={
+              <>
+                <span className="inline-block">定期発注が向いている</span>
+                <span className="inline-block">グッズ・用途</span>
+              </>
+            }
+          />
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {USE_CASES.map((u) => (
+              <li key={u.title} className="rounded-2xl bg-card p-6 shadow-card ring-1 ring-border">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-amber-soft text-[#8a5a00]">
+                  <u.icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-              </Link>
+                <h3 className="mt-4 font-black leading-snug tracking-tight text-foreground">{u.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{u.body}</p>
+              </li>
             ))}
+          </ul>
+          <div className="mx-auto mt-8 flex max-w-4xl items-start gap-4 rounded-2xl border border-primary/20 bg-secondary p-5 sm:p-6">
+            <Building2 className="mt-0.5 h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-secondary-foreground sm:text-[15px]">
+              運営会社の株式会社SOARAは、ガチャガチャ・クレーンゲームの設置事業も行っています。景品の補充や入れ替えのサイクルをふまえて、発注スケジュールをご提案します。
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────── */}
-      <section className="py-16 md:py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-brand-gradient px-6 py-14 md:px-16 md:py-20 text-center shadow-brand">
-            <div className="absolute inset-0 bg-dotgrid opacity-10" aria-hidden="true" />
-            <div className="relative">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                オリジナルグッズの製作を始めましょう
-              </h2>
-              <p className="mt-4 text-white/85 max-w-2xl mx-auto leading-relaxed">
-                会員登録なしでもご注文いただけます。お好きな商品を選び、デザインを入稿してください。
-              </p>
-              <Button
-                asChild
-                size="lg"
-                className="mt-9 bg-white hover:bg-white/90 text-primary h-12 px-9 text-base font-bold rounded-xl shadow-float"
-              >
-                <Link href="/products">
-                  商品を選ぶ
-                  <ArrowRight className="ml-1.5 h-5 w-5" />
-                </Link>
-              </Button>
+      {/* ── ご利用の条件 ─────────────────────────────────────── */}
+      <section id="conditions" aria-labelledby="conditions-title" className="py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading
+            id="conditions-title"
+            eyebrow="CONDITIONS"
+            title="ご利用の条件"
+            lead="継続して発注いただける商品に限定することで、この価格を実現しています。"
+          />
+          <div className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-[1.25fr_1fr]">
+            <div className="rounded-2xl border-2 border-primary bg-card p-6 shadow-card sm:p-8">
+              <h3 className="flex items-center gap-2 text-lg font-black text-primary">
+                <CircleCheck className="h-6 w-6" aria-hidden="true" />
+                対象となるご依頼
+              </h3>
+              <ul className="mt-5 space-y-4">
+                {CONDITIONS_OK.map((c) => (
+                  <li key={c} className="flex items-start gap-3 text-[15px] font-semibold leading-relaxed text-foreground">
+                    <Check className="mt-1 h-4 w-4 shrink-0 text-primary" strokeWidth={3} aria-hidden="true" />
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl bg-muted p-6 ring-1 ring-border sm:p-8">
+              <h3 className="flex items-center gap-2 text-lg font-black text-muted-foreground">
+                <CircleX className="h-6 w-6" aria-hidden="true" />
+                お受けしていないご依頼
+              </h3>
+              <ul className="mt-5 space-y-4">
+                {CONDITIONS_NG.map((c) => (
+                  <li key={c.text} className="flex items-start gap-3 text-[15px] font-semibold leading-relaxed text-foreground/80">
+                    <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
+                    <span>
+                      {c.text}
+                      {c.note && <span className="mt-0.5 block text-xs font-medium text-muted-foreground">※ {c.note}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
+          <p className="mx-auto mt-6 max-w-5xl text-center text-sm leading-relaxed text-muted-foreground">
+            頻度や数量の基準は、商品や仕様によって異なります。対象になるか迷う場合も、まずはお気軽にご相談ください。
+          </p>
         </div>
       </section>
-    </div>
+
+      {/* ── ご依頼の流れ ─────────────────────────────────────── */}
+      <section id="flow" aria-labelledby="flow-title" className="border-t border-border bg-secondary/50 py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading id="flow-title" eyebrow="FLOW" title="ご依頼の流れ" />
+          <ol className="relative mt-12 grid gap-4 lg:grid-cols-5 lg:gap-3">
+            {FLOW.map((step, i) => (
+              <li key={step.title} className="relative flex gap-4 rounded-2xl bg-card p-5 shadow-card ring-1 ring-border lg:flex-col lg:gap-0">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-black text-white shadow-brand tabular-nums">
+                  {i + 1}
+                </span>
+                <div className="lg:mt-4">
+                  <h3 className="font-black leading-snug tracking-tight text-foreground">{step.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                </div>
+                {i === FLOW.length - 1 && (
+                  <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-brand-amber-soft px-2 py-0.5 text-[11px] font-bold text-[#7a4f00]">
+                    <Repeat className="h-3 w-3" aria-hidden="true" />
+                    くり返し
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── FAQ ───────────────────────────────────────────── */}
+      <section id="faq" aria-labelledby="faq-title" className="border-t border-border py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading id="faq-title" eyebrow="FAQ" title="よくある質問" />
+          <div className="mx-auto mt-12 max-w-3xl space-y-3">
+            {FAQS.map((f) => (
+              <details key={f.question} className="faq group rounded-2xl bg-card shadow-card ring-1 ring-border">
+                <summary className="flex cursor-pointer items-start gap-3 p-5 sm:p-6">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-white">
+                    Q
+                  </span>
+                  <h3 className="flex-1 font-bold leading-relaxed text-foreground">{f.question}</h3>
+                  <Plus
+                    className="mt-1 h-5 w-5 shrink-0 text-primary transition-transform group-open:rotate-45 motion-reduce:transition-none"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div className="flex gap-3 px-5 pb-5 sm:px-6 sm:pb-6">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-amber-soft text-xs font-black text-[#7a4f00]">
+                    A
+                  </span>
+                  <p className="flex-1 text-[15px] leading-[1.85] text-muted-foreground">{f.answer}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── お見積り依頼 ─────────────────────────────────────── */}
+      <section id="contact" aria-labelledby="contact-title" className="relative overflow-hidden bg-brand-blue-deep py-20 text-white sm:py-24">
+        <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-15" aria-hidden="true" />
+        <div className={`${container} relative grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14`}>
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <p className="flex items-center gap-3 text-xs font-bold tracking-[0.2em] text-white/70">
+              CONTACT
+              <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-black tracking-normal text-accent-foreground">
+                見積もり無料
+              </span>
+            </p>
+            <h2 id="contact-title" className="mt-3 text-[1.7rem] font-black leading-[1.4] tracking-tight sm:text-4xl">
+              <span className="inline-block">定期発注の</span>
+              <span className="inline-block">お見積り依頼</span>
+            </h2>
+            <p className="mt-5 text-base leading-[1.9] text-white/85">
+              作りたいグッズと、発注の頻度・数量の見込みを教えてください。{REPLY_LEAD_TIME}に担当者からご連絡します。
+            </p>
+
+            <div className="mt-8 rounded-2xl bg-white/10 p-5 ring-1 ring-white/15 sm:p-6">
+              <p className="font-bold">お見積りが早く・正確になる情報</p>
+              <ul className="mt-3 space-y-2">
+                {QUOTE_TIPS.map((t) => (
+                  <li key={t} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/85">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={3} aria-hidden="true" />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-xs leading-relaxed text-white/65">
+                写真や資料は、送信後に届く確認メールへの返信でお送りください。
+              </p>
+            </div>
+
+            <dl className="mt-8 space-y-4 text-sm">
+              <div>
+                <dt className="flex items-center gap-2 text-white/75">
+                  <Mail className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  メールでのお問い合わせ
+                </dt>
+                <dd className="mt-1 pl-6 font-bold">
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    className="inline-block py-0.5 underline decoration-white/40 underline-offset-4 hover:decoration-white"
+                  >
+                    {CONTACT_EMAIL}
+                  </a>
+                </dd>
+              </div>
+              <div>
+                <dt className="flex items-center gap-2 text-white/75">
+                  <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  受付時間
+                </dt>
+                <dd className="mt-1 pl-6 font-bold">{BUSINESS_HOURS}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="text-foreground">
+            <QuoteForm />
+          </div>
+        </div>
+      </section>
+
+      {/* ── 運営会社 ──────────────────────────────────────── */}
+      <section id="company" aria-labelledby="company-title" className="py-20 sm:py-24">
+        <div className={container}>
+          <SectionHeading id="company-title" eyebrow="COMPANY" title="運営会社" />
+          <dl className="mx-auto mt-12 max-w-3xl divide-y divide-border overflow-hidden rounded-2xl bg-card text-sm shadow-card ring-1 ring-border sm:text-[15px]">
+            {COMPANY_ROWS.map(([label, value]) => (
+              <div key={label} className="grid sm:grid-cols-[11rem_1fr]">
+                <dt className="px-5 pt-4 font-bold text-foreground sm:bg-muted/60 sm:py-4">{label}</dt>
+                <dd className="px-5 pt-1 pb-4 leading-relaxed text-muted-foreground sm:py-4">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* ── 個人情報の取り扱い ─────────────────────────────────── */}
+      <section id="privacy" aria-labelledby="privacy-title" className="border-t border-border bg-muted py-14">
+        <div className={`${container} max-w-3xl`}>
+          <h2 id="privacy-title" className="text-lg font-black text-foreground">
+            個人情報の取り扱いについて
+          </h2>
+          <div className="mt-4 space-y-3 text-[13px] leading-[1.9] text-muted-foreground">
+            <p>
+              {COMPANY.name}（以下「当社」）は、本サイトのお見積り依頼フォームで取得する個人情報を、個人情報の保護に関する法律その他の関係法令にしたがい、次のとおり取り扱います。
+            </p>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>
+                <strong className="text-foreground">取得する情報：</strong>
+                会社名・屋号、お名前、メールアドレス、電話番号、ご相談内容など、フォームに入力いただいた情報
+              </li>
+              <li>
+                <strong className="text-foreground">利用目的：</strong>
+                お見積り・お問い合わせへの回答、ご依頼に関するご連絡、お取引の検討と実施のため
+              </li>
+              <li>
+                <strong className="text-foreground">第三者提供：</strong>
+                法令に基づく場合などを除き、ご本人の同意なく第三者に提供しません。
+              </li>
+              <li>
+                <strong className="text-foreground">業務の委託：</strong>
+                メール送信（Resend）、Webサイトの運用（Vercel）、社内連絡（Slack）などの外部サービスを利用しており、その範囲で情報を取り扱う場合があります。これらには米国の事業者が含まれます。
+              </li>
+              <li>
+                <strong className="text-foreground">安全管理：</strong>
+                通信はSSL/TLSで暗号化し、情報にアクセスできる担当者を限定しています。
+              </li>
+              <li>
+                <strong className="text-foreground">アクセス解析：</strong>
+                利用状況を把握するため、Google アナリティクス（Cookieを使用）と Vercel Web Analytics を利用しています。
+              </li>
+              <li>
+                <strong className="text-foreground">開示・訂正・削除などのご請求、お問い合わせ窓口：</strong>
+                <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-4">
+                  {CONTACT_EMAIL}
+                </a>
+                （{COMPANY.name}　{COMPANY.representativeTitle} {COMPANY.representative}／{COMPANY.address}）
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <MobileCta />
+    </>
   )
 }

@@ -1,99 +1,45 @@
 /**
- * /llms.txt — machine-friendly site guide for LLM agents.
- * Follows the informal llmstxt.org convention: short markdown document pointing
- * AI agents to the most useful resources + a programmatic ordering API.
+ * /llms.txt — AI（LLM）向けのサイト要約。llmstxt.org の慣習に沿った短い Markdown。
  */
-import { getProductsFromDb } from '@/lib/products-db'
+import { BUSINESS_HOURS, COMPANY, CONTACT_EMAIL, FAQS, PRODUCTS, SITE_NAME, SITE_URL } from '@/lib/site'
 
-export const revalidate = 300
+export const dynamic = 'force-static'
 
-export async function GET() {
-  const products = await getProductsFromDb()
-  const productLines = products
-    .filter((p) => p.isActive !== false)
-    .map((p) => `- [${p.name}](https://fast-oem.soara-mu.jp/products/${p.slug}) — ${p.shortDescription ?? p.description}. 最小${p.minQuantity}個〜`)
-    .join('\n')
+export function GET() {
+  const body = `# ${SITE_NAME}
 
-  const body = `# FAST OEM
+> 定期的に発注があるオリジナルグッズに限定した、日本国内向けのOEM製作サービス。年間の発注見込み（頻度×数量）をもとに単価を設計し、単発の発注よりも安い単価で同じ仕様の商品を継続生産する。運営：${COMPANY.name}（神奈川県横浜市）。
 
-> オリジナルグッズ（アクリルキーホルダー・缶バッジ・ラバーキーホルダー・ピンバッジ）の小ロットOEM製作サービス。日本国内向け。AI エージェントからの見積・注文にも対応。
+## 概要
+- 対象：同じ商品（同一仕様）を継続して発注する法人・個人事業主（目安：年に複数回の発注）
+- 対応グッズ：${PRODUCTS.map((p) => p.name).join('、')}（その他は要相談）
+- 型代：ピンバッジ・ラバーキーホルダーは初回のみ（継続発注の間は型を保管）。アクリルキーホルダー・缶バッジは型代不要
+- 単発・1回限りの注文は受け付けていない
+- Webサイトからの直接注文（カート・決済）は停止中。見積もりはフォームまたはメールで受け付ける
+- 納品：日本全国
 
-## このサイトについて
-運営: 株式会社SOARA（横浜市神奈川区金港町5-14 クアドリフォリオ8階）
-問合せ: contact@soara-mu.com
+## 安くなる理由
+1. 1回ごとの数量ではなく、年間の発注見込みで単価を設計する
+2. 発注時期と数量が事前にわかるため、工場の生産計画に組み込める（急ぎの割増・段取り替えが減る）
+3. 金型・印刷データ・仕様書は初回に確定し、2回目以降は再生産するだけ
+4. 提携工場と直接取引し、材料もまとめて手配する
 
-## 主要な公開 API（AIエージェント向け）
-- \`GET  https://fast-oem.soara-mu.jp/api/ai/catalog.json\` — 全商品カタログ（価格帯・オプション・サイズ・金型代含む）
-- \`POST https://fast-oem.soara-mu.jp/api/ai/quote\` — 商品・数量・オプション指定で見積を返す（注文は成立しない）
-- \`POST https://fast-oem.soara-mu.jp/api/ai/order\` — 注文を作成し Stripe Hosted Checkout URL を返す。Authorization: Bearer sk_agent_... を付けると顧客の登録カードで off-session 自動決済
-- \`GET  https://fast-oem.soara-mu.jp/api/ai/shipping?quantity=N&express=true|false\` — 送料計算
-- \`POST https://fast-oem.soara-mu.jp/api/mcp\` — Model Context Protocol サーバー（Streamable HTTP、5ツール）
-- \`GET  https://fast-oem.soara-mu.jp/.well-known/ai-plugin.json\` — AI plugin manifest（OpenAPI schema リンク含む）
-- \`GET  https://fast-oem.soara-mu.jp/api/openapi.json\` — OpenAPI 3.1 スキーマ
+## 向いている用途
+ガチャガチャ（カプセルトイ）の景品、クレーンゲーム・アミューズメント景品、店頭・ECで継続販売する定番グッズ、継続配布のノベルティ・販促品、キャラクター・IPグッズの定番品、社章・記念品
 
-## MCP 接続設定（Claude Desktop / Cursor / Claude Code 等）
-\`\`\`json
-{
-  "mcpServers": {
-    "fast-oem": {
-      "url": "https://fast-oem.soara-mu.jp/api/mcp",
-      "transport": "streamable-http",
-      "headers": { "Authorization": "Bearer sk_agent_..." }
-    }
-  }
-}
-\`\`\`
-ツール: get_catalog / get_quote / get_shipping / create_order / check_order_status
+## よくある質問
+${FAQS.map((f) => `- Q: ${f.question}\n  A: ${f.answer}`).join('\n')}
 
-## 商品
-${productLines}
+## 依頼・問い合わせ
+- お見積り依頼フォーム：${SITE_URL}/#contact
+- メール：${CONTACT_EMAIL}（${BUSINESS_HOURS}）
+- 運営会社：${COMPANY.name}／${COMPANY.address}／${COMPANY.url}
 
-## 価格ルール（要約）
-- 価格は税込・円建て。合計金額は税込＋送料込で表示。
-- 数量 tier に応じた単価割引あり。
-- サイズは倍率（multiply）でunit priceに乗算される（例: 25mm = 0.65×、75mm = 1.70×）。
-- ピンバッジ・ラバーキーホルダーは別途金型代（初回のみ、最終注文日から1年保管）。
-- 送料はカート合計数量で決まる（¥5,000〜、最大¥20,000+）。特急便は送料×2。
-
-## 納期
-- 通常: ご入金確認後 15〜30営業日（目安3〜4週間）
-- 特急: 12営業日以内（目安2〜3週間）
-
-## 発注フロー（AI主導）
-### パターンA: URL 返却（カード登録不要）
-1. GET /api/ai/catalog.json で商品 slug を取得
-2. POST /api/ai/quote で見積取得（JSON）
-3. POST /api/ai/order で注文作成 → Stripe Hosted Checkout URL 取得
-4. ユーザーに URL を提示 → カード入力 → 決済完了
-
-### パターンB: 完全自律（事前カード登録あり）
-1. 顧客が /mypage/agent-access で Agent API キー発行＋カード登録
-2. エージェントが Authorization: Bearer sk_agent_... で /api/ai/order を呼ぶ
-3. 登録済みカードに off-session 自動課金 → 即決済完了
-4. 1日の上限額（顧客がキー毎に設定）を超える注文は自動拒否
-
-## 法務・ポリシー
-- 特商法: /tokushoho
-- 利用規約: /terms
-- プライバシー: /privacy
-- 配送: /shipping
-- FAQ: /faq
-
-## LLM / AIボット向け方針
-- 検索用クロール: 歓迎
-- 価格・仕様をユーザーに提示する用途: 歓迎
-- **自動発注の完了（Stripe決済まで）は人間の最終承認が必須**。エージェントは /api/ai/quote で見積を取得し、カート URL をユーザーに提示してください。
-
-## 最終更新
-${new Date().toISOString().split('T')[0]}
+## 提供を終了したもの
+- 旧オンライン注文ページ（/products、/cart、/checkout など）
+- AIエージェント向けの注文API・MCPサーバー（/api/ai/*、/api/mcp）
 `
-
   return new Response(body, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'public, max-age=300, s-maxage=300',
-      'X-Robots-Tag': 'all',
-    },
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
   })
 }

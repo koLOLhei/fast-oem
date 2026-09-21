@@ -1,56 +1,26 @@
 import type { Metadata, Viewport } from 'next'
-import { Suspense } from 'react'
 import Script from 'next/script'
-import { Noto_Sans_JP } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
-import { CartProvider } from '@/components/cart-provider'
-import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
+import { SiteHeader } from '@/components/lp/site-header'
+import { SiteFooter } from '@/components/lp/site-footer'
+import { SITE_NAME, SITE_URL } from '@/lib/site'
 import './globals.css'
 
-const notoSansJP = Noto_Sans_JP({
-  subsets: ['latin'],
-  weight: ['400', '700', '900'],
-  display: 'swap',
-  variable: '--font-noto-sans-jp',
-})
-
-const BASE_URL = 'https://fast-oem.soara-mu.jp'
-
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'FAST OEM | 小ロットOEMグッズ製作・オリジナルグッズ作成',
-    template: '%s | FAST OEM',
+    default: `定期発注でオリジナルグッズを格安OEM製作｜${SITE_NAME}`,
+    template: `%s｜${SITE_NAME}`,
   },
-  description:
-    'アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティ・推しグッズの製作なら FAST OEM。',
-  authors: [{ name: 'FAST OEM', url: BASE_URL }],
-  creator: 'FAST OEM',
-  publisher: 'FAST OEM',
+  applicationName: SITE_NAME,
+  authors: [{ name: '株式会社SOARA', url: 'https://soara-mu.jp' }],
+  creator: '株式会社SOARA',
+  publisher: '株式会社SOARA',
+  formatDetection: { telephone: false, address: false, email: false },
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'ja_JP',
-    url: BASE_URL,
-    siteName: 'FAST OEM',
-    title: 'FAST OEM | 小ロットOEMグッズ製作・オリジナルグッズ作成',
-    description:
-      'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。同人グッズ・ノベルティの製作なら FAST OEM。',
-    images: [{ url: '/opengraph-image.png', width: 1200, height: 630, alt: 'FAST OEM オリジナルグッズ製作' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'FAST OEM | オリジナルグッズ製作',
-    description: 'アクリルキーホルダー・缶バッジ・ピンバッジのOEM製作。小ロット対応・格安・スピード納品。',
-    images: ['/opengraph-image.png'],
-  },
-  alternates: {
-    canonical: BASE_URL,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   },
   icons: {
     icon: [
@@ -59,50 +29,42 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+  manifest: '/manifest.json',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1e3a5f',
+  themeColor: '#1e73be',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ja">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://utwvalzykfxdeuwnebne.supabase.co" />
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
-      <body className={`${notoSansJP.variable} font-sans antialiased`}>
-        <CartProvider>
-          <div className="flex min-h-screen flex-col">
-            <Suspense fallback={<HeaderFallback />}>
-              <Header />
-            </Suspense>
-            <main className="flex-1">{children}</main>
-            <Suspense>
-              <Footer />
-            </Suspense>
-          </div>
-        </CartProvider>
+      <body className="font-sans antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:shadow-float"
+        >
+          本文へスキップ
+        </a>
+        <div className="flex min-h-screen flex-col">
+          <p className="bg-brand-ink px-4 py-2 text-center text-xs leading-relaxed text-white/85">
+            Webからの直接注文（カート・決済）は停止中です。現在は定期発注のご相談のみ承っています。
+          </p>
+          <SiteHeader />
+          <main id="main" className="flex-1">
+            {children}
+          </main>
+          <SiteFooter />
+        </div>
         <Analytics />
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-K27ZY9QJDT"
-          strategy="lazyOnload"
-        />
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-K27ZY9QJDT" strategy="lazyOnload" />
         <Script id="google-analytics" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
+            window.gtag = gtag;
             gtag('js', new Date());
             gtag('consent', 'default', {
               analytics_storage: 'granted',
@@ -115,18 +77,5 @@ export default function RootLayout({
         </Script>
       </body>
     </html>
-  )
-}
-
-function HeaderFallback() {
-  return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b-4 border-[#f5a623]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 py-3">
-          <div className="w-11 h-11 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-8 w-48 bg-gray-100 rounded animate-pulse" />
-        </div>
-      </div>
-    </header>
   )
 }

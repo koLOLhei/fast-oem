@@ -4,13 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --experimental-https",
-    "build": "npm run check:links && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "check:links": "node scripts/check-links.mjs",
-    "test": "vitest run --exclude '**/*.integration.test.ts'",
-    "test:watch": "vitest --exclude '**/*.integration.test.ts'",
-    "test:integration": "vitest run '__tests__/cross-tenant.integration.test.ts' '__tests__/integration.test.ts'"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
