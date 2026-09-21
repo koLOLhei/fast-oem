@@ -31,6 +31,7 @@ import {
 import { JsonLd } from '@/components/json-ld'
 import { CostDiagram } from '@/components/lp/cost-diagram'
 import { MobileCta } from '@/components/lp/mobile-cta'
+import { Phrase } from '@/components/lp/phrase'
 import { PlanCard } from '@/components/lp/plan-card'
 import { QuoteForm } from '@/components/lp/quote-form'
 import { SectionHeading } from '@/components/lp/section-heading'
@@ -44,6 +45,7 @@ import {
   REPLY_LEAD_TIME,
   SITE_LAST_UPDATED,
   SITE_NAME,
+  SITE_TAGLINE,
   SITE_URL,
 } from '@/lib/site'
 
@@ -82,17 +84,19 @@ const HERO_POINTS = [
   '発注スケジュールに合わせた計画生産で、欠品を防ぐ',
 ]
 
-const HERO_TILE: Record<string, string> = {
-  'can-badge': 'lg:translate-y-10',
-  'pin-badge': 'lg:hidden',
-  'rubber-keychain': 'lg:col-start-2 lg:row-start-2 lg:translate-y-10',
+// PCでは「大1枚＋小2枚」のタイル配置（重なりなし）。ピンバッジはスマホの4枚並びでだけ表示
+const HERO_TILE: Record<string, { className: string; sizes: string }> = {
+  'acrylic-keychain': { className: 'lg:col-span-2 lg:row-span-2', sizes: '(min-width: 1024px) 320px, 25vw' },
+  'can-badge': { className: '', sizes: '(min-width: 1024px) 160px, 25vw' },
+  'pin-badge': { className: 'lg:hidden', sizes: '25vw' },
+  'rubber-keychain': { className: '', sizes: '(min-width: 1024px) 160px, 25vw' },
 }
 
 const FACTS = [
   { icon: Package, label: '対応グッズ', value: 'アクリル・缶バッジ・ピンバッジ・ラバー' },
   { icon: Layers, label: '型代', value: '初回のみ（継続中は型を保管）' },
   { icon: Truck, label: '納品', value: '日本全国へお届け' },
-  { icon: Building2, label: '運営', value: '株式会社SOARA（横浜）' },
+  { icon: Building2, label: '運営', value: '株式会社SOARA（東京・横浜）' },
 ]
 
 const PAINS = [
@@ -196,7 +200,7 @@ const CONDITIONS_NG = [
 
 const FLOW = [
   { title: 'お問い合わせ', body: 'フォームから、作りたいグッズと発注の頻度・数量の見込みをお知らせください。' },
-  { title: 'ヒアリング・お見積り', body: '仕様と発注スケジュールを確認し、定期発注の単価をご提案します。' },
+  { title: 'ヒアリング・お見積もり', body: '仕様と発注スケジュールを確認し、定期発注の単価をご提案します。' },
   { title: '仕様の確定・サンプル確認', body: '仕様書を作成し、必要に応じてサンプルで仕上がりを確認します。' },
   { title: '初回の生産・納品', body: '確定した仕様で生産し、ご指定の場所へ納品します。' },
   { title: '定期生産', body: '以降はスケジュールに沿って同じ仕様で生産。数量の増減もご相談いただけます。' },
@@ -213,12 +217,23 @@ const COMPANY_ROWS: [string, React.ReactNode][] = [
   ['サービス名', SITE_NAME],
   ['代表者', `${COMPANY.representativeTitle}　${COMPANY.representative}`],
   ['設立', COMPANY.founded],
-  ['所在地', COMPANY.address],
+  [
+    '所在地',
+    <ul key="offices" className="space-y-1">
+      {COMPANY.offices.map((o) => (
+        <li key={o.name}>
+          <span className="font-semibold text-foreground">{o.name}</span>　<Phrase>{o.address}</Phrase>
+        </li>
+      ))}
+    </ul>,
+  ],
   [
     '事業内容',
     <ul key="business" className="space-y-1">
       {COMPANY.business.map((b) => (
-        <li key={b}>{b}</li>
+        <li key={b}>
+          <Phrase>{b}</Phrase>
+        </li>
       ))}
     </ul>,
   ],
@@ -228,7 +243,7 @@ const COMPANY_ROWS: [string, React.ReactNode][] = [
       {CONTACT_EMAIL}
     </a>,
   ],
-  ['受付時間', BUSINESS_HOURS],
+  ['受付時間', <Phrase key="hours">{BUSINESS_HOURS}</Phrase>],
   [
     'コーポレートサイト',
     <a key="corp" href={COMPANY.url} target="_blank" rel="noopener" className="text-primary underline underline-offset-4">
@@ -239,7 +254,10 @@ const COMPANY_ROWS: [string, React.ReactNode][] = [
 
 /* ── 構造化データ ───────────────────────────────────────────── */
 
-const ORG_ID = `${SITE_URL}/#organization`
+// 運営会社はコーポレートサイト（soara-mu.jp）と同じ実体として記述し、FAST OEM はそのブランドとして扱う。
+// 会社名・URL・ロゴをコーポレートサイトの構造化データと揃えることで、別会社と誤認されないようにする。
+const ORG_ID = `${COMPANY.url}/#organization`
+const BRAND_ID = `${SITE_URL}/#brand`
 const SERVICE_ID = `${SITE_URL}/#service`
 
 const jsonLd = [
@@ -247,23 +265,24 @@ const jsonLd = [
     '@context': 'https://schema.org',
     '@type': 'Organization',
     '@id': ORG_ID,
-    name: SITE_NAME,
-    legalName: COMPANY.name,
-    url: SITE_URL,
-    logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon.png`, width: 512, height: 512 },
+    name: COMPANY.name,
+    url: COMPANY.url,
+    logo: COMPANY.logo,
     email: CONTACT_EMAIL,
     foundingDate: COMPANY.foundingDate,
     founder: { '@type': 'Person', name: COMPANY.representative, jobTitle: COMPANY.representativeTitle },
-    address: {
+    address: COMPANY.offices.map((o) => ({
       '@type': 'PostalAddress',
-      postalCode: COMPANY.postalCode,
-      addressRegion: COMPANY.region,
-      addressLocality: COMPANY.locality,
-      streetAddress: COMPANY.street,
+      name: o.name,
+      postalCode: o.postalCode,
+      addressRegion: o.region,
+      addressLocality: o.locality,
+      streetAddress: o.street,
       addressCountry: 'JP',
-    },
+    })),
     contactPoint: {
       '@type': 'ContactPoint',
+      name: `${SITE_NAME} お見積もり窓口`,
       contactType: 'sales',
       email: CONTACT_EMAIL,
       availableLanguage: 'ja',
@@ -275,7 +294,16 @@ const jsonLd = [
         closes: '18:00',
       },
     },
-    sameAs: [COMPANY.url],
+    brand: { '@id': BRAND_ID },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Brand',
+    '@id': BRAND_ID,
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon.png`,
+    slogan: SITE_TAGLINE,
   },
   {
     '@context': 'https://schema.org',
@@ -308,6 +336,7 @@ const jsonLd = [
     description:
       '定期的に発注があるオリジナルグッズに限定し、年間の発注見込みをもとに単価を設計するOEM製作サービス。型代は初回のみ。',
     provider: { '@id': ORG_ID },
+    brand: { '@id': BRAND_ID },
     areaServed: { '@type': 'Country', name: 'JP' },
     audience: {
       '@type': 'BusinessAudience',
@@ -364,7 +393,9 @@ export default function HomePage() {
             </p>
 
             <h1 id="hero-title" className="mt-6 font-black tracking-tight text-foreground">
-              <span className="block text-lg leading-snug sm:text-2xl lg:text-[1.65rem]">くり返し作るオリジナルグッズを、</span>
+              <span className="block text-lg leading-snug sm:text-2xl lg:text-[1.65rem]">
+                <Phrase>くり返し作るオリジナルグッズを、</Phrase>
+              </span>
               <span className="mt-1 block text-[2.7rem] leading-[1.22] sm:text-6xl lg:text-[4.2rem]">
                 定期発注で
                 <br />
@@ -382,7 +413,7 @@ export default function HomePage() {
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white">
                     <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
                   </span>
-                  {point}
+                  <Phrase>{point}</Phrase>
                 </li>
               ))}
             </ul>
@@ -400,22 +431,24 @@ export default function HomePage() {
                 <ArrowDown className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">いまの仕入れ単価と比べてみてください。比べやすい形でお見積りします。</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              いまの仕入れ単価と比べてみてください。比べやすい形でお見積もりします。
+            </p>
           </div>
 
           <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-            {/* スマホは4枚を横並び。PCは左下を空けて3枚にし、空いた枠に「定期発注の例」カードを重ねる */}
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-2 lg:gap-4 lg:pb-10">
+            {/* 写真とカードは重ねない。スマホは写真4枚を横並び、PCは大1枚＋小2枚のタイル。その下にカード */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-3 lg:gap-3">
               {PRODUCTS.map((p, i) => (
                 <div
                   key={p.slug}
-                  className={`relative aspect-square overflow-hidden rounded-xl bg-muted shadow-card ring-1 ring-border lg:rounded-2xl ${HERO_TILE[p.slug] ?? ''}`}
+                  className={`relative aspect-square overflow-hidden rounded-xl bg-muted shadow-card ring-1 ring-border lg:rounded-2xl ${HERO_TILE[p.slug]?.className ?? ''}`}
                 >
                   <Image
                     src={p.image}
                     alt={p.alt}
                     fill
-                    sizes="(min-width: 1024px) 250px, 25vw"
+                    sizes={HERO_TILE[p.slug]?.sizes ?? '25vw'}
                     loading={i === 0 ? 'eager' : 'lazy'}
                     fetchPriority={i === 0 ? 'high' : undefined}
                     className="object-cover"
@@ -423,14 +456,14 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <PlanCard className="relative z-10 mt-4 lg:absolute lg:bottom-0 lg:-left-8 lg:mt-0 lg:w-[20rem]" />
+            <PlanCard className="mt-4 lg:mt-3" />
           </div>
         </div>
       </section>
 
       {/* ── 概要 ──────────────────────────────────────────── */}
       <section aria-label="サービスの概要" className="border-b border-border bg-background">
-        <ul className={`${container} grid grid-cols-1 gap-5 py-8 min-[480px]:grid-cols-2 lg:grid-cols-4`}>
+        <ul className={`${container} grid grid-cols-1 gap-5 py-8 min-[480px]:grid-cols-2 xl:flex xl:justify-between`}>
           {FACTS.map((f) => (
             <li key={f.label} className="flex items-center gap-3.5">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
@@ -438,7 +471,9 @@ export default function HomePage() {
               </span>
               <p>
                 <span className="block text-xs font-bold text-muted-foreground">{f.label}</span>
-                <span className="mt-0.5 block text-sm font-bold leading-snug text-foreground">{f.value}</span>
+                <span className="mt-0.5 block text-sm font-bold leading-snug text-foreground">
+                  <Phrase>{f.value}</Phrase>
+                </span>
               </p>
             </li>
           ))}
@@ -451,12 +486,7 @@ export default function HomePage() {
           <SectionHeading
             id="problem-title"
             eyebrow="PROBLEM"
-            title={
-              <>
-                同じグッズを、毎回<span className="inline-block">「単発」で</span>
-                <span className="inline-block">発注していませんか？</span>
-              </>
-            }
+            title="同じグッズを、毎回「単発」で発注していませんか？"
           />
           <ul className="mx-auto mt-12 grid max-w-5xl gap-4 md:grid-cols-2">
             {PAINS.map((p) => (
@@ -465,8 +495,12 @@ export default function HomePage() {
                   <p.icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <h3 className="font-bold leading-snug text-foreground">{p.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+                  <h3 className="font-bold leading-snug text-foreground">
+                    <Phrase>{p.title}</Phrase>
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    {p.body}
+                  </p>
                 </div>
               </li>
             ))}
@@ -476,10 +510,12 @@ export default function HomePage() {
               <ArrowDown className="h-6 w-6" aria-hidden="true" />
             </span>
             <p className="mt-5 text-xl font-black leading-relaxed tracking-tight text-foreground sm:text-3xl">
-              <span className="inline-block">くり返し発注する商品なら、</span>
-              <span className="inline-block">
-                <span className="text-primary">定期発注</span>にまとめて解決。
+              <Phrase>くり返し発注する商品なら、</Phrase>
+              <wbr />
+              <span className="text-primary">
+                <Phrase>定期発注</Phrase>
               </span>
+              <Phrase>にまとめて解決。</Phrase>
             </p>
           </div>
         </div>
@@ -491,12 +527,7 @@ export default function HomePage() {
           <SectionHeading
             id="reasons-title"
             eyebrow="REASONS"
-            title={
-              <>
-                <span className="inline-block">定期発注だと安くなる、</span>
-                <span className="inline-block">4つの理由</span>
-              </>
-            }
+            title="定期発注だと安くなる、4つの理由"
             lead="値引きではなく、「つくり方」を変えることで単価を下げます。"
           />
           <ol className="mt-12 grid gap-5 md:grid-cols-2">
@@ -512,8 +543,12 @@ export default function HomePage() {
                     className="text-4xl font-black tabular-nums leading-none text-border after:content-[attr(data-num)]"
                   />
                 </div>
-                <h3 className="mt-5 text-lg font-black leading-snug tracking-tight text-foreground sm:text-xl">{r.title}</h3>
-                <p className="mt-2.5 text-[15px] leading-[1.85] text-muted-foreground">{r.body}</p>
+                <h3 className="mt-5 text-lg font-black leading-snug tracking-tight text-foreground sm:text-xl">
+                  <Phrase>{r.title}</Phrase>
+                </h3>
+                <p className="mt-2.5 text-[15px] leading-[1.85] text-muted-foreground">
+                  {r.body}
+                </p>
               </li>
             ))}
           </ol>
@@ -529,12 +564,7 @@ export default function HomePage() {
           <SectionHeading
             id="compare-title"
             eyebrow="COMPARE"
-            title={
-              <>
-                <span className="inline-block">単発の発注と、</span>
-                <span className="inline-block">定期発注の違い</span>
-              </>
-            }
+            title="単発の発注と、定期発注の違い"
           />
           {/* スマホでは各行を「見出し（全幅）＋ 2列」に組み替える */}
           <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl shadow-card ring-1 ring-border">
@@ -563,13 +593,15 @@ export default function HomePage() {
                       scope="row"
                       className="bg-muted/60 px-3 py-4 align-top font-bold text-foreground max-sm:col-span-2 max-sm:py-2 sm:px-5"
                     >
-                      {row.label}
+                      <Phrase>{row.label}</Phrase>
                     </th>
-                    <td className="px-3 py-4 align-top leading-relaxed text-muted-foreground sm:px-5">{row.spot}</td>
+                    <td className="px-3 py-4 align-top leading-relaxed text-muted-foreground sm:px-5">
+                      <Phrase>{row.spot}</Phrase>
+                    </td>
                     <td className="bg-secondary/60 px-3 py-4 align-top font-bold leading-relaxed text-secondary-foreground sm:px-5">
                       <span className="flex items-start gap-1.5">
                         <CircleCheck className="mt-0.5 hidden h-4 w-4 shrink-0 text-primary sm:block" aria-hidden="true" />
-                        {row.recurring}
+                        <Phrase>{row.recurring}</Phrase>
                       </span>
                     </td>
                   </tr>
@@ -581,17 +613,15 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────── */}
-      <section aria-label="お見積りのご案内" className="relative overflow-hidden bg-brand-gradient py-14 text-white sm:py-16">
+      <section aria-label="お見積もりのご案内" className="relative overflow-hidden bg-brand-gradient py-14 text-white sm:py-16">
         <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-15" aria-hidden="true" />
         <div className={`${container} relative flex flex-col items-start gap-7 md:flex-row md:items-center md:justify-between`}>
           <div>
             <p className="text-[1.4rem] font-black leading-snug tracking-tight sm:text-3xl">
-              <span className="inline-block">いまの単価と、</span>
-              <span className="inline-block">定期発注の単価を</span>
-              <span className="inline-block">比べてみませんか。</span>
+              <Phrase>いまの単価と、定期発注の単価を比べてみませんか。</Phrase>
             </p>
             <p className="mt-3 text-sm leading-relaxed text-white/80 sm:text-base">
-              現在の仕入れ単価をお知らせいただければ、比較しやすい形でお見積りします。見積もりは無料です。
+              現在の仕入れ単価をお知らせいただければ、比較しやすい形でお見積もりします。見積もりは無料です。
             </p>
           </div>
           <a href="#contact" className={`${btnAccent} h-14 shrink-0`}>
@@ -627,12 +657,14 @@ export default function HomePage() {
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h3 className="text-lg font-black tracking-tight text-foreground">{p.name}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.description}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {p.description}
+                  </p>
                   <ul className="mt-4 space-y-1.5 border-t border-border pt-4 text-[13px] text-foreground/80">
                     {p.specs.map((s) => (
                       <li key={s} className="flex items-start gap-1.5">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} aria-hidden="true" />
-                        {s}
+                        <Phrase>{s}</Phrase>
                       </li>
                     ))}
                   </ul>
@@ -641,7 +673,7 @@ export default function HomePage() {
             ))}
           </ul>
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            上記以外のグッズも、継続した発注が見込める場合はご相談ください。
+            <Phrase>上記以外のグッズも、継続した発注が見込める場合はご相談ください。</Phrase>
           </p>
         </div>
       </section>
@@ -652,12 +684,7 @@ export default function HomePage() {
           <SectionHeading
             id="use-cases-title"
             eyebrow="USE CASES"
-            title={
-              <>
-                <span className="inline-block">定期発注が向いている</span>
-                <span className="inline-block">グッズ・用途</span>
-              </>
-            }
+            title="定期発注が向いているグッズ・用途"
           />
           <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {USE_CASES.map((u) => (
@@ -665,8 +692,12 @@ export default function HomePage() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-amber-soft text-[#8a5a00]">
                   <u.icon className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <h3 className="mt-4 font-black leading-snug tracking-tight text-foreground">{u.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{u.body}</p>
+                <h3 className="mt-4 font-black leading-snug tracking-tight text-foreground">
+                  <Phrase>{u.title}</Phrase>
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {u.body}
+                </p>
               </li>
             ))}
           </ul>
@@ -698,7 +729,7 @@ export default function HomePage() {
                 {CONDITIONS_OK.map((c) => (
                   <li key={c} className="flex items-start gap-3 text-[15px] font-semibold leading-relaxed text-foreground">
                     <Check className="mt-1 h-4 w-4 shrink-0 text-primary" strokeWidth={3} aria-hidden="true" />
-                    {c}
+                    <Phrase>{c}</Phrase>
                   </li>
                 ))}
               </ul>
@@ -713,7 +744,7 @@ export default function HomePage() {
                   <li key={c.text} className="flex items-start gap-3 text-[15px] font-semibold leading-relaxed text-foreground/80">
                     <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
                     <span>
-                      {c.text}
+                      <Phrase>{c.text}</Phrase>
                       {c.note && <span className="mt-0.5 block text-xs font-medium text-muted-foreground">※ {c.note}</span>}
                     </span>
                   </li>
@@ -722,7 +753,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="mx-auto mt-6 max-w-5xl text-center text-sm leading-relaxed text-muted-foreground">
-            頻度や数量の基準は、商品や仕様によって異なります。対象になるか迷う場合も、まずはお気軽にご相談ください。
+            <Phrase>頻度や数量の基準は、商品や仕様によって異なります。対象になるか迷う場合も、まずはお気軽にご相談ください。</Phrase>
           </p>
         </div>
       </section>
@@ -738,8 +769,12 @@ export default function HomePage() {
                   {i + 1}
                 </span>
                 <div className="lg:mt-4">
-                  <h3 className="font-black leading-snug tracking-tight text-foreground">{step.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                  <h3 className="font-black leading-snug tracking-tight text-foreground">
+                    <Phrase>{step.title}</Phrase>
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                    {step.body}
+                  </p>
                 </div>
                 {i === FLOW.length - 1 && (
                   <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-brand-amber-soft px-2 py-0.5 text-[11px] font-bold text-[#7a4f00]">
@@ -764,7 +799,9 @@ export default function HomePage() {
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-white">
                     Q
                   </span>
-                  <h3 className="flex-1 font-bold leading-relaxed text-foreground">{f.question}</h3>
+                  <h3 className="flex-1 font-bold leading-relaxed text-foreground">
+                    <Phrase>{f.question}</Phrase>
+                  </h3>
                   <Plus
                     className="mt-1 h-5 w-5 shrink-0 text-primary transition-transform group-open:rotate-45 motion-reduce:transition-none"
                     aria-hidden="true"
@@ -774,7 +811,9 @@ export default function HomePage() {
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-amber-soft text-xs font-black text-[#7a4f00]">
                     A
                   </span>
-                  <p className="flex-1 text-[15px] leading-[1.85] text-muted-foreground">{f.answer}</p>
+                  <p className="flex-1 text-[15px] leading-[1.85] text-muted-foreground">
+                    {f.answer}
+                  </p>
                 </div>
               </details>
             ))}
@@ -782,7 +821,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── お見積り依頼 ─────────────────────────────────────── */}
+      {/* ── お見積もり依頼 ─────────────────────────────────────── */}
       <section id="contact" aria-labelledby="contact-title" className="relative overflow-hidden bg-brand-blue-deep py-20 text-white sm:py-24">
         <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-15" aria-hidden="true" />
         <div className={`${container} relative grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14`}>
@@ -794,20 +833,21 @@ export default function HomePage() {
               </span>
             </p>
             <h2 id="contact-title" className="mt-3 text-[1.7rem] font-black leading-[1.4] tracking-tight sm:text-4xl">
-              <span className="inline-block">定期発注の</span>
-              <span className="inline-block">お見積り依頼</span>
+              <Phrase>定期発注のお見積もり依頼</Phrase>
             </h2>
             <p className="mt-5 text-base leading-[1.9] text-white/85">
               作りたいグッズと、発注の頻度・数量の見込みを教えてください。{REPLY_LEAD_TIME}に担当者からご連絡します。
             </p>
 
             <div className="mt-8 rounded-2xl bg-white/10 p-5 ring-1 ring-white/15 sm:p-6">
-              <p className="font-bold">お見積りが早く・正確になる情報</p>
+              <p className="font-bold">
+                <Phrase>お見積もりが早く・正確になる情報</Phrase>
+              </p>
               <ul className="mt-3 space-y-2">
                 {QUOTE_TIPS.map((t) => (
                   <li key={t} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/85">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={3} aria-hidden="true" />
-                    {t}
+                    <Phrase>{t}</Phrase>
                   </li>
                 ))}
               </ul>
@@ -836,7 +876,9 @@ export default function HomePage() {
                   <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
                   受付時間
                 </dt>
-                <dd className="mt-1 pl-6 font-bold">{BUSINESS_HOURS}</dd>
+                <dd className="mt-1 pl-6 font-bold">
+                  <Phrase>{BUSINESS_HOURS}</Phrase>
+                </dd>
               </div>
             </dl>
           </div>
@@ -870,16 +912,17 @@ export default function HomePage() {
           </h2>
           <div className="mt-4 space-y-3 text-[13px] leading-[1.9] text-muted-foreground">
             <p>
-              {COMPANY.name}（以下「当社」）は、本サイトのお見積り依頼フォームで取得する個人情報を、個人情報の保護に関する法律その他の関係法令にしたがい、次のとおり取り扱います。
+              {COMPANY.name}（以下「当社」）は、本サイトのお見積もり依頼フォームで取得する個人情報を、個人情報の保護に関する法律その他の関係法令にしたがい、次のとおり取り扱います。
             </p>
             <ol className="list-decimal space-y-2 pl-5">
               <li>
                 <strong className="text-foreground">取得する情報：</strong>
-                会社名・屋号、お名前、メールアドレス、電話番号、ご相談内容など、フォームに入力いただいた情報
+                会社名・屋号、お名前、メールアドレス、電話番号、ご相談内容など、フォームに
+                <span className="whitespace-nowrap">入力いただいた情報</span>
               </li>
               <li>
                 <strong className="text-foreground">利用目的：</strong>
-                お見積り・お問い合わせへの回答、ご依頼に関するご連絡、お取引の検討と実施のため
+                お見積もり・お問い合わせへの回答、ご依頼に関するご連絡、お取引の検討と実施のため
               </li>
               <li>
                 <strong className="text-foreground">第三者提供：</strong>

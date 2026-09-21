@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Phrase } from './phrase'
 
 export function SectionHeading({
   id,
@@ -21,10 +22,12 @@ export function SectionHeading({
         id={id}
         className={`mt-3 text-[1.7rem] font-black leading-[1.4] tracking-tight sm:text-4xl ${inverse ? 'text-white' : 'text-foreground'}`}
       >
-        {title}
+        {typeof title === 'string' ? <Phrase>{title}</Phrase> : title}
       </h2>
       {lead && (
-        <p className={`mt-4 text-base leading-relaxed sm:text-lg ${inverse ? 'text-white/80' : 'text-muted-foreground'}`}>{lead}</p>
+        <p className={`mt-4 text-base leading-relaxed sm:text-lg ${inverse ? 'text-white/80' : 'text-muted-foreground'}`}>
+          {typeof lead === 'string' ? <Phrase>{lead}</Phrase> : lead}
+        </p>
       )}
     </div>
   )

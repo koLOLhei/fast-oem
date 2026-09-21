@@ -24,7 +24,7 @@ export default function NotFound() {
             <ArrowRight className="h-5 w-5" aria-hidden="true" />
           </a>
           <a href="/#contact" className="text-sm font-bold text-primary underline underline-offset-4">
-            定期発注のお見積り依頼はこちら
+            定期発注のお見積もり依頼はこちら
           </a>
         </div>
       </div>

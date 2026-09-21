@@ -6,7 +6,6 @@ const NAV = [
   { href: '/#reasons', label: '安くなる理由' },
   { href: '/#products', label: '対応グッズ' },
   { href: '/#conditions', label: 'ご利用条件' },
-  { href: '/#flow', label: 'ご依頼の流れ' },
   { href: '/#faq', label: 'よくある質問' },
 ]
 
@@ -20,8 +19,9 @@ export function SiteHeader() {
           </span>
           <span className="flex flex-col">
             <span className="text-lg font-extrabold leading-none tracking-tight text-foreground">{SITE_NAME}</span>
-            <span className="mt-1 whitespace-nowrap text-[10px] font-bold leading-none tracking-wide text-primary max-[379px]:hidden">
-              {SITE_TAGLINE}
+            <span className="mt-1 whitespace-nowrap text-[11px] font-bold leading-none tracking-wide text-primary">
+              <span className="sm:hidden">定期発注専用OEM</span>
+              <span className="hidden sm:inline">{SITE_TAGLINE}</span>
             </span>
           </span>
         </a>
@@ -32,7 +32,7 @@ export function SiteHeader() {
               <li key={item.href}>
                 <a
                   href={item.href}
-                  className="flex h-10 items-center rounded-lg px-3 text-sm font-semibold text-foreground/75 transition-colors hover:bg-secondary hover:text-primary"
+                  className="flex h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-foreground/75 transition-colors hover:bg-secondary hover:text-primary"
                 >
                   {item.label}
                 </a>

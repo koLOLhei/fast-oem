@@ -70,7 +70,7 @@ export function QuoteForm() {
         className="rounded-2xl bg-card p-8 text-center shadow-float ring-1 ring-border focus:outline-none sm:p-10"
       >
         <CircleCheck className="mx-auto h-14 w-14 text-primary" aria-hidden="true" />
-        <p className="mt-5 text-xl font-black text-foreground sm:text-2xl">お見積りのご依頼を受け付けました</p>
+        <p className="mt-5 text-xl font-black text-foreground sm:text-2xl">お見積もりのご依頼を受け付けました</p>
         <p className="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
           確認メールをお送りしました。{REPLY_LEAD_TIME}に担当者よりご連絡します。
           <br />

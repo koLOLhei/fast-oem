@@ -7,7 +7,7 @@
 
 | パス | 内容 |
 | --- | --- |
-| `/` | LP本体（`app/page.tsx`）。見積り依頼フォームを含む静的ページ |
+| `/` | LP本体（`app/page.tsx`）。見積もり依頼フォームを含む静的ページ |
 | `/robots.txt` `/sitemap.xml` `/llms.txt` | SEO / AI検索向け |
 | `/opengraph-image.jpg` | SNS共有画像（`app/opengraph-image.jpg`） |
 | `/api/*` | 旧API。すべて `410 Gone` を返す（`app/api/[...path]/route.ts`） |
@@ -24,10 +24,10 @@
 ## 環境変数
 
 ```bash
-RESEND_API_KEY=...              # 必須：見積り依頼メールの送信
+RESEND_API_KEY=...              # 必須：見積もり依頼メールの送信
 UPSTASH_REDIS_REST_URL=...      # 推奨：フォームのレート制限
 UPSTASH_REDIS_REST_TOKEN=...
-SLACK_WEBHOOK_URL=...           # 任意：見積り依頼をSlackに通知
+SLACK_WEBHOOK_URL=...           # 任意：見積もり依頼をSlackに通知
 CONTACT_EMAIL=contact@soara-mu.com         # 任意：通知先（既定値あり）
 FROM_EMAIL="FAST OEM <noreply@soara-mu.com>" # 任意：送信元（既定値あり）
 ```

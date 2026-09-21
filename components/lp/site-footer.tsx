@@ -10,7 +10,7 @@ const LINKS = [
   { href: '/#conditions', label: 'ご利用の条件' },
   { href: '/#flow', label: 'ご依頼の流れ' },
   { href: '/#faq', label: 'よくある質問' },
-  { href: '/#contact', label: 'お見積り依頼' },
+  { href: '/#contact', label: 'お見積もり依頼' },
   { href: '/#company', label: '運営会社' },
   { href: '/#privacy', label: '個人情報の取り扱い' },
 ]

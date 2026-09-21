@@ -1,4 +1,5 @@
 import { CalendarSync } from 'lucide-react'
+import { Phrase } from './phrase'
 
 const SCHEDULE = ['1月', '4月', '7月', '10月']
 
@@ -19,7 +20,9 @@ export function PlanCard({ className = '' }: { className?: string }) {
         </span>
       </div>
 
-      <p className="mt-3 font-bold leading-snug text-foreground">ガチャ景品用 アクリルキーホルダー</p>
+      <p className="mt-3 font-bold leading-snug text-foreground">
+        <Phrase>ガチャ景品用 アクリルキーホルダー</Phrase>
+      </p>
 
       <dl className="mt-3 grid grid-cols-2 gap-2">
         <div className="rounded-xl bg-muted px-3 py-2.5">

@@ -151,6 +151,8 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* 行頭に「ッ」「ー」などが来ないようにする（日本語の禁則処理を厳格に） */
+    line-break: strict;
   }
   ::selection {
     background-color: color-mix(in oklab, var(--brand-blue) 22%, transparent);
@@ -228,6 +230,20 @@
   h3 {
     font-feature-settings: 'palt';
     word-break: auto-phrase;
+    text-wrap: balance;
+  }
+  /* 最終行に「す。」だけが残るような泣き別れを防ぐ（Chrome / Safari 26 以降） */
+  p,
+  li,
+  dt,
+  dd,
+  td,
+  th,
+  figcaption,
+  summary,
+  label,
+  legend {
+    text-wrap: pretty;
   }
   summary {
     list-style: none;
@@ -238,6 +254,11 @@
 }
 
 @layer components {
+  /* <Phrase>（BudouX）で文節ごとに <wbr> を入れた日本語。文節の途中では改行しない */
+  .phrase {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
   /* 見出しの蛍光マーカー */
   .marker {
     background-image: linear-gradient(transparent 62%, color-mix(in oklab, var(--brand-amber) 55%, transparent) 62%);

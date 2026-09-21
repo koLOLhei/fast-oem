@@ -98,7 +98,7 @@ function buildInternalEmail(data: QuoteValues, receivedAt: string) {
   const message = data.message || '（未記入）'
 
   const text = [
-    `FAST OEM 定期発注の見積り依頼（${receivedAt}）`,
+    `FAST OEM 定期発注の見積もり依頼（${receivedAt}）`,
     '',
     ...rows.map(([k, v]) => `${k}: ${v}`),
     '',
@@ -113,7 +113,7 @@ function buildInternalEmail(data: QuoteValues, receivedAt: string) {
 <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e6eaf0;border-radius:12px;overflow:hidden;">
 <div style="background:#124e7e;color:#fff;padding:20px 28px;">
 <p style="margin:0;font-size:12px;opacity:.8;">${escapeHtml(receivedAt)}</p>
-<h1 style="margin:4px 0 0;font-size:18px;">定期発注の見積り依頼</h1>
+<h1 style="margin:4px 0 0;font-size:18px;">定期発注の見積もり依頼</h1>
 </div>
 <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;">
 ${rows
@@ -144,13 +144,13 @@ function buildAutoReply(data: QuoteValues) {
     SITE_URL,
   ]
   const text = [
-    `この度は ${SITE_NAME} にお見積りをご依頼いただき、ありがとうございます。`,
+    `この度は ${SITE_NAME} にお見積もりをご依頼いただき、ありがとうございます。`,
     '以下の内容で受け付けました。',
     `${REPLY_LEAD_TIME}に担当者よりご連絡いたします。`,
     '',
     ...rows.map(([k, v]) => `■ ${k}：${v}`),
     '',
-    '現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積りができます。',
+    '現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積もりができます。',
     '',
     '※本メールは自動送信です。お心当たりのない場合は、お手数ですが破棄してください。',
     '',
@@ -161,12 +161,12 @@ function buildAutoReply(data: QuoteValues) {
 <body style="margin:0;padding:24px;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;color:#14181f;">
 <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #e6eaf0;border-radius:12px;padding:28px;">
 <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#1e73be;">${SITE_NAME}</p>
-<h1 style="margin:0 0 20px;font-size:19px;">お見積りのご依頼を受け付けました</h1>
-<p style="margin:0 0 16px;font-size:14px;line-height:1.8;">この度は ${SITE_NAME} にお見積りをご依頼いただき、ありがとうございます。<br>以下の内容で受け付けました。${REPLY_LEAD_TIME}に担当者よりご連絡いたします。</p>
+<h1 style="margin:0 0 20px;font-size:19px;">お見積もりのご依頼を受け付けました</h1>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.8;">この度は ${SITE_NAME} にお見積もりをご依頼いただき、ありがとうございます。<br>以下の内容で受け付けました。${REPLY_LEAD_TIME}に担当者よりご連絡いたします。</p>
 <table style="width:100%;border-collapse:collapse;font-size:14px;margin:0 0 20px;background:#f4f6f9;border-radius:8px;">
 ${rows.map(([k, v]) => `<tr><th style="text-align:left;padding:10px 16px;color:#5b6675;font-weight:600;width:140px;">${k}</th><td style="padding:10px 16px 10px 0;">${v}</td></tr>`).join('\n')}
 </table>
-<p style="margin:0 0 16px;font-size:14px;line-height:1.8;">現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積りができます。</p>
+<p style="margin:0 0 16px;font-size:14px;line-height:1.8;">現在の仕入れ単価や、既存品の写真・仕様書などがあれば、このメールへの返信でお送りください。より正確なお見積もりができます。</p>
 <p style="margin:0 0 24px;font-size:12px;line-height:1.7;color:#5b6675;">※本メールは自動送信です。お心当たりのない場合は、お手数ですが破棄してください。</p>
 <p style="margin:0;padding-top:16px;border-top:1px solid #e6eaf0;font-size:12px;line-height:1.8;color:#5b6675;">${SITE_NAME}（運営：${COMPANY.name}）<br>${COMPANY.address}<br><a href="mailto:${CONTACT_EMAIL}" style="color:#1e73be;">${CONTACT_EMAIL}</a><br><a href="${SITE_URL}" style="color:#1e73be;">${SITE_URL}</a></p>
 </div></body></html>`
@@ -242,7 +242,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
       from: FROM_EMAIL,
       to: TO_EMAIL,
       replyTo: data.email,
-      subject: `【FAST OEM】定期発注の見積り依頼：${who}様`,
+      subject: `【FAST OEM】定期発注の見積もり依頼：${who}様`,
       text: internal.text,
       html: internal.html,
     })
@@ -263,7 +263,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   await Promise.allSettled([
     sendSlackMessage(
       [
-        ':inbox_tray: *定期発注の見積り依頼が届きました*',
+        ':inbox_tray: *定期発注の見積もり依頼が届きました*',
         `依頼者: ${slackEscape(who)}`,
         ...summary,
         `詳細は ${TO_EMAIL} 宛てのメールを確認してください。`,
@@ -274,7 +274,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
         from: FROM_EMAIL,
         to: data.email,
         replyTo: TO_EMAIL,
-        subject: '【FAST OEM】お見積りのご依頼を受け付けました',
+        subject: '【FAST OEM】お見積もりのご依頼を受け付けました',
         text: reply.text,
         html: reply.html,
       })

@@ -8,7 +8,7 @@ export const dynamic = 'force-static'
 export function GET() {
   const body = `# ${SITE_NAME}
 
-> 定期的に発注があるオリジナルグッズに限定した、日本国内向けのOEM製作サービス。年間の発注見込み（頻度×数量）をもとに単価を設計し、単発の発注よりも安い単価で同じ仕様の商品を継続生産する。運営：${COMPANY.name}（神奈川県横浜市）。
+> 定期的に発注があるオリジナルグッズに限定した、日本国内向けのOEM製作サービス。年間の発注見込み（頻度×数量）をもとに単価を設計し、単発の発注よりも安い単価で同じ仕様の商品を継続生産する。運営：${COMPANY.name}（東京都目黒区・神奈川県横浜市）。
 
 ## 概要
 - 対象：同じ商品（同一仕様）を継続して発注する法人・個人事業主（目安：年に複数回の発注）
@@ -31,9 +31,9 @@ export function GET() {
 ${FAQS.map((f) => `- Q: ${f.question}\n  A: ${f.answer}`).join('\n')}
 
 ## 依頼・問い合わせ
-- お見積り依頼フォーム：${SITE_URL}/#contact
+- お見積もり依頼フォーム：${SITE_URL}/#contact
 - メール：${CONTACT_EMAIL}（${BUSINESS_HOURS}）
-- 運営会社：${COMPANY.name}／${COMPANY.address}／${COMPANY.url}
+- 運営会社：${COMPANY.name}（${COMPANY.offices.map((o) => `${o.name} ${o.address}`).join('／')}）／${COMPANY.url}
 
 ## 提供を終了したもの
 - 旧オンライン注文ページ（/products、/cart、/checkout など）
