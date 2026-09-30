@@ -98,7 +98,7 @@ function summaryRows(data: QuoteValues): [string, string][] {
   ]
 }
 
-function buildInternalEmail(data: QuoteValues, receivedAt: string) {
+function buildInternalEmail(data: QuoteValues, receivedAt: string, honeypot = '') {
   const rows: [string, string][] = [
     ...summaryRows(data),
     ['会社名・屋号', data.company || '（未記入）'],
@@ -106,6 +106,11 @@ function buildInternalEmail(data: QuoteValues, receivedAt: string) {
     ['メールアドレス', data.email],
     ['電話番号', data.phone || '（未記入）'],
   ]
+  // ハニーポットに入力があった場合、判断材料として中身も載せる
+  // （自動入力による誤検知か、本物のボットかを見分けるため）
+  if (honeypot) {
+    rows.push(['スパム疑いの理由', `画面外の入力欄（website）に「${honeypot}」が入力されていました`])
+  }
   const message = data.message || '（未記入）'
 
   const text = [
@@ -198,10 +203,12 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   const submittedAt = Date.now()
   const { website, ...values } = input
 
-  // ハニーポットに値がある = ボット。成功したように見せて何も送らない。
-  if (website.trim()) {
-    console.warn('[quote] honeypot triggered — submission dropped')
-    return { status: 'success', submittedAt }
+  // ハニーポット（画面外の入力欄）に値がある = ボットの可能性が高い。
+  // ただし自動入力が隠し欄を埋めることもあり、破棄すると実リードを無音で失う。
+  // そのため通知メールは必ず送り、件名で見分けられるようにする（自動返信だけは送らない）。
+  const suspectedSpam = website.trim().length > 0
+  if (suspectedSpam) {
+    console.warn('[quote] honeypot triggered — flagged as suspected spam')
   }
 
   const result = validateQuote(input)
@@ -244,14 +251,14 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   const resend = new Resend(apiKey)
   const receivedAt = new Date(submittedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
   const who = oneLine(data.company ? `${data.company} ${data.name}` : data.name)
-  const internal = buildInternalEmail(data, receivedAt)
+  const internal = buildInternalEmail(data, receivedAt, suspectedSpam ? website.trim() : '')
 
   try {
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: TO_EMAILS,
       replyTo: data.email,
-      subject: `【FAST OEM】定期発注の見積もり依頼：${who}様`,
+      subject: `${suspectedSpam ? '【スパム疑い】' : ''}【FAST OEM】定期発注の見積もり依頼：${who}様`,
       text: internal.text,
       html: internal.html,
     })
@@ -272,24 +279,29 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   await Promise.allSettled([
     sendSlackMessage(
       [
-        ':inbox_tray: *定期発注の見積もり依頼が届きました*',
+        suspectedSpam
+          ? ':warning: *定期発注の見積もり依頼が届きました（スパム疑い）*'
+          : ':inbox_tray: *定期発注の見積もり依頼が届きました*',
         `依頼者: ${slackEscape(who)}`,
         ...summary,
         `詳細は ${REPLY_TO_EMAIL} 宛てのメールを確認してください。`,
       ].join('\n'),
     ),
-    resend.emails
-      .send({
-        from: FROM_EMAIL,
-        to: data.email,
-        replyTo: REPLY_TO_EMAIL,
-        subject: '【FAST OEM】お見積もりのご依頼を受け付けました',
-        text: reply.text,
-        html: reply.html,
-      })
-      .then(({ error }) => {
-        if (error) console.error('[quote] auto-reply failed:', error.message)
-      }),
+    // スパム疑いのときは自動返信を送らない（偽のアドレスへ送る踏み台にされないため）
+    suspectedSpam
+      ? Promise.resolve()
+      : resend.emails
+          .send({
+            from: FROM_EMAIL,
+            to: data.email,
+            replyTo: REPLY_TO_EMAIL,
+            subject: '【FAST OEM】お見積もりのご依頼を受け付けました',
+            text: reply.text,
+            html: reply.html,
+          })
+          .then(({ error }) => {
+            if (error) console.error('[quote] auto-reply failed:', error.message)
+          }),
   ])
 
   return { status: 'success', submittedAt }
