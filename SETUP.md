@@ -28,9 +28,12 @@ RESEND_API_KEY=...              # 必須：見積もり依頼メールの送信
 UPSTASH_REDIS_REST_URL=...      # 推奨：フォームのレート制限
 UPSTASH_REDIS_REST_TOKEN=...
 SLACK_WEBHOOK_URL=...           # 任意：見積もり依頼をSlackに通知
-CONTACT_EMAIL=contact@soara-mu.com         # 任意：通知先（既定値あり）
+CONTACT_EMAIL=a@example.com,b@example.com  # 任意：通知先。カンマ区切りで複数可（既定値あり）
 FROM_EMAIL="FAST OEM <noreply@soara-mu.com>" # 任意：送信元（既定値あり）
 ```
+
+`CONTACT_EMAIL` の先頭のアドレスが、自動返信メールの返信先になります。
+共有アドレス1つだけにすると担当者が気づけないことがあるため、本番では担当者個人のアドレスも並べて指定しています。
 
 Stripe / Supabase の環境変数は、現在のLPでは使っていません（旧EC版を戻す場合のみ必要）。
 

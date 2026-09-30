@@ -29,7 +29,16 @@ export type QuoteFormState = {
 }
 
 const FROM_EMAIL = process.env.FROM_EMAIL ?? 'FAST OEM <noreply@soara-mu.com>'
-const TO_EMAIL = process.env.CONTACT_EMAIL ?? CONTACT_EMAIL
+// 通知先。CONTACT_EMAIL にカンマ区切りで複数書ける（共有アドレスだけだと担当者が気づけないため）
+const TO_EMAILS = (() => {
+  const list = (process.env.CONTACT_EMAIL ?? CONTACT_EMAIL)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return list.length > 0 ? list : [CONTACT_EMAIL]
+})()
+// 自動返信の返信先・Slack に出す代表アドレス（1つだけ）
+const REPLY_TO_EMAIL = TO_EMAILS[0]
 // 送信に失敗したときの案内先。メールアドレスは画面に出さず、運営会社サイトの問い合わせフォームを案内する
 const FALLBACK_CONTACT = `${COMPANY.name}のお問い合わせフォーム（${COMPANY.url}/contact）`
 
@@ -240,7 +249,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   try {
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: TO_EMAIL,
+      to: TO_EMAILS,
       replyTo: data.email,
       subject: `【FAST OEM】定期発注の見積もり依頼：${who}様`,
       text: internal.text,
@@ -266,14 +275,14 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
         ':inbox_tray: *定期発注の見積もり依頼が届きました*',
         `依頼者: ${slackEscape(who)}`,
         ...summary,
-        `詳細は ${TO_EMAIL} 宛てのメールを確認してください。`,
+        `詳細は ${REPLY_TO_EMAIL} 宛てのメールを確認してください。`,
       ].join('\n'),
     ),
     resend.emails
       .send({
         from: FROM_EMAIL,
         to: data.email,
-        replyTo: TO_EMAIL,
+        replyTo: REPLY_TO_EMAIL,
         subject: '【FAST OEM】お見積もりのご依頼を受け付けました',
         text: reply.text,
         html: reply.html,
