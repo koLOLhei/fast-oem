@@ -1,25 +1,40 @@
 # FAST OEM サイト - セットアップガイド
 
 2026年9月21日に、オンライン注文（カート・Stripe決済・マイページ・管理画面・AI注文API）を停止し、
-**定期発注専用のLP（トップページ1枚）** に作り替えました。
+**定期発注専用のLP** に作り替えました。2026年10月1日に、商品ごとの個別ページ（`/products/<slug>`）を追加しています。
 
 ## 現在の構成
 
 | パス | 内容 |
 | --- | --- |
 | `/` | LP本体（`app/page.tsx`）。見積もり依頼フォームを含む静的ページ |
+| `/products/<slug>` | 商品ごとの個別ページ（`app/products/[slug]/page.tsx`）。旧ECの商品URLと同じ形。フォーム付き |
 | `/robots.txt` `/sitemap.xml` `/llms.txt` | SEO / AI検索向け |
 | `/opengraph-image.jpg` | SNS共有画像（`app/opengraph-image.jpg`） |
 | `/api/*` | 旧API。すべて `410 Gone` を返す（`app/api/[...path]/route.ts`） |
 | 旧ページ（`/products` `/contact` など） | `next.config.mjs` の `redirects()` でLP内の該当セクションへ 308 リダイレクト |
+| 今は無い商品のURL（`/products/plastic-bag` など） | 個別ページ側で `/#products` へ 308 リダイレクト |
 
-- 文言・会社情報・FAQ・対応グッズ：`lib/site.ts`（FAQはページ表示と構造化データの両方で使用）
+- 文言・会社情報・FAQ・対応グッズ・お知らせ：`lib/site.ts`（FAQはページ表示と構造化データの両方で使用）
+- 商品ごとのページの本文：`lib/product-pages.ts`
 - フォームの選択肢と入力チェック：`lib/quote.ts`（テスト：`__tests__/quote.test.ts`）
 - フォーム送信処理：`app/actions/quote.ts`（Server Action）
-  1. 入力チェック（ハニーポット付き）
+  1. 入力チェック（ハニーポットに入力があった送信は破棄せず、件名に【スパム疑い】を付けて通知する）
   2. レート制限（IP：10分5回、メール：10分3回。Upstash、未設定時はメモリ）
-  3. 社内通知メール（Resend、返信先＝お客様）
+  3. 社内通知メール（Resend、返信先＝お客様）。どのページのフォームから来たか（送信元ページ）も載る
   4. Slack通知（`SLACK_WEBHOOK_URL` がある場合）と、お客様への自動返信メール
+
+## 商品を追加するとき
+
+1. `lib/site.ts` の `PRODUCTS` に追加する（`slug`・`name`・`tag`・`description`・`specs`）。
+   - 写真があれば `public/images/` に置いて `image` と `alt` を指定する。無ければ省略でき、イラスト表示になる。
+   - 別の呼び方で検索される商品は `alternateNames` に入れる（カード・構造化データ・llms.txt に出る）。
+2. `lib/product-pages.ts` の `PRODUCT_PAGES` に、同じ `slug` で本文を追加する。これで個別ページ・サイトマップ・フッターに載る。
+3. `lib/quote.ts` の `GOODS_OPTIONS` に選択肢を追加する（フォームで選べるようにする）。
+4. お知らせを出すなら `lib/site.ts` の `NEWS` の先頭に1件足し、`SITE_LAST_UPDATED` を更新する。
+
+価格・最低ロット・納期・寸法など当社固有の数値は、確認が取れているものだけ書く。
+旧ECサイトには「ぬいぐるみ」「ステッカー」「レジ袋」も登録されていたが、2026年4月に販売を止めている。再開の確認なしに載せない。
 
 ## 環境変数
 

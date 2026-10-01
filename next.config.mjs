@@ -34,7 +34,10 @@ const securityHeaders = [
 // 旧EC版のページ。内容が近いLP内のセクションへ、なければトップへ恒久リダイレクトする。
 // （/admin・/factory など非公開だったURLは対象にせず 404 のまま）
 const LEGACY_PAGES = [
-  ['/products/:path*', '/#products'],
+  // /products/<slug> は商品ごとの個別ページ（app/products/[slug]）。
+  // 今は無い商品のURLは、ページ側で商品一覧へ転送している。
+  ['/products', '/#products'],
+  ['/products/category/:path*', '/#products'],
   ['/use-cases/:path*', '/#use-cases'],
   ['/guide', '/#flow'],
   ['/faq', '/#faq'],

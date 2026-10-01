@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readQuoteForm, validateQuote, type QuoteInput } from '@/lib/quote'
+import { readQuoteForm, sanitizeSource, validateQuote, type QuoteInput } from '@/lib/quote'
 
 const valid: QuoteInput = {
   goods: ['acrylic-keychain', 'can-badge'],
@@ -12,6 +12,7 @@ const valid: QuoteInput = {
   message: '3ヶ月ごとに3,000個ほど発注しています。',
   agree: true,
   website: '',
+  source: '',
 }
 
 describe('validateQuote', () => {
@@ -79,5 +80,39 @@ describe('readQuoteForm', () => {
     expect(input.agree).toBe(true)
     expect(input.company).toBe('')
     expect(input.website).toBe('http://spam.example')
+    expect(input.source).toBe('')
+  })
+
+  it('送信元ページはサイト内のパスだけを受け取る', () => {
+    const read = (source: string) => {
+      const fd = new FormData()
+      fd.append('source', source)
+      return readQuoteForm(fd).source
+    }
+    expect(read('/')).toBe('/')
+    expect(read('/products/epoxy-sticker')).toBe('/products/epoxy-sticker')
+    // 外部URL・スクリプト・改行（メールのヘッダーや本文を壊す値）は捨てる
+    expect(read('https://evil.example/')).toBe('')
+    expect(read('//evil')).toBe('')
+    expect(read('/products/<script>')).toBe('')
+    expect(read('/a\nBcc: x@example.com')).toBe('')
+    expect(read('/' + 'a'.repeat(200))).toBe('')
+  })
+})
+
+describe('sanitizeSource', () => {
+  it('プロトコル相対URL（//host）や末尾スラッシュの連続を通さない', () => {
+    expect(sanitizeSource('//evil.example')).toBe('')
+    expect(sanitizeSource('//evil')).toBe('')
+    expect(sanitizeSource('/products//x')).toBe('')
+    expect(sanitizeSource('/products/can-badge')).toBe('/products/can-badge')
+  })
+})
+
+describe('GOODS_OPTIONS', () => {
+  it('ぷくぷくシールを選べる', () => {
+    const result = validateQuote({ ...valid, goods: ['epoxy-sticker'] })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data.goods).toEqual(['epoxy-sticker'])
   })
 })

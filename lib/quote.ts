@@ -54,6 +54,8 @@ export type QuoteValues = {
 export type QuoteInput = QuoteValues & {
   /** ハニーポット。人間には見えない欄なので、値が入っていればボットとみなす。 */
   website: string
+  /** フォームが置かれていたページのパス（例：/products/can-badge）。不正な値は空になる */
+  source: string
 }
 
 export type ValidationResult =
@@ -71,6 +73,13 @@ function str(v: FormDataEntryValue | null): string {
   return typeof v === 'string' ? v : ''
 }
 
+/** 送信元ページはサイト内のパスだけを通す（通知メールにそのまま載せるため、任意の文字列は受け取らない） */
+const SOURCE_RE = /^\/(?:[a-z0-9-]+(?:\/[a-z0-9-]+)*)?$/
+
+export function sanitizeSource(value: string): string {
+  return value.length <= 80 && SOURCE_RE.test(value) ? value : ''
+}
+
 export function readQuoteForm(formData: FormData): QuoteInput {
   return {
     goods: formData.getAll('goods').map(str),
@@ -83,6 +92,7 @@ export function readQuoteForm(formData: FormData): QuoteInput {
     message: str(formData.get('message')),
     agree: str(formData.get('agree')) === 'yes',
     website: str(formData.get('website')),
+    source: sanitizeSource(str(formData.get('source'))),
   }
 }
 

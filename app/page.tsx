@@ -9,7 +9,6 @@ import {
   Check,
   CircleCheck,
   CircleX,
-  Clock,
   Factory,
   Gamepad2,
   Gift,
@@ -18,7 +17,6 @@ import {
   Megaphone,
   Package,
   PackageX,
-  Plus,
   RefreshCcw,
   Repeat,
   Sparkles,
@@ -28,23 +26,30 @@ import {
   Warehouse,
 } from 'lucide-react'
 import { JsonLd } from '@/components/json-ld'
+import { ContactSection } from '@/components/lp/contact-section'
 import { CostDiagram } from '@/components/lp/cost-diagram'
+import { FaqList } from '@/components/lp/faq-list'
 import { MobileCta } from '@/components/lp/mobile-cta'
 import { Phrase } from '@/components/lp/phrase'
 import { PlanCard } from '@/components/lp/plan-card'
-import { QuoteForm } from '@/components/lp/quote-form'
+import { ProductVisual } from '@/components/lp/product-visual'
 import { SectionHeading } from '@/components/lp/section-heading'
 import { btnAccent, btnPrimary, container } from '@/components/lp/styles'
 import {
+  BRAND_ID,
   BUSINESS_HOURS,
   COMPANY,
   FAQS,
+  NEWS,
+  ORG_ID,
   PRODUCTS,
-  REPLY_LEAD_TIME,
+  SERVICE_ID,
   SITE_LAST_UPDATED,
   SITE_NAME,
   SITE_TAGLINE,
   SITE_URL,
+  WEBSITE_ID,
+  productPath,
 } from '@/lib/site'
 
 const TITLE = `定期発注でオリジナルグッズを格安OEM製作｜${SITE_NAME}`
@@ -210,12 +215,6 @@ const FLOW = [
   { title: '定期生産', body: '以降はスケジュールに沿って同じ仕様で生産。数量の増減もご相談いただけます。' },
 ]
 
-const QUOTE_TIPS = [
-  '現在の仕入れ単価（比較のため）',
-  '既存品の写真や仕様（サイズ・素材など）',
-  '初回の希望納期と、その後の発注予定',
-]
-
 const COMPANY_ROWS: [string, React.ReactNode][] = [
   ['会社名', COMPANY.name],
   ['サービス名', SITE_NAME],
@@ -250,9 +249,7 @@ const COMPANY_ROWS: [string, React.ReactNode][] = [
 
 // 運営会社はコーポレートサイト（soara-mu.jp）と同じ実体として記述し、FAST OEM はそのブランドとして扱う。
 // 会社名・URL・ロゴをコーポレートサイトの構造化データと揃えることで、別会社と誤認されないようにする。
-const ORG_ID = `${COMPANY.url}/#organization`
-const BRAND_ID = `${SITE_URL}/#brand`
-const SERVICE_ID = `${SITE_URL}/#service`
+// @id は個別ページと共有するため lib/site.ts に置いてある。
 
 const jsonLd = [
   {
@@ -291,7 +288,7 @@ const jsonLd = [
   {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    '@id': `${SITE_URL}/#website`,
+    '@id': WEBSITE_ID,
     url: SITE_URL,
     name: SITE_NAME,
     inLanguage: 'ja',
@@ -305,7 +302,7 @@ const jsonLd = [
     name: TITLE,
     description: DESCRIPTION,
     inLanguage: 'ja',
-    isPartOf: { '@id': `${SITE_URL}/#website` },
+    isPartOf: { '@id': WEBSITE_ID },
     about: { '@id': SERVICE_ID },
     primaryImageOfPage: { '@type': 'ImageObject', url: `${SITE_URL}/opengraph-image.jpg`, width: 1200, height: 630 },
     dateModified: SITE_LAST_UPDATED,
@@ -334,6 +331,7 @@ const jsonLd = [
           '@type': 'Service',
           name: `${p.name}のOEM製作（定期発注）`,
           description: p.description,
+          url: `${SITE_URL}${productPath(p.slug)}`,
           ...(p.alternateNames ? { alternateName: p.alternateNames } : {}),
           ...(p.image ? { image: `${SITE_URL}${p.image}` } : {}),
         },
@@ -444,6 +442,35 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── お知らせ ───────────────────────────────────────── */}
+      {NEWS.length > 0 && (
+        <section aria-labelledby="news-title" className="border-b border-border bg-secondary/60">
+          <div className={`${container} flex flex-col gap-x-5 gap-y-2 py-3.5 sm:flex-row sm:items-baseline`}>
+            <h2 id="news-title" className="shrink-0 text-xs font-black tracking-[0.14em] text-primary">
+              お知らせ
+            </h2>
+            <ul className="min-w-0 flex-1 space-y-1.5">
+              {NEWS.map((n) => (
+                <li key={n.date + n.text} className="flex flex-col gap-x-3 gap-y-0.5 text-sm sm:flex-row sm:items-baseline">
+                  <time dateTime={n.date} className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+                    {n.date.replaceAll('-', '.')}
+                  </time>
+                  {n.href ? (
+                    <a href={n.href} className="py-0.5 font-semibold text-foreground underline decoration-primary/40 underline-offset-4 hover:text-primary">
+                      <Phrase>{n.text}</Phrase>
+                    </a>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      <Phrase>{n.text}</Phrase>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* ── 概要 ──────────────────────────────────────────── */}
       <section aria-label="サービスの概要" className="border-b border-border bg-background">
@@ -629,34 +656,21 @@ export default function HomePage() {
             {PRODUCTS.map((p) => (
               <li
                 key={p.slug}
-                className="flex w-full flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border sm:w-[calc(50%_-_0.625rem)] lg:w-[calc(33.333%_-_0.834rem)]"
+                className="relative flex w-full flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border transition-shadow hover:shadow-float has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary sm:w-[calc(50%_-_0.625rem)] lg:w-[calc(33.333%_-_0.834rem)]"
               >
                 <div className="relative aspect-[4/3] bg-muted">
-                  {p.image ? (
-                    <Image
-                      src={p.image}
-                      alt={p.alt ?? p.name}
-                      fill
-                      sizes="(min-width: 1024px) 350px, (min-width: 640px) 45vw, 92vw"
-                      className="object-cover"
-                    />
-                  ) : (
-                    // 写真が未用意の商品。商品名は下の見出しにあるので装飾として扱う
-                    <div className="flex h-full w-full items-center justify-center bg-secondary text-primary" aria-hidden="true">
-                      <svg viewBox="0 0 64 64" className="h-20 w-20">
-                        <circle cx="23" cy="25" r="13" fill="currentColor" opacity="0.18" />
-                        <circle cx="18.5" cy="20" r="3.6" fill="#fff" opacity="0.75" />
-                        <rect x="29" y="27" width="25" height="25" rx="8.5" fill="currentColor" opacity="0.28" />
-                        <circle cx="36.5" cy="34.5" r="3.6" fill="#fff" opacity="0.75" />
-                      </svg>
-                    </div>
-                  )}
+                  <ProductVisual product={p} sizes="(min-width: 1024px) 350px, (min-width: 640px) 45vw, 92vw" />
                   <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-primary shadow-card">
                     {p.tag}
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-lg font-black tracking-tight text-foreground">{p.name}</h3>
+                  <h3 className="text-lg font-black tracking-tight text-foreground">
+                    {/* カード全体をリンクにする（リンク名は商品名だけにして、読み上げが長くならないようにする） */}
+                    <a href={productPath(p.slug)} className="after:absolute after:inset-0 focus-visible:outline-none">
+                      {p.name}
+                    </a>
+                  </h3>
                   {p.alternateNames && (
                     <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
                       <Phrase>{`別名：${p.alternateNames.join('・')}`}</Phrase>
@@ -673,6 +687,10 @@ export default function HomePage() {
                       </li>
                     ))}
                   </ul>
+                  <p className="mt-auto flex items-center gap-1 pt-5 text-sm font-bold text-primary" aria-hidden="true">
+                    くわしく見る
+                    <ArrowRight className="h-4 w-4" />
+                  </p>
                 </div>
               </li>
             ))}
@@ -797,88 +815,12 @@ export default function HomePage() {
       <section id="faq" aria-labelledby="faq-title" className="border-t border-border py-20 sm:py-24">
         <div className={container}>
           <SectionHeading id="faq-title" eyebrow="FAQ" title="よくある質問" />
-          <div className="mx-auto mt-12 max-w-3xl space-y-3">
-            {FAQS.map((f) => (
-              <details key={f.question} className="faq group rounded-2xl bg-card shadow-card ring-1 ring-border">
-                <summary className="flex cursor-pointer items-start gap-3 p-5 sm:p-6">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-black text-white">
-                    Q
-                  </span>
-                  <h3 className="flex-1 font-bold leading-relaxed text-foreground">
-                    <Phrase>{f.question}</Phrase>
-                  </h3>
-                  <Plus
-                    className="mt-1 h-5 w-5 shrink-0 text-primary transition-transform group-open:rotate-45 motion-reduce:transition-none"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <div className="flex gap-3 px-5 pb-5 sm:px-6 sm:pb-6">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-amber-soft text-xs font-black text-[#7a4f00]">
-                    A
-                  </span>
-                  <p className="flex-1 text-[15px] leading-[1.85] text-muted-foreground">
-                    {f.answer}
-                  </p>
-                </div>
-              </details>
-            ))}
-          </div>
+          <FaqList faqs={FAQS} />
         </div>
       </section>
 
       {/* ── お見積もり依頼 ─────────────────────────────────────── */}
-      <section id="contact" aria-labelledby="contact-title" className="relative overflow-hidden bg-brand-blue-deep py-20 text-white sm:py-24">
-        <div className="pointer-events-none absolute inset-0 bg-dotgrid opacity-15" aria-hidden="true" />
-        <div className={`${container} relative grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14`}>
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <p className="flex items-center gap-3 text-xs font-bold tracking-[0.2em] text-white/70">
-              CONTACT
-              <span className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-black tracking-normal text-accent-foreground">
-                見積もり無料
-              </span>
-            </p>
-            <h2 id="contact-title" className="mt-3 text-[1.7rem] font-black leading-[1.4] tracking-tight sm:text-4xl">
-              <Phrase>定期発注のお見積もり依頼</Phrase>
-            </h2>
-            <p className="mt-5 text-base leading-[1.9] text-white/85">
-              作りたいグッズと、発注の頻度・数量の見込みを教えてください。{REPLY_LEAD_TIME}に担当者からご連絡します。
-            </p>
-
-            <div className="mt-8 rounded-2xl bg-white/10 p-5 ring-1 ring-white/15 sm:p-6">
-              <p className="font-bold">
-                <Phrase>お見積もりが早く・正確になる情報</Phrase>
-              </p>
-              <ul className="mt-3 space-y-2">
-                {QUOTE_TIPS.map((t) => (
-                  <li key={t} className="flex items-start gap-2.5 text-sm leading-relaxed text-white/85">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={3} aria-hidden="true" />
-                    <Phrase>{t}</Phrase>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-xs leading-relaxed text-white/65">
-                写真や資料は、送信後に届く確認メールへの返信でお送りください。
-              </p>
-            </div>
-
-            <dl className="mt-8 space-y-4 text-sm">
-              <div>
-                <dt className="flex items-center gap-2 text-white/75">
-                  <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  受付時間
-                </dt>
-                <dd className="mt-1 pl-6 font-bold">
-                  <Phrase>{BUSINESS_HOURS}</Phrase>
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="text-foreground">
-            <QuoteForm />
-          </div>
-        </div>
-      </section>
+      <ContactSection source="/" />
 
       {/* ── 運営会社 ──────────────────────────────────────── */}
       <section id="company" aria-labelledby="company-title" className="py-20 sm:py-24">

@@ -98,7 +98,7 @@ function summaryRows(data: QuoteValues): [string, string][] {
   ]
 }
 
-function buildInternalEmail(data: QuoteValues, receivedAt: string, honeypot = '') {
+function buildInternalEmail(data: QuoteValues, receivedAt: string, source = '', honeypot = '') {
   const rows: [string, string][] = [
     ...summaryRows(data),
     ['会社名・屋号', data.company || '（未記入）'],
@@ -106,6 +106,10 @@ function buildInternalEmail(data: QuoteValues, receivedAt: string, honeypot = ''
     ['メールアドレス', data.email],
     ['電話番号', data.phone || '（未記入）'],
   ]
+  // どのページのフォームから来たか（商品ページからの依頼を見分けるため）
+  if (source) {
+    rows.push(['送信元ページ', `${SITE_URL}${source === '/' ? '' : source}`])
+  }
   // ハニーポットに入力があった場合、判断材料として中身も載せる
   // （自動入力による誤検知か、本物のボットかを見分けるため）
   if (honeypot) {
@@ -201,7 +205,7 @@ function oneLine(s: string): string {
 export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormData): Promise<QuoteFormState> {
   const input = readQuoteForm(formData)
   const submittedAt = Date.now()
-  const { website, ...values } = input
+  const { website, source, ...values } = input
 
   // ハニーポット（画面外の入力欄）に値がある = ボットの可能性が高い。
   // ただし自動入力が隠し欄を埋めることもあり、破棄すると実リードを無音で失う。
@@ -251,7 +255,7 @@ export async function submitQuoteRequest(_prev: QuoteFormState, formData: FormDa
   const resend = new Resend(apiKey)
   const receivedAt = new Date(submittedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
   const who = oneLine(data.company ? `${data.company} ${data.name}` : data.name)
-  const internal = buildInternalEmail(data, receivedAt, suspectedSpam ? website.trim() : '')
+  const internal = buildInternalEmail(data, receivedAt, source, suspectedSpam ? website.trim() : '')
 
   try {
     const { error } = await resend.emails.send({

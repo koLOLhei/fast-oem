@@ -1,7 +1,8 @@
 /**
  * /llms.txt — AI（LLM）向けのサイト要約。llmstxt.org の慣習に沿った短い Markdown。
  */
-import { BUSINESS_HOURS, COMPANY, FAQS, PRODUCTS, SITE_NAME, SITE_URL } from '@/lib/site'
+import { PRODUCT_PAGES } from '@/lib/product-pages'
+import { BUSINESS_HOURS, COMPANY, FAQS, PRODUCTS, SITE_NAME, SITE_URL, productPath } from '@/lib/site'
 
 export const dynamic = 'force-static'
 
@@ -17,6 +18,11 @@ export function GET() {
 - 単発・1回限りの注文は受け付けていない
 - Webサイトからの直接注文（カート・決済）は停止中。見積もりはフォームで受け付ける
 - 納品：日本全国
+
+## 商品ごとのページ
+${PRODUCTS.filter((p) => PRODUCT_PAGES[p.slug])
+  .map((p) => `- [${p.name}のOEM製作](${SITE_URL}${productPath(p.slug)})：${PRODUCT_PAGES[p.slug].lead}`)
+  .join('\n')}
 
 ## 安くなる理由
 1. 1回ごとの数量ではなく、年間の発注見込みで単価を設計する

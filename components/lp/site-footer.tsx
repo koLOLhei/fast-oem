@@ -1,5 +1,6 @@
 import Image from 'next/image'
-import { COMPANY, SITE_NAME, SITE_TAGLINE } from '@/lib/site'
+import { PRODUCT_PAGES } from '@/lib/product-pages'
+import { COMPANY, PRODUCTS, SITE_NAME, SITE_TAGLINE, productPath } from '@/lib/site'
 import { container } from './styles'
 
 const LINKS = [
@@ -40,17 +41,37 @@ export function SiteFooter() {
           </p>
         </div>
 
-        <nav aria-label="フッターメニュー">
-          <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            {LINKS.map((l) => (
-              <li key={l.href}>
-                <a href={l.href} className="inline-block py-0.5 text-white/65 transition-colors hover:text-white">
-                  {l.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="space-y-9">
+          <nav aria-label="フッターメニュー">
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              {LINKS.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href} className="inline-block py-0.5 text-white/65 transition-colors hover:text-white">
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-labelledby="footer-products">
+            <p id="footer-products" className="text-xs font-bold tracking-[0.14em] text-white/45">
+              対応グッズ
+            </p>
+            <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              {PRODUCTS.filter((p) => PRODUCT_PAGES[p.slug]).map((p) => (
+                <li key={p.slug}>
+                  <a
+                    href={productPath(p.slug)}
+                    className="inline-block py-0.5 text-white/65 transition-colors hover:text-white"
+                  >
+                    {p.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </div>
       <div className="border-t border-white/10">
         <p className={`${container} py-5 text-xs text-white/50`}>

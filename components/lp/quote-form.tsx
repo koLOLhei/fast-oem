@@ -47,7 +47,17 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   )
 }
 
-export function QuoteForm() {
+export function QuoteForm({
+  defaultGoods = [],
+  source,
+  privacyHref = '#privacy',
+}: {
+  /** あらかじめ選んでおく「作りたいグッズ」（商品ページで使う） */
+  defaultGoods?: string[]
+  /** フォームが置かれているページのパス。社内通知メールに載せる */
+  source?: string
+  privacyHref?: string
+}) {
   const [state, formAction, isPending] = useActionState(submitQuoteRequest, initialState)
   const [goodsError, setGoodsError] = useState<string>()
   const [messageLength, setMessageLength] = useState(state.values?.message.length ?? 0)
@@ -128,7 +138,7 @@ export function QuoteForm() {
                 type="checkbox"
                 name="goods"
                 value={o.value}
-                defaultChecked={v?.goods.includes(o.value)}
+                defaultChecked={v ? v.goods.includes(o.value) : defaultGoods.includes(o.value)}
                 onChange={() => setGoodsError(undefined)}
                 className="h-4.5 w-4.5 shrink-0 accent-primary"
               />
@@ -296,7 +306,9 @@ export function QuoteForm() {
         </div>
       </div>
 
-      {/* ハニーポット：人には見えない入力欄。ボットが入力した送信は破棄する */}
+      {source && <input type="hidden" name="source" value={source} />}
+
+      {/* ハニーポット：人には見えない入力欄。入力があった送信は「スパム疑い」として通知する */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
         <label>
           ウェブサイト
@@ -317,7 +329,7 @@ export function QuoteForm() {
             className="mt-0.5 h-4.5 w-4.5 shrink-0 accent-primary"
           />
           <span>
-            <a href="#privacy" className="text-primary underline underline-offset-4">
+            <a href={privacyHref} className="text-primary underline underline-offset-4">
               個人情報の取り扱い
             </a>
             に同意して送信します

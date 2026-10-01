@@ -29,6 +29,15 @@ export const COMPANY = {
   ],
 } as const
 
+/**
+ * 構造化データの @id。トップと個別ページで同じ実体を指すために共有する。
+ * 運営会社はコーポレートサイト（soara-mu.jp）と同じ実体として記述し、FAST OEM はそのブランドとして扱う。
+ */
+export const ORG_ID = `${COMPANY.url}/#organization`
+export const BRAND_ID = `${SITE_URL}/#brand`
+export const SERVICE_ID = `${SITE_URL}/#service`
+export const WEBSITE_ID = `${SITE_URL}/#website`
+
 export type Product = {
   slug: string
   name: string
@@ -46,6 +55,7 @@ export const PRODUCTS: Product[] = [
   {
     slug: 'acrylic-keychain',
     name: 'アクリルキーホルダー',
+    alternateNames: ['アクキー'],
     image: '/images/acrylic-keychain.jpg',
     alt: 'キャラクターを印刷した型抜きのアクリルキーホルダー',
     tag: '型代不要',
@@ -56,6 +66,7 @@ export const PRODUCTS: Product[] = [
   {
     slug: 'can-badge',
     name: '缶バッジ',
+    alternateNames: ['缶バッチ'],
     image: '/images/can-badge.jpg',
     alt: 'さまざまなデザインを印刷した丸型の缶バッジと裏面の安全ピン',
     tag: '大量生産向き',
@@ -66,6 +77,7 @@ export const PRODUCTS: Product[] = [
   {
     slug: 'pin-badge',
     name: 'ピンバッジ',
+    alternateNames: ['ピンズ', 'ピンバッチ'],
     image: '/images/pin-badge.jpg',
     alt: 'ゴールドとシルバーのメタルピンバッジを裏面から撮影した様子',
     tag: '金型は初回のみ',
@@ -76,6 +88,7 @@ export const PRODUCTS: Product[] = [
   {
     slug: 'rubber-keychain',
     name: 'ラバーキーホルダー',
+    alternateNames: ['ラバキー', 'PVCキーホルダー'],
     image: '/images/rubber-keychain.jpg',
     alt: 'カラフルなPVC素材の立体ラバーキーホルダー',
     tag: '金型は初回のみ',
@@ -91,6 +104,26 @@ export const PRODUCTS: Product[] = [
     description:
       '印刷したシールの表面に透明な樹脂を盛り、ぷっくりと立体的に仕上げたシールです。ぷっくりシール・ドロップシール・エポキシシールとも呼ばれ、いずれも同じものを指します。',
     specs: ['フルカラー印刷', '透明樹脂で厚みのある仕上がり', 'サイズ・台紙の形はご相談'],
+  },
+]
+
+/** 商品ごとの個別ページ。旧ECサイトの商品URL（/products/<slug>）と同じ形にしてある */
+export function productPath(slug: string): string {
+  return `/products/${slug}`
+}
+
+export function findProduct(slug: string): Product | undefined {
+  return PRODUCTS.find((p) => p.slug === slug)
+}
+
+/** トップページに出すお知らせ。新しいものを上に書く */
+export type News = { date: string; text: string; href?: string }
+
+export const NEWS: News[] = [
+  {
+    date: '2026-10-01',
+    text: '対応グッズに「ぷくぷくシール（ぷっくりシール・ドロップシール）」を追加しました。',
+    href: productPath('epoxy-sticker'),
   },
 ]
 
