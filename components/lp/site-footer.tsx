@@ -31,7 +31,7 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="mt-5 max-w-md text-sm leading-relaxed text-white/65">
-            定期的に発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした単価でOEM製作します。アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ぷくぷくシール（ドロップシール）に対応。
+            定期的に発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした単価でOEM製作します。キーホルダー・缶バッジ・ぷくぷくシール（ドロップシール）・ぬいぐるみ・ミニフィギュアなどに対応。
           </p>
           <p className="mt-5 text-sm text-white/65">
             運営：

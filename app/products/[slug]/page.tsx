@@ -254,6 +254,22 @@ export default async function ProductPage({ params }: Props) {
             ))}
           </div>
 
+          {content.seeAlso && (
+            <ul className="mx-auto mt-6 max-w-3xl space-y-2">
+              {content.seeAlso.map((l) => (
+                <li key={l.slug}>
+                  <a
+                    href={productPath(l.slug)}
+                    className="inline-flex items-start gap-1.5 py-1 text-sm font-bold text-primary underline underline-offset-4"
+                  >
+                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <Phrase>{l.text}</Phrase>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+
           {product.alternateNames && (
             <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-secondary p-5 sm:p-6">
               <p className="text-sm font-bold text-secondary-foreground">
@@ -284,6 +300,26 @@ export default async function ProductPage({ params }: Props) {
           </ul>
         </div>
       </section>
+
+      {/* ── 近い種類（個別ページが無いものをまとめて案内） ─────────── */}
+      {content.related && (
+        <section id="related" aria-labelledby="related-title" className="border-t border-border py-16 sm:py-20">
+          <div className={container}>
+            <SectionHeading id="related-title" eyebrow="MORE" title={content.related.title} lead={content.related.lead} />
+            <dl className="mx-auto mt-10 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {content.related.items.map((r) => (
+                <div key={r.title} className="rounded-2xl bg-card p-5 shadow-card ring-1 ring-border sm:p-6">
+                  <dt className="font-black leading-snug tracking-tight text-foreground">{r.title}</dt>
+                  <dd className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{r.body}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-foreground/85">
+              <Phrase>{content.related.note}</Phrase>
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ── デザインで気をつけること ─────────────────────────── */}
       <section id="tips" aria-labelledby="tips-title" className="border-y border-border bg-muted py-16 sm:py-20">

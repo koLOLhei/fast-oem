@@ -26,6 +26,7 @@ import {
   Warehouse,
 } from 'lucide-react'
 import { JsonLd } from '@/components/json-ld'
+import { AltNames } from '@/components/lp/alt-names'
 import { ContactSection } from '@/components/lp/contact-section'
 import { CostDiagram } from '@/components/lp/cost-diagram'
 import { FaqList } from '@/components/lp/faq-list'
@@ -54,10 +55,10 @@ import {
 
 const TITLE = `定期発注でオリジナルグッズを格安OEM製作｜${SITE_NAME}`
 const DESCRIPTION =
-  'くり返し発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした定期発注価格でOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ぷくぷくシール（ぷっくりシール／ドロップシール）に対応。ガチャ景品や継続ノベルティのコストを下げたい方へ。見積もり無料。'
+  'くり返し発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした定期発注価格でOEM製作。アクリルキーホルダー・缶バッジ・ぷくぷくシール（ドロップシール）・ぬいぐるみ・ミニフィギュアなど幅広く対応。ガチャ景品や継続ノベルティのコストを下げたい方へ。見積もり無料。'
 const SHARE_TITLE = 'くり返し作るオリジナルグッズを、定期発注でぐっと安く｜FAST OEM'
 const SHARE_DESCRIPTION =
-  '定期的に発注がある商品に限定したオリジナルグッズOEM。アクリルキーホルダー・缶バッジ・ぷくぷくシールなどに対応し、年間の発注見込みで単価を設計。見積もり無料。'
+  '定期的に発注がある商品に限定したオリジナルグッズOEM。キーホルダー・缶バッジ・シール・ぬいぐるみ・ミニフィギュアなどに対応し、年間の発注見込みで単価を設計。見積もり無料。'
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
@@ -102,7 +103,7 @@ const HERO_PHOTOS = PRODUCTS.flatMap((p) => {
 })
 
 const FACTS = [
-  { icon: Package, label: '対応グッズ', value: 'アクリル・缶バッジ・ピンバッジ・ラバー・シール' },
+  { icon: Package, label: '対応グッズ', value: 'キーホルダー・バッジ・シール・ぬいぐるみ・フィギュアなど' },
   { icon: Layers, label: '型代', value: '初回のみ（継続中は型を保管）' },
   { icon: Truck, label: '納品', value: '日本全国へお届け' },
   { icon: Building2, label: '運営', value: '株式会社SOARA（東京・横浜）' },
@@ -167,12 +168,12 @@ const USE_CASES = [
   {
     icon: Gift,
     title: 'ガチャガチャ（カプセルトイ）の景品',
-    body: '補充のたびに同じ商品を発注するなら、定期発注の効果がもっとも大きい用途です。',
+    body: 'キーホルダーやミニフィギュアなど、補充のたびに同じ商品を発注するなら、定期発注の効果がもっとも大きい用途です。',
   },
   {
     icon: Gamepad2,
     title: 'クレーンゲーム・アミューズメント景品',
-    body: '景品の入れ替えサイクルに合わせて、計画的に生産・納品します。',
+    body: 'ぬいぐるみやマスコットなどの景品を、入れ替えサイクルに合わせて計画的に生産・納品します。',
   },
   {
     icon: Store,
@@ -649,37 +650,39 @@ export default function HomePage() {
             id="products-title"
             eyebrow="PRODUCTS"
             title="定期発注に対応しているグッズ"
-            lead="アクリル・缶バッジ・ぷくぷくシールなど、同じ仕様でくり返し生産しやすいグッズを扱っています。"
+            lead="キーホルダー・バッジ・シール・ぬいぐるみ・フィギュアなど、同じ仕様でくり返し生産しやすいグッズを扱っています。"
           />
-          {/* 5枚なので grid だと最終行が片寄る。flex-wrap で最終行を中央に寄せる */}
+          {/* 枚数が3の倍数でないと grid では最終行が片寄るので、flex-wrap で最終行を中央に寄せる。
+              スマホでは縦に長くなりすぎないよう、写真を左に置いた横並びにして仕様の箇条書きは省く */}
           <ul className="mt-12 flex flex-wrap justify-center gap-5">
             {PRODUCTS.map((p) => (
               <li
                 key={p.slug}
-                className="relative flex w-full flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border transition-shadow hover:shadow-float has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary sm:w-[calc(50%_-_0.625rem)] lg:w-[calc(33.333%_-_0.834rem)]"
+                className="relative flex w-full overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border transition-shadow hover:shadow-float has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary sm:w-[calc(50%_-_0.625rem)] sm:flex-col lg:w-[calc(33.333%_-_0.834rem)]"
               >
-                <div className="relative aspect-[4/3] bg-muted">
-                  <ProductVisual product={p} sizes="(min-width: 1024px) 350px, (min-width: 640px) 45vw, 92vw" />
-                  <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-primary shadow-card">
+                <div className="relative w-28 shrink-0 bg-muted sm:aspect-[4/3] sm:w-full">
+                  <ProductVisual product={p} sizes="(min-width: 1024px) 350px, (min-width: 640px) 45vw, 112px" />
+                  <span className="absolute left-3 top-3 hidden rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-primary shadow-card sm:block">
                     {p.tag}
                   </span>
                 </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-lg font-black tracking-tight text-foreground">
+                <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
+                  <p className="mb-1.5 self-start rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-primary sm:hidden">
+                    {p.tag}
+                  </p>
+                  <h3 className="text-base font-black tracking-tight text-foreground sm:text-lg">
                     {/* カード全体をリンクにする（リンク名は商品名だけにして、読み上げが長くならないようにする） */}
                     <a href={productPath(p.slug)} className="after:absolute after:inset-0 focus-visible:outline-none">
                       {p.name}
                     </a>
                   </h3>
                   {p.alternateNames && (
-                    <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
-                      <Phrase>{`別名：${p.alternateNames.join('・')}`}</Phrase>
-                    </p>
+                    <AltNames names={p.alternateNames} className="mt-1 text-[12px] font-semibold text-muted-foreground" />
                   )}
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed text-muted-foreground sm:mt-2 sm:line-clamp-none sm:text-sm">
                     {p.description}
                   </p>
-                  <ul className="mt-4 space-y-1.5 border-t border-border pt-4 text-[13px] text-foreground/80">
+                  <ul className="mt-4 hidden space-y-1.5 border-t border-border pt-4 text-[13px] text-foreground/80 sm:block">
                     {p.specs.map((s) => (
                       <li key={s} className="flex items-start gap-1.5">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={3} aria-hidden="true" />
@@ -687,7 +690,7 @@ export default function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  <p className="mt-auto flex items-center gap-1 pt-5 text-sm font-bold text-primary" aria-hidden="true">
+                  <p className="mt-auto flex items-center gap-1 pt-3 text-sm font-bold text-primary sm:pt-5" aria-hidden="true">
                     くわしく見る
                     <ArrowRight className="h-4 w-4" />
                   </p>
@@ -696,7 +699,7 @@ export default function HomePage() {
             ))}
           </ul>
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            <Phrase>上記以外のグッズも、継続した発注が見込める場合はご相談ください。</Phrase>
+            <Phrase>ここに無いグッズも製作できます。継続した発注が見込める場合は、作りたいものをお知らせください。</Phrase>
           </p>
         </div>
       </section>

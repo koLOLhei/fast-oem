@@ -115,4 +115,15 @@ describe('GOODS_OPTIONS', () => {
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.data.goods).toEqual(['epoxy-sticker'])
   })
+
+  it('個別ページがある商品は、すべてフォームで選べる', async () => {
+    const { PRODUCTS } = await import('@/lib/site')
+    const { PRODUCT_PAGES } = await import('@/lib/product-pages')
+    const { GOODS_OPTIONS } = await import('@/lib/quote')
+    const selectable = new Set<string>(GOODS_OPTIONS.map((o) => o.value))
+    for (const p of PRODUCTS) {
+      expect(PRODUCT_PAGES[p.slug], `${p.slug} の本文が lib/product-pages.ts に無い`).toBeDefined()
+      expect(selectable.has(p.slug), `${p.slug} が GOODS_OPTIONS に無い`).toBe(true)
+    }
+  })
 })

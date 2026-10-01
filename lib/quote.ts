@@ -9,6 +9,10 @@ export const GOODS_OPTIONS = [
   { value: 'pin-badge', label: 'ピンバッジ' },
   { value: 'rubber-keychain', label: 'ラバーキーホルダー' },
   { value: 'epoxy-sticker', label: 'ぷくぷくシール' },
+  { value: 'sticker', label: 'ステッカー' },
+  { value: 'plush-toy', label: 'ぬいぐるみ' },
+  { value: 'mini-figure', label: 'ミニフィギュア' },
+  { value: 'plastic-bag', label: 'レジ袋' },
   { value: 'other', label: 'その他・未定' },
 ] as const
 
