@@ -49,10 +49,10 @@ import {
 
 const TITLE = `定期発注でオリジナルグッズを格安OEM製作｜${SITE_NAME}`
 const DESCRIPTION =
-  'くり返し発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした定期発注価格でOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダーに対応し、型代は初回のみ。ガチャ景品や継続ノベルティのコストを下げたい方へ。見積もり無料。'
+  'くり返し発注があるオリジナルグッズに限定し、年間の発注見込みをもとにした定期発注価格でOEM製作。アクリルキーホルダー・缶バッジ・ピンバッジ・ラバーキーホルダー・ぷくぷくシール（ぷっくりシール／ドロップシール）に対応。ガチャ景品や継続ノベルティのコストを下げたい方へ。見積もり無料。'
 const SHARE_TITLE = 'くり返し作るオリジナルグッズを、定期発注でぐっと安く｜FAST OEM'
 const SHARE_DESCRIPTION =
-  '定期的に発注がある商品に限定したオリジナルグッズOEM。年間の発注見込みで単価を設計し、型代は初回のみ。見積もり無料。'
+  '定期的に発注がある商品に限定したオリジナルグッズOEM。アクリルキーホルダー・缶バッジ・ぷくぷくシールなどに対応し、年間の発注見込みで単価を設計。見積もり無料。'
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
@@ -90,8 +90,14 @@ const HERO_TILE: Record<string, { className: string; sizes: string }> = {
   'rubber-keychain': { className: '', sizes: '(min-width: 1024px) 160px, 25vw' },
 }
 
+/** ヒーローのタイルは写真があるものだけ。タイル数を固定したいので HERO_TILE を定義元にする */
+const HERO_PHOTOS = PRODUCTS.flatMap((p) => {
+  const tile = HERO_TILE[p.slug]
+  return p.image && tile ? [{ slug: p.slug, image: p.image, alt: p.alt ?? p.name, ...tile }] : []
+})
+
 const FACTS = [
-  { icon: Package, label: '対応グッズ', value: 'アクリル・缶バッジ・ピンバッジ・ラバー' },
+  { icon: Package, label: '対応グッズ', value: 'アクリル・缶バッジ・ピンバッジ・ラバー・シール' },
   { icon: Layers, label: '型代', value: '初回のみ（継続中は型を保管）' },
   { icon: Truck, label: '納品', value: '日本全国へお届け' },
   { icon: Building2, label: '運営', value: '株式会社SOARA（東京・横浜）' },
@@ -166,7 +172,7 @@ const USE_CASES = [
   {
     icon: Store,
     title: '店頭・ECで売れ続ける定番グッズ',
-    body: 'ご当地グッズや観光土産、ショップのオリジナル商品の再生産に。',
+    body: 'ご当地グッズや観光土産、ショップのオリジナル商品の再生産に。ご当地シールなどの小物も対象です。',
   },
   {
     icon: Megaphone,
@@ -328,7 +334,8 @@ const jsonLd = [
           '@type': 'Service',
           name: `${p.name}のOEM製作（定期発注）`,
           description: p.description,
-          image: `${SITE_URL}${p.image}`,
+          ...(p.alternateNames ? { alternateName: p.alternateNames } : {}),
+          ...(p.image ? { image: `${SITE_URL}${p.image}` } : {}),
         },
       })),
     },
@@ -416,16 +423,16 @@ export default function HomePage() {
           <div className="relative mx-auto w-full max-w-md lg:max-w-none">
             {/* 写真とカードは重ねない。スマホは写真4枚を横並び、PCは大1枚＋小2枚のタイル。その下にカード */}
             <div className="grid grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-3 lg:gap-3">
-              {PRODUCTS.map((p, i) => (
+              {HERO_PHOTOS.map((t, i) => (
                 <div
-                  key={p.slug}
-                  className={`relative aspect-square overflow-hidden rounded-xl bg-muted shadow-card ring-1 ring-border lg:rounded-2xl ${HERO_TILE[p.slug]?.className ?? ''}`}
+                  key={t.slug}
+                  className={`relative aspect-square overflow-hidden rounded-xl bg-muted shadow-card ring-1 ring-border lg:rounded-2xl ${t.className}`}
                 >
                   <Image
-                    src={p.image}
-                    alt={p.alt}
+                    src={t.image}
+                    alt={t.alt}
                     fill
-                    sizes={HERO_TILE[p.slug]?.sizes ?? '25vw'}
+                    sizes={t.sizes}
                     loading={i === 0 ? 'eager' : 'lazy'}
                     fetchPriority={i === 0 ? 'high' : undefined}
                     className="object-cover"
@@ -615,25 +622,46 @@ export default function HomePage() {
             id="products-title"
             eyebrow="PRODUCTS"
             title="定期発注に対応しているグッズ"
-            lead="どれも、同じ仕様でくり返し生産しやすいグッズです。"
+            lead="アクリル・缶バッジ・ぷくぷくシールなど、同じ仕様でくり返し生産しやすいグッズを扱っています。"
           />
-          <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* 5枚なので grid だと最終行が片寄る。flex-wrap で最終行を中央に寄せる */}
+          <ul className="mt-12 flex flex-wrap justify-center gap-5">
             {PRODUCTS.map((p) => (
-              <li key={p.slug} className="flex flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border">
+              <li
+                key={p.slug}
+                className="flex w-full flex-col overflow-hidden rounded-2xl bg-card shadow-card ring-1 ring-border sm:w-[calc(50%_-_0.625rem)] lg:w-[calc(33.333%_-_0.834rem)]"
+              >
                 <div className="relative aspect-[4/3] bg-muted">
-                  <Image
-                    src={p.image}
-                    alt={p.alt}
-                    fill
-                    sizes="(min-width: 1024px) 270px, (min-width: 640px) 45vw, 92vw"
-                    className="object-cover"
-                  />
+                  {p.image ? (
+                    <Image
+                      src={p.image}
+                      alt={p.alt ?? p.name}
+                      fill
+                      sizes="(min-width: 1024px) 350px, (min-width: 640px) 45vw, 92vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    // 写真が未用意の商品。商品名は下の見出しにあるので装飾として扱う
+                    <div className="flex h-full w-full items-center justify-center bg-secondary text-primary" aria-hidden="true">
+                      <svg viewBox="0 0 64 64" className="h-20 w-20">
+                        <circle cx="23" cy="25" r="13" fill="currentColor" opacity="0.18" />
+                        <circle cx="18.5" cy="20" r="3.6" fill="#fff" opacity="0.75" />
+                        <rect x="29" y="27" width="25" height="25" rx="8.5" fill="currentColor" opacity="0.28" />
+                        <circle cx="36.5" cy="34.5" r="3.6" fill="#fff" opacity="0.75" />
+                      </svg>
+                    </div>
+                  )}
                   <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-primary shadow-card">
                     {p.tag}
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h3 className="text-lg font-black tracking-tight text-foreground">{p.name}</h3>
+                  {p.alternateNames && (
+                    <p className="mt-1 text-[12px] font-semibold text-muted-foreground">
+                      <Phrase>{`別名：${p.alternateNames.join('・')}`}</Phrase>
+                    </p>
+                  )}
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {p.description}
                   </p>

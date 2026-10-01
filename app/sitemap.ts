@@ -9,7 +9,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(SITE_LAST_UPDATED),
       changeFrequency: 'monthly',
       priority: 1,
-      images: [`${SITE_URL}/opengraph-image.jpg`, ...PRODUCTS.map((p) => `${SITE_URL}${p.image}`)],
+      images: [
+        `${SITE_URL}/opengraph-image.jpg`,
+        ...PRODUCTS.filter((p) => p.image).map((p) => `${SITE_URL}${p.image}`),
+      ],
     },
   ]
 }

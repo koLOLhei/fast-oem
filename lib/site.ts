@@ -6,7 +6,7 @@
 export const SITE_URL = 'https://fast-oem.soara-mu.jp'
 export const SITE_NAME = 'FAST OEM'
 export const SITE_TAGLINE = '定期発注専用のオリジナルグッズOEM'
-export const SITE_LAST_UPDATED = '2026-09-21'
+export const SITE_LAST_UPDATED = '2026-10-01'
 
 export const CONTACT_EMAIL = 'contact@soara-mu.com'
 export const BUSINESS_HOURS = '平日 10:00〜18:00（土日祝・年末年始を除く）'
@@ -32,8 +32,11 @@ export const COMPANY = {
 export type Product = {
   slug: string
   name: string
-  image: string
-  alt: string
+  /** 商品写真。未用意の商品はアイコン表示にフォールバックする */
+  image?: string
+  alt?: string
+  /** 同じ商品の別の呼び方。検索経路が分かれるため構造化データ・本文に出す */
+  alternateNames?: string[]
   tag: string
   description: string
   specs: string[]
@@ -80,6 +83,15 @@ export const PRODUCTS: Product[] = [
       'やわらかいPVC素材で、立体的なデザインを表現できます。キャラクターグッズや景品に人気。金型は継続発注の間は保管します。',
     specs: ['PVC素材・立体成型', 'フルカラー対応', 'ボールチェーンなど金具選択可'],
   },
+  {
+    slug: 'epoxy-sticker',
+    name: 'ぷくぷくシール',
+    alternateNames: ['ぷっくりシール', 'ドロップシール', 'エポキシシール', 'レジンシール', '盛り上がりシール'],
+    tag: '厚盛り仕上げ',
+    description:
+      '印刷したシールの表面に透明な樹脂を盛り、ぷっくりと立体的に仕上げたシールです。ぷっくりシール・ドロップシール・エポキシシールとも呼ばれ、いずれも同じものを指します。',
+    specs: ['フルカラー印刷', '透明樹脂で厚みのある仕上がり', 'サイズ・台紙の形はご相談'],
+  },
 ]
 
 export type Faq = { question: string; answer: string }
@@ -111,9 +123,19 @@ export const FAQS: Faq[] = [
       '商品や仕様によって異なります。1回あたりの数量と発注の頻度をあわせてご相談ください。',
   },
   {
+    question: 'ぷくぷくシール・ぷっくりシール・ドロップシールの違いは何ですか？',
+    answer:
+      '呼び方が違うだけで、どれも同じものを指します。印刷したシールの表面に透明な樹脂を盛り、ぷっくりと立体的に仕上げたシールです。エポキシシール・レジンシール・盛り上がりシールと呼ばれることもあります。どの呼び方でご相談いただいても、同じ製作に対応します。',
+  },
+  {
+    question: 'シールも定期発注の対象になりますか？',
+    answer:
+      '対象です。同じ仕様でくり返し発注が見込める場合は、ぷくぷくシール（ドロップシール）も定期発注価格でお見積もりします。1回あたりの数量と発注の頻度をあわせてご相談ください。',
+  },
+  {
     question: '型代はかかりますか？',
     answer:
-      'ピンバッジとラバーキーホルダーは、初回のみ金型代がかかります。継続して発注いただいている間は型を保管するため、2回目以降はかかりません。アクリルキーホルダーと缶バッジは型代不要です。',
+      'ピンバッジとラバーキーホルダーは、初回のみ金型代がかかります。継続して発注いただいている間は型を保管するため、2回目以降はかかりません。アクリルキーホルダーと缶バッジは型代不要です。ぷくぷくシールは仕様によって異なるため、お見積もりの際にご案内します。',
   },
   {
     question: '途中で数量を変えたり、発注の時期をずらしたりできますか？',
