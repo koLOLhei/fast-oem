@@ -55,7 +55,7 @@ export function SiteFooter() {
           </nav>
 
           <nav aria-labelledby="footer-products">
-            <p id="footer-products" className="text-xs font-bold tracking-[0.14em] text-white/45">
+            <p id="footer-products" className="text-xs font-bold tracking-[0.14em] text-white/60">
               対応グッズ
             </p>
             <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
