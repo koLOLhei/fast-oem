@@ -667,7 +667,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
-                  <p className="mb-1.5 self-start rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-primary sm:hidden">
+                  <p className="mb-1.5 self-start rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-secondary-foreground sm:hidden">
                     {p.tag}
                   </p>
                   <h3 className="text-base font-black tracking-tight text-foreground sm:text-lg">
